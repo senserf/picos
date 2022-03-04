@@ -116,7 +116,7 @@
 			IOC_CURRENT_2MA		| \
 			IOC_STRENGTH_AUTO	| \
 			0, 0, 0), \
-		iocportconfig (IOID_23, IOC_PORT_GPIO, \
+		iocportconfig (IOID_23, IOC_PORT_AUX_IO, \
 			IOC_IOMODE_NORMAL 	| \
 			IOC_NO_WAKE_UP		| \
 			IOC_NO_EDGE		| \
@@ -126,7 +126,6 @@
 			IOC_SLEW_DISABLE	| \
 			IOC_CURRENT_2MA		| \
 			IOC_STRENGTH_AUTO	| \
-			IOC_PORT_AUX_IO		| \
 			0, 0, 0), \
 		iocportconfig (IOID_25, IOC_PORT_GPIO, \
 			IOC_IOMODE_NORMAL 	| \
@@ -332,37 +331,43 @@
 #include "sensors.h"
 #include "pin_sensor.h"
 
-#define	SENS_ISI	2	// Inter-sample interval
-#define	SENS_NSA	8	// Number of samples
-// AUXIO7 maps into pin 23
-#define	SENS_PIN	ADC_COMPB_IN_AUXIO7
-// This is 4.3V, the other option is AUXADC_REF_VDDS_REL (VDDS)
-#define	SENS_REF	AUXADC_REF_FIXED
-// Sample holding (sampling) time, the options are:
-//	AUXADC_SAMPLE_TIME_2P7_US
-//	AUXADC_SAMPLE_TIME_5P3_US
-//	AUXADC_SAMPLE_TIME_10P6_US
-//	AUXADC_SAMPLE_TIME_21P3_US
-//	AUXADC_SAMPLE_TIME_42P6_US
-//	AUXADC_SAMPLE_TIME_85P3_US
-//	AUXADC_SAMPLE_TIME_170_US
-//	AUXADC_SAMPLE_TIME_341_US
-//	AUXADC_SAMPLE_TIME_682_US
-//	AUXADC_SAMPLE_TIME_1P37_MS
-//	AUXADC_SAMPLE_TIME_2P73_MS
-//	AUXADC_SAMPLE_TIME_5P46_MS
-//	AUXADC_SAMPLE_TIME_10P9_MS
+// Here's an illustration how to define an ADC (pin) sensor:
+// We need five parameters:
+//	SENS_NSA	- the number of samples (takes) to average
+//	SENS_ISI	- the inter sample interval in PicOS ms (1/1024s)
+//	SENS_PIN	- which pin (in AUX IO terms), the mapping is
+//			  AUXIO 0 -- DIO 30, AUXIO 1 -- DIO 29, ... 7 -- 23
+//	SENS_REF	- reference voltage: AUXADC_REF_VDDS_REL or
+//			  AUXADC_REF_FIXED (4.3V)
+//	SENS_SHT	- sample holding time:
+//				AUXADC_SAMPLE_TIME_2P7_US
+//				AUXADC_SAMPLE_TIME_5P3_US
+//				AUXADC_SAMPLE_TIME_10P6_US
+//				AUXADC_SAMPLE_TIME_21P3_US
+//				AUXADC_SAMPLE_TIME_42P6_US
+//				AUXADC_SAMPLE_TIME_85P3_US
+//				AUXADC_SAMPLE_TIME_170_US
+//				AUXADC_SAMPLE_TIME_341_US
+//				AUXADC_SAMPLE_TIME_682_US
+//				AUXADC_SAMPLE_TIME_1P37_MS
+//				AUXADC_SAMPLE_TIME_2P73_MS
+//				AUXADC_SAMPLE_TIME_5P46_MS
+//				AUXADC_SAMPLE_TIME_10P9_MS
 #define	SENS_SHT	AUXADC_SAMPLE_TIME_1P37_MS
+#define	SENS_ISI	2	// millisecs
+#define	SENS_NSA	8	// takes to average
+#define	SENS_PIN	ADC_COMPB_IN_AUXIO7	// maps to DIO_23
+#define	SENS_REF	AUXADC_REF_FIXED	// 4.3V
 
 #define	SENSOR_LIST { \
 		INTERNAL_TEMPERATURE_SENSOR,			\
 		INTERNAL_VOLTAGE_SENSOR,			\
+		DIGITAL_SENSOR (0, NULL, pin_sensor_read),	\
 		ANALOG_SENSOR (	SENS_ISI,			\
 				SENS_NSA,			\
 				SENS_PIN,			\
 				SENS_REF,			\
 				SENS_SHT),			\
-		DIGITAL_SENSOR (0, NULL, pin_sensor_read),	\
 }
 
 //

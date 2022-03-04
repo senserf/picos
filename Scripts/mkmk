@@ -1652,7 +1652,32 @@ proc scanfile { fname } {
 			continue
 		}
 
-		# look for a preprocessor directive
+		# check for a preprocessor directive
+		if ![regexp {^[[:blank:]]*#} $line] {
+			# ... ignore everything else
+			continue
+		}
+
+		# check for multiple lines continued with backslash
+		while { [regexp "(.*)\[\\\\\]\[ \t\]*$" $line jk newl] } {
+			# check if the new line has even number of \'s at the
+			# end
+			if { [regexp "\[\\\\\]+$" $newl bc] &&
+			     [expr [string length $bc] & 1] } {
+				# this isn't an escape
+				break;
+			}
+			# remove the escape sequence
+			set line $newl
+			if { [gets $fd newl] < 0 } {
+				puts "Warning: continuation line missing at\
+					file's end"
+				break
+			}
+			append line $newl
+		}
+
+		# now decode the directive
 		if ![regexp {^[[:blank:]]*#([[:alpha:]]+)[[:blank:]]*(.*)} \
 		    $line jk cm ar] {
 			# and ignore everything else

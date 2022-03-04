@@ -4836,7 +4836,7 @@ proc scanfile { fname inner { prelude "" } } {
 			if { [regexp "\[\\\\\]+$" $newl bc] &&
 			     [expr [string length $bc] & 1] } {
 				# this isn't an escape
-				break;
+				break
 			}
 			# remove the escape sequence
 			set line $newl

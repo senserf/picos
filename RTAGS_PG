@@ -5601,3 +5601,14 @@ PG211005A:	PIP >= PG211005A
 	from user scripts.
 
 	Rewritten the Installation doc.
+
+PG211105A:
+
+	Added a couple of simple apps for my students. A few cosmetics. I am
+	cleaning up before moving everything to github. Will try to see how it
+	works, anyway, and whether we can have it for free.
+
+PG220304A:
+
+	A few cosmetics related to accommodating ADC sensors in CC1350. Fixed
+	the processing of multiline preprocessor directives in mkmk.

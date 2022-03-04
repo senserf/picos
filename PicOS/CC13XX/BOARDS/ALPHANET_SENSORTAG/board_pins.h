@@ -390,6 +390,9 @@
 
 #define	mpu9250_int		(HWREG (GPIO_BASE + GPIO_O_EVFLAGS31_0) & \
 					(1 << IOID_7))
+
+#define	mpu9250_pending		GPIO_readDio (IOID_7)
+
 #define	mpu9250_scl		IOID_9
 #define	mpu9250_sda		IOID_8
 #define	mpu9250_rate		1

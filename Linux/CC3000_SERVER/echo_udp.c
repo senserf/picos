@@ -48,8 +48,8 @@ int doit () {
 	return 0;
 }
 
-main() 
-{
+int main () {
+
 	int	sock, fromlength;
 	struct	sockaddr_in master, from;
 	unsigned char *ap;

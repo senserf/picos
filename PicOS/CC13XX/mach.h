@@ -29,6 +29,9 @@
 #endif
 
 // More CPU types to come?
+#ifndef	__AUXIO_MAP
+#define	__AUXIO_MAP	7	// 7x7 package, relevant for AUXIO mapping
+#endif
 
 #ifndef		RAM_SIZE
 #error	"S: unknown (yet) CPU type: check CC13XX/mach.h"
@@ -217,7 +220,11 @@ Boolean __pi_uart_setrate (word, uart_t*);
 
 #endif	/* UART_DRIVER */
 
-// ###here: ADC?
+// MAP AUXIO to DIO
+#if __AUXIO_MAP == 7
+#define	DIO_TO_AUX(a)	(30-(a))
+#define	AUX_TO_DIO(a)	(30-(a))
+#endif
 
 #ifdef	MONITOR_PIN_CPU
 

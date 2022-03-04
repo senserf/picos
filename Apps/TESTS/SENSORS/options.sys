@@ -1,5 +1,13 @@
 // Put these here so they are visible by VUEE
 
+#if	defined(BOARD_CC1350_SENSORTAG) || \
+	defined(BOARD_CC1350_SENSORTAG_14X) || \
+	defined(BOARD_CC1350_SENSORTAG_150) || \
+	defined(BOARD_ALPHANET_SENSORTAG)
+
+#undef UART_RATE
+#define	UART_RATE		115200
+
 #define SENSOR_TEMP		(-2)
 #define	SENSOR_VOLTAGE		(-1)
 #define	SENSOR_PIN		(SENSOR_VOLTAGE 	+ 1)
@@ -9,8 +17,23 @@
 #define	SENSOR_HDC1000		(SENSOR_BMP280		+ 1)
 #define	SENSOR_OPT3001		(SENSOR_HDC1000		+ 1)
 
-#ifdef	BOARD_CC1350_SENSORTAG_TMP
+#ifdef	BOARD_CC1350_SENSORTAG_14X
 #define	SENSOR_TMP007		(SENSOR_OPT3001		+ 1)
 #endif
 
 #define BUZZER
+#endif
+
+
+#if	defined(BOARD_CC1350_LAUNCHXL) || \
+	defined(BOARD_ALPHANET_BASE_LAUNCHXL)
+
+#define SENSOR_TEMP		(-2)
+#define	SENSOR_VOLTAGE		(-1)
+
+#ifdef	BOARD_CC1350_LAUNCHXL
+#define	SENSOR_PIN		(SENSOR_VOLTAGE 	+ 1)
+#define	SENSOR_ADC		(SENSOR_PIN		+ 1)
+#endif
+
+#endif
