@@ -939,7 +939,7 @@ class   BIG     {
 	friend  BIG     atob (const char*);     // String to BIG conversion
 
 						// And vice versa
-	friend  char    *btoa (const BIG&, char *s = NULL, int nc = 15);
+	friend  char    *btoa (const BIG&, char*, int);
 
 #if	ZZ_NFP
 	inline  BIG (float a) { zz_nfp ("BIG (float)"); };
@@ -1490,6 +1490,8 @@ class   ZZ_TBIG : public BIG {
 
 typedef LONG    BIG;
 
+char    *btoa (const BIG a, char *s = NULL, int nc = 15);  // And vice versa
+
 #if	ZZ_NFP
 inline  int  convertible (const BIG&) { return 0; };
 #else
@@ -1501,8 +1503,6 @@ inline  int  convertible (const BIG&) { return 1; };
 /* ---------------------------------- */
 
 BIG     atob (const char*);                     // String to BIG conversion
-
-char    *btoa (const BIG a, char *s = NULL, int nc = 15);  // And vice versa
 
 #if ZZ_TAG
 class   ZZ_TBIG {
@@ -1620,6 +1620,9 @@ extern         BIG   BIG_0, BIG_1, BIG_inf;     // Some constants of type big
 #define TIME_inf        BIG_inf
 
 #if     BIG_precision != 1
+
+char    *btoa (const BIG &a, char *s = NULL, int nc = 15);  // And vice versa
+
 /* -------------------------------------- */
 /* Overload "<<" to print out BIG numbers */
 /* -------------------------------------- */

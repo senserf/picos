@@ -872,3 +872,9 @@ PG210804A:
 	   I had to remove a few "register" specifications for variables from
 	   those ancient times when they would make a difference. Modern
 	   compilers do not seem to appreciate them.
+
+PG220324A:
+
+	   Fixed a compilation glitch in mparithm.cc involving btoa. The new
+	   compiler doesn't like multiple default assignments of function
+	   arguments.
