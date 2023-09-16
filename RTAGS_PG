@@ -5612,3 +5612,7 @@ PG220304A:
 
 	A few cosmetics related to accommodating ADC sensors in CC1350. Fixed
 	the processing of multiline preprocessor directives in mkmk.
+
+PG230916A:
+
+	Updating after 1.5 year of nothing; a few random fixes here and there.

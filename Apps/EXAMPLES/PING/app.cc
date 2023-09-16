@@ -24,6 +24,10 @@ char ibuf [IBUF_LENGTH];	// Buffer for UART input
 
 word s_count, s_delay, s_length, s_content, s_counter;
 
+#define	MAX_NODES	32
+
+word last [MAX_NODES], lost [MAX_NODES];
+
 fsm sender {
 
 	state SND_LOOP:
@@ -61,6 +65,7 @@ fsm sender {
 fsm receiver {
 
 	address packet;
+	word sn, cn;
 
 	state RCV_LOOP:
 
@@ -72,12 +77,21 @@ rcv_end:
 			sameas RCV_LOOP;
 		}
 
+		sn = packet [1];
+		cn = packet [2];
+
+		if (last [sn] + 1 < cn)
+			lost [sn] += cn - last [sn] - 1;
+
+		last [sn] = cn;
+
 	state RCV_SHOW:
 
 		ser_outf (RCV_SHOW, "PKT, len = %u, from = %u, num = %u, "
-			"val = %x\r\n",
+			"tot = %u, lost = %u, val = %x\r\n",
 			tcv_left (packet),
-			packet [1], packet [2], packet [3]);
+			packet [1], packet [2], last [sn] - lost [sn],
+				lost [sn], packet [3]);
 		goto rcv_end;
 }
 

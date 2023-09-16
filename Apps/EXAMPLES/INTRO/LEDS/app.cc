@@ -11,7 +11,7 @@
 #include "serf.h"
 
 #define	ON_TIME		128
-#define	OFF_TIME	(5 * 1024)
+#define	OFF_TIME	(1 * 1024)
 
 #if UART_DRIVER
 #define	POWER_MODE	1

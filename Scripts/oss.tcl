@@ -11,6 +11,15 @@
 exec wish "$0" "$@"
 
 ###############################################################################
+# Do this to combine the app oss script with the starter:
+#
+# 1. remove the exec above (and the preceding comment)
+# 2. insert the script into USPEC (see below)
+# 3. set PM(CON) "r" (below)
+# 4. run freewrap on the result
+###############################################################################
+
+###############################################################################
 # Determine the system type ###################################################
 ###############################################################################
 if [catch { exec uname } ST(SYS)] {
