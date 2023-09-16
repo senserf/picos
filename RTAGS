@@ -983,3 +983,7 @@ PG230506A:
 
 	Another attempt at fixing execution problems for external programs
 	resulting from Cygwin/Windows/Linux incompatibilities
+
+PG230916A:
+
+	Added an option for "alternate" text editor (of the user's choice)

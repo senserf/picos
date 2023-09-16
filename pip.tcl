@@ -119,6 +119,7 @@ set PiterCmd "piter"
 set SACmd "sa"
 set DefTerm "xterm"
 set DefDTerm [list xterm -e %f]
+set DefAEdit ""
 
 ## File types to be listed in the Files view:
 ## header label, file qualifying patterns, filetypes [for tk_getSaveFile]
@@ -194,6 +195,7 @@ set CFEDefines {
 set CFOptItems [list \
 		 "OPTTRMCMND" $DefTerm \
 		 "OPTSHWCMND" $DefDTerm \
+		 "OPTATECMND" "" \
 		 "OPTERMLINES" 1000 \
 		 "OPSYSFILES" 1 \
 		 "OPVUEEFILES" 0 \
@@ -2731,13 +2733,17 @@ proc tree_selection { { x "" } { y "" } } {
 
 proc tree_menu { x y X Y } {
 
-	global EXCmd
+	global EXCmd P
 
 	# create the menu
 	catch { destroy .popm }
 	set m [menu .popm -tearoff 0]
 
 	$m add command -label "Edit" -command "open_multiple $x $y"
+	set aed [alt_editor]
+	if { $aed != "" } {
+		$m add command -label "Edit Alt" -command "open_multi_ate $x $y"
+	}
 	$m add command -label "Delete" -command "delete_multiple $x $y"
 	$m add command -label "Rename ..." -command "rename_file $x $y"
 	$m add command -label "New file ..." -command "new_file $x $y"
@@ -2806,6 +2812,72 @@ proc open_multiple { { x "" } { y "" } } {
 	foreach fp $el {
 		edit_file $fp
 	}
+}
+
+proc alt_editor { } {
+#
+# Alternate editor
+#
+	global P
+
+	if { ![dict exists $P(CO) "OPTATECMND"] } {
+		return ""
+	}
+	return [dict get $P(CO) "OPTATECMND"]
+}
+
+proc open_multi_ate { { x "" } { y "" } } {
+#
+# Open files for editing with the alternate editor
+#
+	global P
+
+	if { $P(AC) == "" } {
+		return
+	}
+
+	set sel [tree_selection $x $y]
+
+	set fl ""
+	foreach f $sel {
+		# select files only
+		if { [lindex $f 1] == "f" } {
+			lappend fl [lindex $f 0]
+		}
+	}
+
+	if { $fl == "" } {
+		alert "No file selected"
+		return
+	}
+
+	foreach f $fl {
+		set fp [fpnorm $f]
+		edit_file_ate $fp
+	}
+}
+
+proc edit_file_ate { fn } {
+#
+# Edit a file using the alternate text editor
+#
+	global P
+
+	set aed [alt_editor]
+	if { $aed == "" } {
+		return
+	}
+
+	log "ATE: $aed"
+
+	regsub {%f} $aed $fn aed
+	set pgm [lindex $aed 0]
+	set arg ""
+	foreach a [lrange $aed 1 end] {
+		lappend arg $a
+	}
+	lappend arg "&"
+	catch { xq $pgm $arg }
 }
 
 proc delete_multiple { { x "" } { y "" } } {
@@ -6535,7 +6607,7 @@ proc do_options { } {
 #
 # Configure "other" options associated with the project
 #
-	global P CFOptItems CFOptSFModes TermLines DefTerm DefDTerm
+	global P CFOptItems CFOptSFModes TermLines DefTerm DefDTerm DefAEdit
 
 	if { $P(AC) == "" || $P(CO) == "" } {
 		return
@@ -6563,18 +6635,28 @@ proc do_options { } {
 				set val $DefTerm
 			}
 			set P(M0,OPTTRMCMND) $val
+
 			set val [string trim $P(M0,gd)]
 			if { $val == "" } {
 				# make it the default
 				set val $DefDTerm
 			}
 			set P(M0,OPTSHWCMND) $val
-			# verify number
+
+			set val [string trim $P(M0,ae)]
+			if { $val == "" } {
+				# make it the default
+				set val $DefAEdit
+			}
+			set P(M0,OPTATECMND) $val
+
+			# verify the number
 			set n $P(M0,lc)
 			if [catch { valnum $n 24 100000 } n] {
 				alert "Illegal console line number limit: $n"
 				continue
 			}
+
 			set P(M0,OPTERMLINES) $n
 			set TermLines $n
 
@@ -6661,6 +6743,15 @@ proc mk_options_conf_window { } {
 	set P(M0,gd) $P(M0,OPTSHWCMND)
 	entry $f.gde -width $ewidth -font $FFont -textvariable P(M0,gd)
 	grid $f.gde -column 1 -row $row -padx 4 -pady 2 -sticky we
+
+	incr row
+
+	label $f.ael -text "Alternate text editor command: "
+	grid $f.ael -column 0 -row $row -padx 4 -pady 2 -sticky w
+
+	set P(M0,ae) $P(M0,OPTATECMND)
+	entry $f.aee -width $ewidth -font $FFont -textvariable P(M0,ae)
+	grid $f.aee -column 1 -row $row -padx 4 -pady 2 -sticky we
 
 	incr row
 
@@ -9262,6 +9353,10 @@ proc reset_file_menu { { clear 0 } } {
 	$m add separator
 
 	$m add command -label "Edit" -command open_multiple -state $st
+	set aed [alt_editor]
+	if { $aed != "" } {
+		$m add command -label "Edit Alt" -command open_multi_ate -state $st
+	}
 	$m add command -label "Delete" -command delete_multiple -state $st
 	$m add command -label "Rename ..." -command "rename_file" -state $st
 	$m add command -label "New file ..." -command "new_file" -state $st
@@ -10702,8 +10797,14 @@ proc open_search_window { } {
 	button $f.kb -text "Clear" -command do_clean_search
 	pack $f.kb -side right -expand n
 
-	button $f.eb -text "Edit" -command do_edit_any_file
+	button $f.eb -text "Edit" -command "do_edit_any_file 0"
 	pack $f.eb -side right -expand n
+
+	set aed [alt_editor]
+	if { $aed != "" } {
+		button $f.ab -text "Edit Alt" -command "do_edit_any_file 1"
+		pack $f.ab -side right -expand n
+	}
 
 	button $f.nb -text "New" -command do_edit_new_file
 	pack $f.nb -side right -expand n
@@ -11459,7 +11560,7 @@ proc do_open_explorer { } {
 	run_explorer $fl
 }
 
-proc do_edit_any_file { } {
+proc do_edit_any_file { { nst 0 } } {
 #
 # Allows you to open any file from the Search window
 #
@@ -11490,7 +11591,11 @@ proc do_edit_any_file { } {
 
 	set P(LOD) [file dirname $fl]
 
-	edit_file $fl
+	if { $nst } {
+		edit_file_ate $fl
+	} else {
+		edit_file $fl
+	}
 }
 
 proc do_edit_new_file { } {
