@@ -949,6 +949,25 @@ proc delay_trigger { } {
 
 ###############################################################################
 
+proc fix_exec { cmd } {
+#
+# This is my last attempt to try to make sense of this file path conversion
+# mess. We should STOP using Cygwin!!!
+#
+	global ST
+
+	set cmd [auto_execok $cmd]
+	# Seem to need to do this only for windows Tcl under cygwin (DOS paths)
+	if { $ST(DP) && $cmd != "" } {
+		if [file executable $cmd] {
+			set cmd "[list $cmd]"
+		} else {
+			set cmd "[list sh] [list $cmd]"
+		}
+	}
+	return $cmd
+}
+
 proc xq { pgm { pargs "" } } {
 #
 # A flexible exec (or so I hope)
@@ -961,6 +980,8 @@ proc xq { pgm { pargs "" } } {
 	}
 	return $ret
 }
+
+###############################################################################
 
 proc fpnorm { fn } {
 #
@@ -8096,16 +8117,11 @@ proc bpcs_run { path al pi } {
 
 	log "Running $path $al <$pi>"
 
-	set ef [auto_execok $path]
-	if { $ef == "" } {
+	set cmd [fix_exec $path]
+
+	if { $cmd == "" } {
 		alert "Cannot start $path: not found on the path"
 		return 1
-	}
-
-	if [file executable $ef] {
-		set cmd "[list $ef]"
-	} else {
-		set cmd "[list sh] [list $ef]"
 	}
 
 	foreach a $al {
@@ -8306,16 +8322,10 @@ proc run_genimage { { fast 0 } } {
 		return
 	}
 
-	set ef [auto_execok "genimage"]
-	if { $ef == "" } {
+	set cmd [fix_exec "genimage"]
+	if { $cmd == "" } {
 		alert "Cannot start genimage: not found on the PATH"
 		return
-	}
-
-	if [file executable $ef] {
-		set cmd "[list $ef]"
-	} else {
-		set cmd "[list sh] [list $ef]"
 	}
 
 	if $fast {
@@ -8380,16 +8390,10 @@ proc run_udaemon { { auto 0 } } {
 		return
 	}
 
-	set ef [auto_execok "udaemon"]
-	if { $ef == "" } {
+	set cmd [fix_exec "udaemon"]
+	if { $cmd == "" } {
 		alert "Cannot start udaemon: not found on the PATH"
 		return
-	}
-
-	if [file executable $ef] {
-		set cmd "[list $ef]"
-	} else {
-		set cmd "[list sh] [list $ef]"
 	}
 
 	if ![catch { valport [dict get $P(CO) "PFAC"] } po] {
@@ -8460,7 +8464,7 @@ proc run_oss { { auto 0 } { vuee 0 } } {
 
 	if { $auto == 2 } {
 		# just run it as a command
-		run_term_command "oss" { -H ossi.h }
+		run_term_command "oss" { -H ossi.h } gfl_tree
 		return
 	}
 
@@ -8471,16 +8475,10 @@ proc run_oss { { auto 0 } { vuee 0 } } {
 		return
 	}
 
-	set ef [auto_execok "oss"]
-	if { $ef == "" } {
+	set cmd [fix_exec "oss"]
+	if { $cmd == "" } {
 		alert "Cannot start oss: not found on the PATH"
 		return
-	}
-
-	if [file executable $ef] {
-		set cmd "[list $ef]"
-	} else {
-		set cmd "[list sh] [list $ef]"
 	}
 
 	if $vuee {
@@ -8753,10 +8751,11 @@ proc run_term_command { cmd al { ea "" } { aa "" } { ni 0 } } {
 
 	log "Running $cmd $al"
 
-	set ef [auto_execok $cmd]
+	set ef [fix_exec $cmd]
 	if { $ef == "" } {
 		error "program $cmd is not executable"
 	}
+
 	set cmd $ef
 
 	foreach a $al {
@@ -8865,16 +8864,10 @@ proc run_sa { } {
 		return
 	}
 
-	set ef [auto_execok $SACmd]
-	if { $ef == "" } {
+	set cmd [fix_exec $SACmd]
+	if { $cmd == "" } {
 		alert "Cannot run spectrum analyzer, not installed"
 		return
-	}
-
-	if [file executable $ef] {
-		set cmd "[list $ef]"
-	} else {
-		set cmd "[list sh] [list $ef]"
 	}
 
 	append cmd " -C config.san 2>@1"
@@ -8934,16 +8927,10 @@ proc run_piter { } {
 		return
 	}
 
-	set ef [auto_execok $PiterCmd]
-	if { $ef == "" } {
+	set cmd [fix_exec $PiterCmd]
+	if { $cmd == "" } {
 		alert "Cannot start piter: not found on the PATH"
 		return
-	}
-
-	if [file executable $ef] {
-		set cmd "[list $ef]"
-	} else {
-		set cmd "[list sh] [list $ef]"
 	}
 
 	set th [expr $TCMD(CPITERS) + 1]

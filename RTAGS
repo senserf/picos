@@ -978,3 +978,8 @@ PG211005A:	PICOS >= PG211005A
 
 	Updated (rewritten) the document.
 	
+
+PG230506A:
+
+	Another attempt at fixing execution problems for external programs
+	resulting from Cygwin/Windows/Linux incompatibilities
