@@ -5504,10 +5504,9 @@ proc ldr_select_default { tp } {
 	global ARCHINFO
 
 	set nl [llength $ARCHINFO(LOADERS)]
-
 	for { set i 0 } { $i < $nl } { incr i } {
 		if { $ARCHINFO(LOADERS,LSCAN) >= $nl } {
-			set ls 0
+			set ARCHINFO(LOADERS,LSCAN) 0
 		}
 		set ld [lindex $ARCHINFO(LOADERS) $ARCHINFO(LOADERS,LSCAN)]
 		incr ARCHINFO(LOADERS,LSCAN)
