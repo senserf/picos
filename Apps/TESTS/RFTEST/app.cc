@@ -503,6 +503,7 @@ void confirm (word sender, word sernum, word code) {
 	address packet;
 
 	if ((packet = tcv_wnp (WNONE, g_fd_rf, MIN_ACK_LENGTH)) != NULL) {
+		packet [POFF_DRI] = 0;
 		packet [POFF_RCV] = HOST_ID;
 		packet [POFF_SND] = sender;
 		packet [POFF_SER] = sernum;
@@ -539,6 +540,7 @@ void send_mak (address pkt, word pl) {
 
 	if ((packet = tcv_wnp (WNONE, g_fd_rf, MIN_MACK_LENGTH)) != NULL) {
 		packet [POFF_RCV] = HOST_ID;
+		packet [POFF_DRI] = 0;
 		packet [POFF_SND] = pkt [POFF_ACT];
 		packet [POFF_SER] = pkt [POFF_SER];
 
@@ -677,6 +679,7 @@ word do_command (const char *cb, word sender, word sernum) {
 				return 2;	// Busy
 
 			// Fill in
+			packet [POFF_DRI] = 0;
 			packet [POFF_RCV] = HOST_ID;
 			packet [POFF_SND] = sender;
 			packet [POFF_SER] = sernum;
@@ -1221,6 +1224,7 @@ RetFlags:
 			// Quietly ignore
 			return WNONE;
 
+		packet [POFF_DRI] = 0;
 		packet [POFF_RCV] = sender;
 		packet [POFF_SND] = HOST_ID;
 		packet [POFF_SER] = sernum;	// identifies the setting
@@ -1662,6 +1666,7 @@ fsm thread_patable {
 		proceed PA_DONE;
 		
 	packet = tcv_wnp (PA_RUN, g_fd_rf, (POFF_CMD + 1 + 1) * 2);
+	packet [POFF_DRI] = 0;
 	packet [POFF_RCV] = g_pat_peer;
 	packet [POFF_SND] = HOST_ID;
 	packet [POFF_SER] = g_pat_curr;
@@ -1802,6 +1807,7 @@ fsm thread_rfcmd {
 
 	packet = tcv_wnp (RC_SEND, g_fd_rf, ln);
 
+	packet [POFF_DRI] = 0;
 	packet [POFF_RCV] = g_snd_rnode;
 	packet [POFF_SND] = HOST_ID;
 	packet [POFF_FLG] = 0;
@@ -2041,6 +2047,7 @@ fsm thread_sender (word dl) {
   entry SN_NEXT:
 
 	spkt = tcv_wnps (SN_NEXT, g_fd_rf, g_snd_opl, g_snd_urgent);
+	spkt [POFF_DRI] = 0;
 	spkt [POFF_RCV] = 0;
 	spkt [POFF_SND] = HOST_ID;
 	spkt [POFF_SER] = sernum++;

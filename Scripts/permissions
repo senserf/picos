@@ -44,7 +44,7 @@ proc calc_mode { fn } {
 	if [catch { open $fn "r" } fd] {
 		# cannot open
 		if [catch { exec chmod -f 444 $fn } err] {
-			puts stderr "cannot chmod 444 $d: $err"
+			puts stderr "cannot chmod 444 $fn: $err"
 			exit 99
 		}
 		if [catch { open $fn "r" } fd] {

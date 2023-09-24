@@ -53,22 +53,23 @@
 		<path>arm-none-eabi-ranlib</path>
 	</ranlib>
 	<loaders>
-	    	<loader>
-			<path>nw</path>
+	    <loader>
+			<path>uniflash</path>
 			<arguments></arguments>
 		</loader>
-	    	<loader>
+	    <loader>
 			<path>srfprog</path>
 			<arguments>-t lsidx(0) -e pif -p -f %f.out</arguments>
 		</loader>
-
+		<loader>
+			<path>openocd</path>
+			<arguments>-f interface/xds110.cfg -c "transport select jtag" -c "adapter speed 5500" -c "gdb_memory_map enable" -c "gdb_flash_program enable" -f target/ti_cc13x0.cfg -c "program %f verify reset exit"</arguments>
+		</loader>
 		<debugger>
 			<path>arm-none-eabi-gdb</path>
 			<arguments>%f</arguments>
 			<proxypath>openocd</proxypath>
-			<proxyarguments>
-				-f board/ti_cc13x0_launchpad.cfg
-			</proxyarguments>
+			<proxyarguments>-f interface/xds110.cfg -c "transport select jtag" -c "adapter speed 5500" -c "gdb_memory_map enable" -c "gdb_flash_program enable" -f target/ti_cc13x0.cfg</proxyarguments>
 			<port>3333</port>
 			<init file=".gdbinit">
 				set remotetimeout 999999
