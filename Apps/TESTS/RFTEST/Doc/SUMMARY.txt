@@ -1,3 +1,5 @@
+D A R Z Z P P P C C C C C C C C
+l [mindel [maxdel [minpl [maxpl [ackto]]]]]
 s [ncount [Burgent [PMSrxofftime [PMSpredelay]]]] - START SND
 q STOP SND
 g RECEIVER ON
@@ -8,7 +10,7 @@ v [0,1,2,3] VERBOSE off, out, inc, both
 n EQUIV v 0
 d POWER DOWN MODE
 u POWER UP MODE
-p xp SET CMIT POWER (0-7)
+p xp SET XMIT POWER (0-7)
 S command REMOTE COMMAND
 
 P PMSinterval cmd REPEAT COMMAND AT INTERVAL

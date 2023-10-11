@@ -261,10 +261,6 @@ static void power_up () {
 //
 	int i;
 
-#ifdef MONITOR_PIN_CC2420_PUP
-	_PVS (MONITOR_PIN_CC2420_PUP, 1);
-#endif
-
 #if RADIO_DEEP_POWER_DOWN
 	// Deep power down mode, re-enable VREG
 	cc2420_vrgen_up;
@@ -277,9 +273,6 @@ static void power_up () {
 
 #if RADIO_DEEP_POWER_DOWN
 	load_regs ();
-#endif
-#ifdef MONITOR_PIN_CC2420_PUP
-	_PVS (MONITOR_PIN_CC2420_PUP, 0);
 #endif
 }
 
@@ -303,9 +296,6 @@ static void do_rx_fifo () {
 
 	LEDI (2, 1);
 
-#ifdef	MONITOR_PIN_CC2420_RX
-	_PVS (MONITOR_PIN_CC2420_RX, 1);
-#endif
 	if (RxST || !cc2420_fifo_val) {
 		// Overflow, or switched off, ignore everything (perhaps we
 		// should be more careful about this)
@@ -393,9 +383,6 @@ Rtn:
 	gbackoff (RADIO_LBT_BACKOFF_RX);
 	LEDI (2, 0);
 
-#ifdef	MONITOR_PIN_CC2420_RX
-	_PVS (MONITOR_PIN_CC2420_RX, 0);
-#endif
 }
 
 #define	DR_LOOP		0
@@ -432,9 +419,6 @@ DR_LOOP__:
 	}
 
 	// There is a packet to transmit
-#ifdef	MONITOR_PIN_CC2420_TXP
-	_PVS (MONITOR_PIN_CC2420_TXP, 1);
-#endif
 	if (TxFF == NO) {
 		// Fill in the FIFO first
 #if (RADIO_OPTIONS & RADIO_OPTION_PXOPTIONS)
@@ -556,9 +540,6 @@ Bkf:
 
 	LEDI (1, 1);
 
-#ifdef	MONITOR_PIN_CC2420_TXS
-	_PVS (MONITOR_PIN_CC2420_TXS, 1);
-#endif
 	// Wait until done, get hold of SD
 SWLoop:
 	delay (1, DR_SWAIT);
@@ -578,9 +559,6 @@ Skip:
 	LEDI (1, 0);
 	TxFF = NO;
 
-#ifdef	MONITOR_PIN_CC2420_TXS
-	_PVS (MONITOR_PIN_CC2420_TXS, 0);
-#endif
 	retr = 0;
 	goto DR_LOOP__;
 

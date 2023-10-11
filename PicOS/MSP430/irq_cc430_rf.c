@@ -17,10 +17,6 @@
 
 interrupt (CC1101_VECTOR) irq_cc430_rf () {
 
-#ifdef	MONITOR_PIN_CC1100_INT
-	_PVS (MONITOR_PIN_CC1100_INT, 1);
-#endif
-
 	RF1AIE = 0;
 	// Make sure FLL is on while we are doing this (just for a test)
 	_BIC_SR (SCG0 + SCG1);
@@ -31,9 +27,6 @@ interrupt (CC1101_VECTOR) irq_cc430_rf () {
 	// driver FSM)
 	if ((RF1AIFG & IRQ_EVT0) && cc1100_worstate == 1) {
 		// Event 0, start RX
-#ifdef	MONITOR_PIN_EVENT0
-		_PVS (MONITOR_PIN_EVENT0, 1);
-#endif
 		cc1100_worstate = 2;
 		// Make sure to clear the flag before doing SRX (guess why)
 		RF1AIFG = 0;
@@ -48,24 +41,15 @@ interrupt (CC1101_VECTOR) irq_cc430_rf () {
 		// otherwise the chip tends to hang in RX.
 		//
 		cc1100_strobe (CCxxx0_SRX);
-#ifdef	MONITOR_PIN_EVENT0
-		_PVS (MONITOR_PIN_EVENT0, 0);
-#endif
 		goto Rtn;
 	}
 
 	if ((RF1AIFG & IRQ_RXTM) && cc1100_worstate == 2) {
-#ifdef	MONITOR_PIN_EVENT1
-		_PVS (MONITOR_PIN_EVENT1, 1);
-#endif
 		// RX timeout in WOR
 		RF1AIFG = 0;
 		wor_enable_int;
 		cc1100_strobe (CCxxx0_SWOR);
 		cc1100_worstate = 1;
-#ifdef	MONITOR_PIN_EVENT1
-		_PVS (MONITOR_PIN_EVENT1, 0);
-#endif
 		goto Rtn;
 	}
 
@@ -79,10 +63,5 @@ interrupt (CC1101_VECTOR) irq_cc430_rf () {
 
 	RF1AIFG = 0;
 Rtn:
-
-#ifdef	MONITOR_PIN_CC1100_INT
-	_PVS (MONITOR_PIN_CC1100_INT, 0);
-#endif
-
 	RTNI;
 }

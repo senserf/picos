@@ -21,6 +21,70 @@
 #include <driverlib/rfc.h>
 #include <inc/hw_rfc_rat.h>
 
+// ============================================================================
+// Notes and issues:
+// ============================================================================
+//
+// Check if using RF memory allows us to lower the power budget. This is tricky
+// because we have to circumvent the patch area.
+//
+// How can we prevent interrupting reception in progress by a transmission?
+// We can have reception with a timeout while waiting for sync, which should do
+// for synchronized acks (and stuff like that). I don't think we can detect
+// reception and postpone transmission any other way.
+//
+// Cold-starting up the transmitter takes 5ms; check the reference code again
+// Can we do better?
+//
+// ============================================================================
+
+#if 0
+#define	TIME_COLDSTART_PIN	IOID_15
+#define	TIME_XMIT_PIN		IOID_11
+#define	TIME_LBT_PIN		IOID_12
+#endif
+
+#ifdef	TIME_COLDSTART_PIN
+#define	TIME_COLDSTART		do { \
+	GPIO_setOutputEnableDio (TIME_COLDSTART_PIN, GPIO_OUTPUT_ENABLE); \
+	GPIO_clearDio (TIME_COLDSTART_PIN); \
+    } while (0)
+#define	TIME_COLDSTART_ON	GPIO_setDio (TIME_COLDSTART_PIN)
+#define	TIME_COLDSTART_OFF	GPIO_clearDio (TIME_COLDSTART_PIN)
+#else
+#define	TIME_COLDSTART		CNOP
+#define	TIME_COLDSTART_ON	CNOP
+#define	TIME_COLDSTART_OFF	CNOP
+#endif
+
+#ifdef	TIME_XMIT_PIN
+#define	TIME_XMIT		do { \
+	GPIO_setOutputEnableDio (TIME_XMIT_PIN, GPIO_OUTPUT_ENABLE); \
+	GPIO_clearDio (TIME_XMIT_PIN); \
+    } while (0)
+#define	TIME_XMIT_ON		GPIO_setDio (TIME_XMIT_PIN)
+#define	TIME_XMIT_OFF		GPIO_clearDio (TIME_XMIT_PIN)
+#else
+#define	TIME_XMIT		CNOP
+#define	TIME_XMIT_ON	CNOP
+#define	TIME_XMIT_OFF	CNOP
+#endif
+
+#ifdef	TIME_LBT_PIN
+#define	TIME_LBT		do { \
+	GPIO_setOutputEnableDio (TIME_LBT_PIN, GPIO_OUTPUT_ENABLE); \
+	GPIO_clearDio (TIME_LBT_PIN); \
+    } while (0)
+#define	TIME_LBT_ON		GPIO_setDio (TIME_LBT_PIN)
+#define	TIME_LBT_OFF		GPIO_clearDio (TIME_LBT_PIN)
+#else
+#define	TIME_LBT		CNOP
+#define	TIME_LBT_ON	CNOP
+#define	TIME_LBT_OFF	CNOP
+#endif
+
+// ============================================================================
+
 #define	WOR_SETTLING_DELAY	10
 
 // The RAT clock rate is 4MHz
@@ -315,6 +379,19 @@ static void issue_cmd (lword cmd) {
 	}
 }
 
+static void issue_cmd_async (lword cmd) {
+//
+// Issue a dorbell command and don't wait
+//
+	HWREG(RFC_DBELL_BASE + RFC_DBELL_O_RFACKIFG) = 0;
+	HWREG(RFC_DBELL_BASE + RFC_DBELL_O_CMDR)     = cmd;
+}
+
+static void sync_cmd () {
+	while (!HWREG(RFC_DBELL_BASE + RFC_DBELL_O_RFACKIFG));
+	HWREG(RFC_DBELL_BASE + RFC_DBELL_O_RFACKIFG) = 0;
+}
+
 static void wait_cmd (rfc_radioOp_t *cmd, lword tstat, lword timeout) {
 //
 // Wait for a radio operation command to complete (for those commands for
@@ -342,6 +419,7 @@ static void enable_event (aword ev) {
 	to_trigger = ev;
 	RFCCpeIntClear (LWNONE);
 	RFCCpe0IntEnable (RFC_DBELL_RFCPEIFG_LAST_COMMAND_DONE |
+			RFC_DBELL_RFCPEIFG_BOOT_DONE |
 				RFC_DBELL_RFCPEIEN_RX_OK |
 					RFC_DBELL_RFCPEIEN_INTERNAL_ERROR);
 }
@@ -355,17 +433,13 @@ static void rf_on () {
 	if (dstate & DSTATE_RFON)
 		return;
 
+	TIME_COLDSTART_ON;
+
 #ifdef	RADIO_PINS_ON
 	// Any special pin settings?
 	RADIO_PINS_ON;
 #endif
-	// The oscillator (do we need this?); no, this is the default, anyway
-	// OSCXHfPowerModeSet (HIGH_POWER_XOSC);
-
-	// The default setting of OSC clock source is OSC_RCOSC_HF; we shall
-	// revert to it when the radio is switched off
-	OSCHF_TurnOnXosc();
-	do { udelay (10); } while (!OSCHF_AttemptToSwitchToXosc ());
+	// ====================================================================
 
 	// Make sure RAT is driven by RTC
 	HWREGBITW (AON_RTC_BASE + AON_RTC_O_CTL, AON_RTC_CTL_RTC_UPD_EN_BITN) =
@@ -374,29 +448,55 @@ static void rf_on () {
 	// Power up the domain (there's no peripheral for RF)
 	__pi_ondomain (PRCM_DOMAIN_RFCORE);
 
+	// The default setting of OSC clock source is OSC_RCOSC_HF; we shall
+	// revert to it when the radio is switched off
+	OSCHF_TurnOnXosc();
+
+	// ====================================================================
+
+	issue_cmd_async (CMDR_DIR_CMD_2BYTE (RF_CMD0,
+		RFC_PWR_PWMCLKEN_MDMRAM | RFC_PWR_PWMCLKEN_RFERAM));
+
 	// Enable the clock
 	RFCClockEnable ();
 
-	// Set up some magic for the patches to work
-	issue_cmd (
-		CMDR_DIR_CMD_2BYTE (RF_CMD0,
-			RFC_PWR_PWMCLKEN_MDMRAM | RFC_PWR_PWMCLKEN_RFERAM));
+	sync_cmd ();
+
 	// Apply the patches
 	rf_patch_cpe_genfsk ();
 	rf_patch_rfe_genfsk ();	
+
 	// Undo the magic
         issue_cmd (CMDR_DIR_CMD_2BYTE (RF_CMD0, 0));
 
-#if 1
         // Initialize bus request; AFAICT, this is only needed if we want to
 	// deep sleep while the radio is sending data to our RAM
-	issue_cmd (CMDR_DIR_CMD_1BYTE (CMD_BUS_REQUEST, 1));
-#endif
+	issue_cmd_async (CMDR_DIR_CMD_1BYTE (CMD_BUS_REQUEST, 1));
 
 	RFCAdi3VcoLdoVoltageMode (true);
 
+	// ====================================================================
+
+
 	// This must be done with RF core on, on every startup
        	RFCRfTrimSet (&rfTrim);
+
+	sync_cmd ();
+
+	// ====================================================================
+
+	// Make sure the clock is up
+	while (!OSCHF_AttemptToSwitchToXosc ()) { udelay (50); }
+
+	issue_cmd ((lword)&RF_cmdPropRadioDivSetup);
+#if 0
+	wait_cmd ((rfc_radioOp_t*)&RF_cmdPropRadioDivSetup, PROP_DONE_OK,
+		10000);
+	issue_cmd ((lword)&cmd_srt);
+	issue_cmd ((lword)&RF_cmdFs);
+#endif
+	// The last command in chain
+	wait_cmd ((rfc_radioOp_t*)&RF_cmdFs, DONE_OK, 10000);
 
 #if 0
 	// Show up the firmware version on first power up
@@ -407,32 +507,13 @@ static void rf_on () {
 					cmd_gfi.freeRamSz,
 					cmd_gfi.availRatCh);
 #endif
-
 #if 0
 	// Check connection?
 	issue_cmd ((lword)&cmd_pin);
 #endif
-
-	// Setup the "proprietary" mode
-	issue_cmd ((lword)&RF_cmdPropRadioDivSetup);
-	// Wait until done
-	wait_cmd ((rfc_radioOp_t*)&RF_cmdPropRadioDivSetup, PROP_DONE_OK,
-		10000);
-
-	// Start RAT
-	issue_cmd ((lword)&cmd_srt);
-
-	// Power up frequency synthesizer; apparently this is needed if
-	// CMD_PROP_RADIO_DIV_SETUP.bNoFsPowrup == 1 (it is zero, as set by
-	// SmartRF Studio)
-
-	// Set the frequency
-	issue_cmd ((lword)&RF_cmdFs);
-	wait_cmd ((rfc_radioOp_t*)&RF_cmdFs, DONE_OK, 10000);
-
 	_BIS (dstate, DSTATE_RFON);
 
-	// Interrupts, we only care about reception and system error (?)
+	// Interrupts
 	HWREG (RFC_DBELL_BASE + RFC_DBELL_O_RFCPEIEN) = 0;
 	HWREG (RFC_DBELL_BASE+RFC_DBELL_O_RFCPEIFG) = 0;
 	IntEnable (INT_RFC_CPE_0);
@@ -442,6 +523,7 @@ static void rf_on () {
 #if (RADIO_OPTIONS & RADIO_OPTION_RBKF)
 	bckf_lbt = 0;
 #endif
+	TIME_COLDSTART_OFF;
 }
 
 static void rx_de () {
@@ -461,6 +543,8 @@ static void rf_off () {
 //
 	if ((dstate & DSTATE_RFON) == 0)
 		return;
+
+	// TIME_COLDSTART_ON;
 
 	rx_de ();
 
@@ -486,6 +570,8 @@ static void rf_off () {
 #endif
 	_BIC (dstate, DSTATE_RFON);
 	LEDI (0, 0);
+
+	// TIME_COLDSTART_OFF;
 }
 
 #if RADIO_WOR_MODE
@@ -1007,6 +1093,7 @@ WorOn:
 		// sense considering how much damage it is going to do
 
 		if (bckf_timer) {
+			TIME_LBT_ON;
 			// Backoff wait
 #if (RADIO_OPTIONS & RADIO_OPTION_PXOPTIONS)
 Bkf:
@@ -1021,6 +1108,7 @@ Bkf:
 			}
 			release;
 		}
+		TIME_LBT_OFF;
 
 #if (RADIO_OPTIONS & RADIO_OPTION_PXOPTIONS)
 		// Check for CAV requested in the packet
@@ -1028,6 +1116,7 @@ Bkf:
 		if ((pcav = (*ppm) & 0x0fff)) {
 			// Remove for subsequent turns
 			*ppm &= ~0x0fff;
+			TIME_LBT_ON;
 			utimer_set (bckf_timer, pcav);
 			goto Bkf;
 		}
@@ -1069,6 +1158,7 @@ Bkf:
 #endif
 		cmd_cs . status = RF_cmdPropTx . status = 0;
 		// Carrier sense + transmit if OK
+		TIME_XMIT_ON;
 		issue_cmd ((lword)&cmd_cs);
 
 	entry (DR_XMIT)
@@ -1098,6 +1188,7 @@ Bkf:
 		}
 TXEnd:
 		// Release the packet
+		TIME_XMIT_OFF;
 		tcvphy_end ((address)the_packet);
 		paylen = 0;
 
@@ -1151,6 +1242,7 @@ TXFin:
 // ============================================================================
 
 		RF_cmdPropTx . status = 0;
+		TIME_XMIT_ON;
 		issue_cmd ((lword)&RF_cmdPropTx);
 
 	entry (DR_XMIT)
@@ -1172,6 +1264,7 @@ TXFin:
 		}
 
 		// Release the packet
+		TIME_XMIT_OFF;
 		tcvphy_end ((address)the_packet);
 		paylen = 0;
 
@@ -1543,6 +1636,9 @@ void phys_cc1350 (int phy, int mbs) {
 // packet length is (and I have reasons not to trust the manual), so let me
 // assume it is 255 - 4 - 1 = 250. We shall be careful.
 //
+	TIME_COLDSTART;
+	TIME_XMIT;
+	TIME_LBT;
 
 #if (RADIO_OPTIONS & RADIO_OPTION_NOCHECKS) == 0
 	if (rbuffl != 0)
@@ -1622,17 +1718,14 @@ void phys_cc1350 (int phy, int mbs) {
 #endif
 	// Set default parameters
 	set_driver_params (NULL);
+
+	// Chain the startup commands
+	RF_cmdPropRadioDivSetup.pNextOp = (rfc_radioOp_t*)&cmd_srt;
+	RF_cmdPropRadioDivSetup.status = IDLE;
+	RF_cmdPropRadioDivSetup.condition.rule = COND_ALWAYS;
+	cmd_srt.pNextOp = (rfc_radioOp_t*)&RF_cmdFs;
+	cmd_srt.status = IDLE;
+	cmd_srt.condition.rule = COND_ALWAYS;
+	RF_cmdFs.status = IDLE;
 }
 
-//
-// To do:
-//
-// Check if using RF memory allows us to lower the power budget. This is tricky
-// because we have to circumvent the patch area.
-//
-//
-// How can we prevent interrupting reception in progress by a transmission?
-// We can have reception with a timeout while waiting for sync, which should do
-// for synchronized acks (and stuff like that). I don't think we can detect
-// reception and postpone transmission any other way.
-//

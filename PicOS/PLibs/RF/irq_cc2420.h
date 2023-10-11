@@ -13,10 +13,6 @@
 
 if (cc2420_int) {
 
-#ifdef	MONITOR_PIN_CC2420_INT
-    _PVS (MONITOR_PIN_CC2420_INT, 1);
-#endif
-
     cc2420_clear_int;
 
     cc2420_rcv_int_disable;
@@ -24,11 +20,6 @@ if (cc2420_int) {
     p_trigger (__cc2420_v_drvprcs, __cc2420_v_qevent);
 
     RISE_N_SHINE;
-
-#ifdef	MONITOR_PIN_CC2420_INT
-    _PVS (MONITOR_PIN_CC2420_INT, 0);
-#endif
-
 }
 
 #endif

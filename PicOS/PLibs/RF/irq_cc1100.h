@@ -13,10 +13,6 @@
 
 if (cc1100_int) {
 
-#ifdef	MONITOR_PIN_CC1100_INT
-    _PVS (MONITOR_PIN_CC1100_INT, 1);
-#endif
-
     cc1100_clear_int;
 
     cc1100_rcv_int_disable;
@@ -24,10 +20,6 @@ if (cc1100_int) {
     p_trigger (__cc1100_v_drvprcs, __cc1100_v_qevent);
 
     RISE_N_SHINE;
-
-#ifdef	MONITOR_PIN_CC1100_INT
-    _PVS (MONITOR_PIN_CC1100_INT, 0);
-#endif
 
 }
 

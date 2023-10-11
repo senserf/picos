@@ -175,6 +175,18 @@
 			IOC_CURRENT_2MA		| \
 			IOC_STRENGTH_AUTO	| \
 			0, 0, 0), \
+		iocportconfig (IOID_29, IOC_PORT_GPIO, \
+			IOC_IOMODE_NORMAL 	| \
+			IOC_NO_WAKE_UP		| \
+			IOC_FALLING_EDGE	| \
+			IOC_INT_DISABLE		| \
+			IOC_IOPULL_UP		| \
+			IOC_INPUT_ENABLE	| \
+			IOC_HYST_ENABLE		| \
+			IOC_SLEW_DISABLE	| \
+			IOC_CURRENT_2MA		| \
+			IOC_STRENGTH_AUTO	| \
+			0, 0, 0), \
 		iocportconfig (IOID_1, IOC_PORT_GPIO, \
 			IOC_IOMODE_NORMAL 	| \
 			IOC_NO_WAKE_UP		| \
@@ -266,9 +278,6 @@
 #define	PIN_LIST { \
 		PIN_DEF (IOID_4),  \
 		PIN_DEF (IOID_5),  \
-		PIN_DEF (IOID_8),  \
-		PIN_DEF (IOID_9),  \
-		PIN_DEF (IOID_10), \
 		PIN_DEF (IOID_11), \
 		PIN_DEF (IOID_12), \
 		PIN_DEF (IOID_15), \
@@ -276,14 +285,13 @@
 		PIN_DEF (IOID_17), \
 		PIN_DEF (IOID_18), \
 		PIN_DEF (IOID_19), \
-		PIN_DEF (IOID_20), \
 		PIN_DEF (IOID_21), \
 		PIN_DEF (IOID_22), \
 		PIN_DEF (IOID_24), \
 		PIN_DEF (IOID_29), \
 	}
 
-#define	PIN_MAX	17
+#define	PIN_MAX	13
 
 #define	BUTTON_LIST	{ \
 				BUTTON_DEF (IOID_13, 0), \

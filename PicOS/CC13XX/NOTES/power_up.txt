@@ -1,0 +1,219 @@
+State navigation functions:
+RF_fsmActiveState (probably means we are active)
+RF_fsmSetupState
+RF_fsmXOSCState (probably to initialize the oscillator), switched from 
+	RF_fsmSetupState
+RF_fsmPowerUpState - entered from fsmActiveState ???? (apparently, it also
+	handles power down!
+SWI RF_FsmEventWakeup - triggered to power up
+===============================================================================
+
+
+They start with:
+
+HWREGBITW (AON_RTC_BASE + AON_RTC_O_CTL, AON_RTC_CTL_RTC_UPD_EN_BITN) = 1;
+
+Then it goes in steps scheduled with SWI:
+
+  /* Start the RF Core power up */
+  SwiP_or(&RF_swiFsmObj, RF_FsmEventWakeup);
+
+If the clock must be switched, the switch goes in steps in:
+
+  static void RF_fsmXOSCState(RF_Object *pObj, RF_FsmEvent e)
+   ... RF_restartClockTimeout(&RF_clkPowerUpObj,
+	RF_XOSC_HF_SWITCH_CHECK_PERIOD_US/ClockP_tickPeriod);
+
+with other things being done in parallel:
+
+Starts at
+else if (e & RF_FsmEventWakeup) 2161 in RFCC26XX_singleMode.c
+HWREG(PRCM_BASE + PRCM_O_RFCMODESEL) = ... // we do this once for all, the mode
+
+then submit ASYNC command to start patches:
+
+       if ((RF_currClient->clientConfig.pRfMode->mcePatchFxn != NULL) ||
+            (RF_currClient->clientConfig.pRfMode->rfePatchFxn != NULL))
+        {
+            RF_dbellSubmitCmdAsync((uint32_t)CMDR_DIR_CMD_2BYTE(RF_CMD0, RFC_PWR_PWMCLKEN_MDMRAM | RFC_PWR_PWMCLKEN_RFERAM));
+        }
+
+and do this:
+
+	===
+	RFCClockEnable ();
+        RFCCpeIntDisable(RF_CPE0_INT_MASK);
+        RFCCpe0IntSelect(RF_CPE0_INT_MASK);
+        /* Enable some of the interrupt sources. */
+        RFCCpeIntEnable(RFC_DBELL_RFCPEIEN_BOOT_DONE_M
+                        | RFC_DBELL_RFCPEIEN_LAST_COMMAND_DONE_M);
+	===
+        /* Set the next state. */
+        RF_core.fxn = RF_fsmSetupState;
+
+This switches the event handling FSM to SetupState. OK, what have we
+accomplished?
+
+===============================================================================
+===============================================================================
+===============================================================================
+===============================================================================
+
+	From _init:
+
+	1. HWREGBITW (AON_RTC_BASE + AON_RTC_O_CTL,
+		AON_RTC_CTL_RTC_UPD_EN_BITN) = 1;
+			done from _init
+
+	2. OSCHF_TurnOnXosc();	!!!  No checks if ready yet!!!!!
+
+	2. Assume fxn = fsmPowerUpState
+		This has been done on _init, apparently nothing else, the
+		fxn setting only means that now we should power up before
+		anything happens
+
+	=======================================================================
+
+	fsmPowerUpState handles two events:
+		FsmEventLastCommandDone, FsmEventWakeup, the latter being
+		triggered when the RF is down and needed
+
+	Yes, it looks like FsmEventWakeup in fsmPowerUpState is where the
+	power up sequence begins
+
+	1. RF_rtcTimestampA = AONRTCCurrent64BitValueGet();
+		to calculate how much time it takes ...
+	   HWREG(PRCM_BASE + PRCM_O_RFCMODESEL) =
+		RF_currClient->clientConfig.pRfMode->rfMode;
+		we do this once for all
+	   ... setting some power constraints
+	   ... marking RF as powering up
+	   ... if XOSC is not the normally running thing, mark it as needed
+
+	2.if ((RF_currClient->clientConfig.pRfMode->mcePatchFxn != NULL) ||
+              (RF_currClient->clientConfig.pRfMode->rfePatchFxn != NULL)) {
+                RF_dbellSubmitCmdAsync((uint32_t)CMDR_DIR_CMD_2BYTE(RF_CMD0,
+		  RFC_PWR_PWMCLKEN_MDMRAM | RFC_PWR_PWMCLKEN_RFERAM)); }
+		this is the magic command to enable patches; we start it here
+		asynchronously!!! ====>
+	    RFCClockEnable();
+            RFCCpeIntDisable(RF_CPE0_INT_MASK);
+            RFCCpe0IntSelect(RF_CPE0_INT_MASK);
+            /* Enable some of the interrupt sources. */
+            RFCCpeIntEnable(RFC_DBELL_RFCPEIEN_BOOT_DONE_M
+              | RFC_DBELL_RFCPEIEN_LAST_COMMAND_DONE_M);
+
+	3. RF_core.fxn = RF_fsmSetupState;
+		switch the FSM function
+
+	4. HwiP_enableInterrupt(INT_RFC_HW_COMB);
+           HwiP_enableInterrupt(INT_RFC_CPE_0);
+		What is this? Yes, this is enabling those interrupts for
+		funtions: RF_hwiCpe0PowerFsm, RF_hwi
+
+	   So what is the continuation from there? Looks like through
+	   RF_hwiCpe0PowerFsm on RFC_DBELL_RFCPEIFG_LAST_COMMAND_DONE_M 
+	   (triggered by the command above) ==> RF_FsmEventPowerStep event
+
+	=======================================================================
+
+	get here after SWI from previous, meaning the command done ?
+
+	1. RF_applyRfCorePatch(RF_PHY_BOOTUP_MODE);
+	    ... transcribing from ^
+	    cpePatchFxn();
+            /* Wait for clocks to be turned ON */
+            RF_dbellSyncOnAck();
+            rfePatchFxn();
+            /* Turn off additional clocks */
+            RFCDoorbellSendTo(CMDR_DIR_CMD_2BYTE(RF_CMD0, 0));
+		note that this is sync!!!!! this is what we called the magic;
+		looks like some additional clock
+
+	2. RF_dbellSubmitCmdAsync((uint32_t)CMDR_DIR_CMD_1BYTE(CMD_BUS_REQUEST,
+		1));
+		yep, we do it as well
+	   RFCAdi3VcoLdoVoltageMode(true);
+		yep, we do it the same
+
+	3. RF_initRadioSetup(pObj);
+		this does one thing for our case ==> modifies one item in
+			rfc_CMD_PROP_RADIO_DIV_SETUP_t
+           if (update)
+                 radioSetup->prop.config.analogCfgMode =
+			RF_SETUP_ANALOGCFG_UPDATE;  (this is 0, the default)
+           else
+                 radioSetup->prop.config.analogCfgMode =
+			RF_SETUP_ANALOGCFG_NOUPDATE;
+
+	4. Do the trim the way we do: RFCRfTrimSet((rfTrim_t*)&rfTrim);
+
+	5. Sync the doorbell: RF_dbellSyncOnAck();
+	   wait for the oscillator
+
+	
+	
+
+
+
+
+
+, then:
+		- setup the proprietary mode
+		- setup the rat
+		- setup the rat sync
+		- setup the freq
+	   All this is done as a chain ==> see RF_fsmSetupState (we do this
+	   individually which probably costs time)
+
+	   The first correction: try to chain last setup commands
+
+	Looks like this is it.
+
+	=======================================================================
+
+	Question: what happens to the oscillator
+		
+
+
+
+
+
+
+	
+
+
+
+
+
+
+
+
+        /* Power up RF core power domain. */
+        Power_setConstraint(PowerCC26XX_DISALLOW_STANDBY);
+        Power_setDependency(PowerCC26XX_DOMAIN_RFCORE);
+
+        /* Start power-up sequence */
+        RF_core.status = RF_CoreStatusPoweringUp;
+
+
+
+
+
+	2. 
+
+
+
+
+	2. Trigger SWI RF_FsmEventWakeup
+
+	2. Command to enable patches (ASYNC!!!!!)
+		CMDR_DIR_CMD_2BYTE (RF_CMD0,
+			RFC_PWR_PWMCLKEN_MDMRAM | RFC_PWR_PWMCLKEN_RFERAM));
+
+	3. Startup for interrupts (see above)
+
+===============================================================================
+
+
+

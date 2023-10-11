@@ -520,10 +520,6 @@ static void power_down () {
 	}
 
 	RxST = RCV_STATE_PD;
-
-#ifdef	MONITOR_PIN_CC1100_PUP
-	_PVS (MONITOR_PIN_CC1100_PUP, 0);
-#endif
 }
 
 // ============================================================================
@@ -601,9 +597,6 @@ static void power_up () {
 //
 // Return from sleep
 //
-#ifdef MONITOR_PIN_CC1100_PUP
-	_PVS (MONITOR_PIN_CC1100_PUP, 1);
-#endif
 #if defined(__CC430__) && RADIO_WOR_MODE
 	// Disable the WOR interrupt automaton in case we're returning from WOR
 	cc1100_worstate = 0;
@@ -645,10 +638,6 @@ static void do_rx_fifo () {
 	byte b;
 #endif
 	LEDI (2, 1);
-
-#ifdef	MONITOR_PIN_CC1100_RX
-	_PVS (MONITOR_PIN_CC1100_RX, 1);
-#endif
 
 	if ((len = rx_status ()) < 0) {
 		// Something wrong, bad state
@@ -823,10 +812,6 @@ Rtn:
 
 	LEDI (2, 0);
 
-#ifdef	MONITOR_PIN_CC1100_RX
-	_PVS (MONITOR_PIN_CC1100_RX, 0);
-#endif
-
 }
 
 // ============================================================================
@@ -911,9 +896,6 @@ DR_LOOP__:
 
 	// There is a packet to transmit
 
-#ifdef	MONITOR_PIN_CC1100_TXP
-	_PVS (MONITOR_PIN_CC1100_TXP, 1);
-#endif
 	if (bckf_timer) {
 		// Backoff wait
 #if (RADIO_OPTIONS & RADIO_OPTION_PXOPTIONS)
@@ -1024,14 +1006,6 @@ Bkf:
 		set_congestion_indicator (0);
 	}
 
-#ifdef	MONITOR_PIN_CC1100_TXP
-	_PVS (MONITOR_PIN_CC1100_TXP, 0);
-#endif
-
-#ifdef	MONITOR_PIN_CC1100_TXS
-	_PVS (MONITOR_PIN_CC1100_TXS, 1);
-#endif
-
 #if RADIO_WOR_MODE
 
 	if (tcv_isurgent (xbuff)) {
@@ -1118,10 +1092,6 @@ Bkf:
 	LEDI (1, 0);
 
 	gbackoff_xmt;
-
-#ifdef	MONITOR_PIN_CC1100_TXS
-	_PVS (MONITOR_PIN_CC1100_TXS, 0);
-#endif
 
 FEXmit:
 

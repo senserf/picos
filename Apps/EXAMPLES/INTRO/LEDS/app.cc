@@ -110,7 +110,7 @@ fsm root {
 		);
 #endif
 		my_led = (led_status_t*)umalloc (sizeof (led_status_t));
-		my_led -> led = 1;
+		my_led -> led = 0;
 		blink (my_led, YES);
 		runfsm blinker (my_led);
 

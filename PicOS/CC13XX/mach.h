@@ -112,7 +112,6 @@
 // Weird. I wasted two days before discovering that one NOP at the end of
 // the loop is not enough. Are two?
 #define	__SLEEP		do { \
-				CPU_MARK_IDLE; \
 				while (1) { \
 					cli; \
 					if (__pi_systat.evntpn) \
@@ -123,7 +122,6 @@
 					__NOP (); \
 				} \
 				__pi_systat.evntpn = 0; \
-				CPU_MARK_BUSY; \
 				sti; \
 			} while (0)
 
@@ -224,18 +222,6 @@ Boolean __pi_uart_setrate (word, uart_t*);
 #if __AUXIO_MAP == 7
 #define	DIO_TO_AUX(a)	(30-(a))
 #define	AUX_TO_DIO(a)	(30-(a))
-#endif
-
-#ifdef	MONITOR_PIN_CPU
-
-#define	CPU_MARK_IDLE	_PVS (MONITOR_PIN_CPU, 0)
-#define	CPU_MARK_BUSY	_PVS (MONITOR_PIN_CPU, 1)
-
-#else
-
-#define	CPU_MARK_IDLE	CNOP
-#define	CPU_MARK_BUSY	CNOP
-
 #endif
 
 #if LEDS_DRIVER

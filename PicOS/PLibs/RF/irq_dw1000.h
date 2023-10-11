@@ -13,10 +13,6 @@
 
 if (dw1000_int) {
 
-#ifdef	MONITOR_PIN_DW1000_INT
-    _PVS (MONITOR_PIN_DW1000_INT, 1);
-#endif
-
     dw1000_clear_int;
 
     dw1000_int_disable;
@@ -24,10 +20,6 @@ if (dw1000_int) {
     p_trigger (__dw1000_v_drvprcs, (word)(&__dw1000_v_drvprcs));
 
     RISE_N_SHINE;
-
-#ifdef	MONITOR_PIN_DW1000_INT
-    _PVS (MONITOR_PIN_DW1000_INT, 0);
-#endif
 
 }
 

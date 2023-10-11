@@ -813,18 +813,6 @@ extern uart_t __pi_uart [];
 
 // ============================================================================
 
-#ifdef	MONITOR_PIN_CPU
-
-#define	CPU_MARK_IDLE	_PVS (MONITOR_PIN_CPU, 0)
-#define	CPU_MARK_BUSY	_PVS (MONITOR_PIN_CPU, 1)
-
-#else
-
-#define	CPU_MARK_IDLE	CNOP
-#define	CPU_MARK_BUSY	CNOP
-
-#endif
-
 //#define	sti	_EINT ()
 //#define	cli	_DINT ()
 // Formally, nops are needed around these, only sometimes, not a big deal
@@ -837,7 +825,6 @@ extern uart_t __pi_uart [];
 #endif
 
 #define	__SLEEP	do { \
-			CPU_MARK_IDLE; \
 			if (__pi_systat.pdmode) { \
 				cli; \
 				if (__pi_systat.evntpn) { \
@@ -854,7 +841,6 @@ extern uart_t __pi_uart [];
 				} \
 			} \
 			__pi_systat.evntpn = 0; \
-			CPU_MARK_BUSY; \
 		} while (0)
 
 /*

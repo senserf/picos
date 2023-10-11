@@ -905,10 +905,6 @@ thread (dw1000_range)
 		chip_write (DW1000_REG_TX_BUFFER, 5, 2, &host_id);
 	}
 
-#ifdef MONITOR_PIN_DW1000_CYCLE
-	_PVS (MONITOR_PIN_DW1000_CYCLE, 1);
-#endif
-
     entry (RAN_TPOLL)
 
 	// Insert the sequence number into the outgoing packet
@@ -1038,9 +1034,6 @@ tpoll_exit:
 		trigger (&locdata);
 		if (flags & DW1000_FLG_REVERTPD)
 			powerdown ();
-#ifdef MONITOR_PIN_DW1000_CYCLE
-		_PVS (MONITOR_PIN_DW1000_CYCLE, 0);
-#endif
 		finish;
 	}
 

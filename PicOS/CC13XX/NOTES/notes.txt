@@ -1,0 +1,116 @@
+===============================================================================
+   /* Save the current radio time */
+    RF_cmdPropRxSniff.startTime = RF_getCurrentTime();
+
+This in a loop:
+
+   RF_cmdPropRxSniff.startTime += WOR_WAKE_UP_INTERVAL_RAT_TICKS(WOR_WAKEUPS_PER_SECOND);
+
+   /* Schedule RX */
+   RF_runCmd(rfHandle, (RF_Op*)&RF_cmdPropRxSniff, RF_PriorityNormal, &callback, RF_EventRxEntryDone);
+
+
+#define WOR_WAKE_UP_MARGIN_S 0.005f
+#define WOR_WAKE_UP_INTERVAL_RAT_TICKS(x) \
+    ((uint32_t)(4000000*(1.0f/(x) - (WOR_WAKE_UP_MARGIN_S))))
+time to wake up from now in RAT ticks
+===============================================================================
+
+RF TI:
+
+They say that power up takes 1.6 ms. I see 5 ms with my startup sequence.
+=========================================================================
+
+...
+
+fxn of RF_core points to the function executed after SwiFsm.
+
+Function RF_init (I understand before powering up):
+Power_init ();
+
+/* Enable output RTC clock for Radio Timer Synchronization */
+HWREG(AON_RTC_BASE + AON_RTC_O_CTL) |= AON_RTC_CTL_RTC_UPD_EN_M;
+
+
+
+
+
+
+
+
+
+
+RF_fsmSetupState
+
+e -> RF_FsmEventPowerStep [they do it in steps clocked by interrupts, we should
+try the same]
+
+Sequence:
+
+HWREG(PRCM_BASE + PRCM_O_RFCMODESEL) = RF_currClient->clientConfig.pRfMode->rfMode; // We preset it in phy setup
+
+Then, magic command to enable patches:
+RF_dbellSubmitCmdAsync((uint32_t)CMDR_DIR_CMD_2BYTE(RF_CMD0, RFC_PWR_PWMCLKEN_MDMRAM | RFC_PWR_PWMCLKEN_RFERAM));
+
+Note: unlike us, they submit it asynchronously:
+===
+static void RF_dbellSubmitCmdAsync(uint32_t rawCmd)
+{
+    HWREG(RFC_DBELL_BASE + RFC_DBELL_O_RFACKIFG) = 0;
+    HWREG(RFC_DBELL_BASE + RFC_DBELL_O_CMDR)     = rawCmd;
+}
+
+Then:
+
+RFCClockEnable ();
+// We do it the other way around!
+===
+
+Is this going to trigger an int? It looks so because the continuation is
+after event from RF_fsmSetupState;
+Maybe we can just use async, like them and simply wait in front for previous
+command to complete? Just to check if it works and do it right later?
+
+===
+
+RF_applyRfCorePatch(RF_PHY_BOOTUP_MODE);
+This is how they do it (extract for our case):
+    cpePatchFxn();	--> CPE patch fun
+    RF_dbellSyncOnAck();
+    rfePatchFxn();
+    RFCDoorbellSendTo(CMDR_DIR_CMD_2BYTE(RF_CMD0, 0));  --> this one we use
+===
+static void RF_dbellSyncOnAck(void)
+{
+    while (!HWREG(RFC_DBELL_BASE + RFC_DBELL_O_RFACKIFG));
+    HWREG(RFC_DBELL_BASE + RFC_DBELL_O_RFACKIFG) = 0;
+}
+===
+
+After that:
+RF_dbellSubmitCmdAsync((uint32_t)CMDR_DIR_CMD_1BYTE(CMD_BUS_REQUEST, 1));
+we do this synchronously, bad ?
+
+RFCAdi3VcoLdoVoltageMode(true);
+
+Then the trimming:
+RFCRfTrimRead((rfc_radioOp_t*)pRadioSetup, (rfTrim_t*)&rfTrim);
+RFCRfTrimSet((rfTrim_t*)&rfTrim);
+--> Note: we preset it once. Is that right? Removed RFCRTrim and it seems to
+work fine
+
+Then they synchronize to the doorbell, which we don't have to:
+RF_dbellSyncOnAck();
+
+Then there is something regarding the HF Osc which we do at the beginning.
+I don't understan the issues about manual switching the oscillator; probably
+related to keeping track of complex configs of power modes.
+Extracting:
+--> dis int
+OSCHfSourceReady (); --> callable by us
+--> enable
+Mam zrobic:
+while (!OSCHfSourceReady());
+
+
+

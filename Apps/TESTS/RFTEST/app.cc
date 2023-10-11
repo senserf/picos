@@ -1,5 +1,5 @@
 /*
-	Copyright 2002-2020 (C) Olsonet Communications Corporation
+	Copyright 2002-2023 (C) Olsonet Communications Corporation
 	Programmed by Pawel Gburzynski & Wlodek Olesinski
 	All rights reserved
 
@@ -2199,7 +2199,7 @@ fsm root {
 	// c..c - the channel
 	//
 
-	scr = NETWORK_ID | ((g_flags >> 11) & 0x7);
+	scr = NETWORK_ID | ((g_flags >> 11) & 0x3);
 	tcv_control (g_fd_rf, PHYSOPT_SETSID, &scr);
 	scr = (g_flags >> 8) & 0x7;
 	tcv_control (g_fd_rf, PHYSOPT_SETPOWER, &scr);
@@ -2207,14 +2207,16 @@ fsm root {
 
 	runfsm thread_listener;
 
-	if (g_flags & 0x4000) {
-		runfsm thread_sender (0);
+	if (g_flags & 0x2000) {
 		tcv_control (g_fd_rf, PHYSOPT_RXON, NULL);
 		g_rstat = 0;
 	} else {
 		tcv_control (g_fd_rf, PHYSOPT_RXOFF, NULL);
 		g_rstat = 2;
 	}
+
+	if (g_flags & 0x4000)
+		runfsm thread_sender (0);
 
 	// Only this one stays
 	g_flags &= 0x8000;
@@ -2272,13 +2274,15 @@ fsm root {
 
   	word scr;
 
-	scr = NETWORK_ID | ((g_flags >> 11) & 0x7);
+	scr = NETWORK_ID | ((g_flags >> 11) & 0x3);
 	uart_outf (RS_BANNER,
-	"Node: %u, NetId: %x, Rate: %u, Channel: %u, XPower: %u, Power%s, %s",
+	"Node: %u, NetId: %x, Rate: %u, Channel: %u, "
+	"XPower: %u, Power%s, Tx%s, Rx%s",
 			HOST_ID, scr, RADIO_DEFAULT_BITRATE,
 				g_flags & 0xff, (g_flags >> 8) & 0x7,
 				(g_flags & 0x8000) ? "down" : "up",
-				(g_flags & 0x4000) ? "Active" : "Passive");
+				(g_flags & 0x4000) ? "On" : "Off",
+				(g_flags & 0x2000) ? "On" : "Off");
 
 	tcv_control (g_fd_rf, PHYSOPT_SETSID, &scr);
 	scr = (g_flags >> 8) & 0x7;
@@ -2287,14 +2291,16 @@ fsm root {
 
 	runfsm thread_listener;
 
-	if (g_flags & 0x4000) {
-		runfsm thread_sender (0);
+	if (g_flags & 0x2000) {
 		tcv_control (g_fd_rf, PHYSOPT_RXON, NULL);
 		g_rstat = 0;
 	} else {
 		tcv_control (g_fd_rf, PHYSOPT_RXOFF, NULL);
 		g_rstat = 2;
 	}
+
+	if (g_flags & 0x4000)
+		runfsm thread_sender (0);
 
 	// Only this one stays
 	g_flags &= 0x8000;
@@ -2354,16 +2360,17 @@ fsm root {
 	g_flags = HOST_FLAGS;
 
 	//
-	// d a z z z p p p c c c c c c c c
+	// d a r z z p p p c c c c c c c c
 	//
 	// d 	- power down flag
 	// a    - active flag (sender initially on)
-	// zzz  - last three bits of network ID
+	// r	- receiver flag (receiver initially on)
+	// zz   - last two bits of network ID
 	// ppp  - default power level for xmitter
 	// c..c - the channel
 	//
 
-	scr = NETWORK_ID | ((g_flags >> 11) & 0x7);
+	scr = NETWORK_ID | ((g_flags >> 11) & 0x3);
 	tcv_control (g_fd_rf, PHYSOPT_SETSID, &scr);
 	scr = (g_flags >> 8) & 0x7;
 	tcv_control (g_fd_rf, PHYSOPT_SETPOWER, &scr);
@@ -2373,19 +2380,14 @@ fsm root {
 
 #ifdef 	BUTTONS_ACTION_PRESENT
 	buttons_action (buttons);
-	if (g_flags & 0x4000) {
+#endif
+	if (g_flags & 0x2000) {
 		tcv_control (g_fd_rf, PHYSOPT_RXON, NULL);
 		g_rstat = 0;
 	} else {
 		tcv_control (g_fd_rf, PHYSOPT_RXOFF, NULL);
 		g_rstat = 2;
 	}
-#else
-	// Start with the receiver on, because otherwise you have no chance
-	// of ever going
-	tcv_control (g_fd_rf, PHYSOPT_RXON, NULL);
-	g_rstat = 0;
-#endif
 	if (g_flags & 0x4000)
 		runfsm thread_sender (0);
 

@@ -8,6 +8,8 @@
 */
 #include "kernel.h"
 
+// ============================================================================
+
 #if 0
 void dump_data () {
 
@@ -342,9 +344,6 @@ void AONRTCIntHandler () {
 
 		Boolean aux_timer_inactive;
 
-#ifdef	MONITOR_PIN_CLOCKA
-		_PVS (MONITOR_PIN_CLOCKA, 1);
-#endif
 		// Flag == should we continue?
 		aux_timer_inactive = 1;
 
@@ -381,27 +380,16 @@ EUT:
 			// Nobody wants us, disable channel 2
 			cli_aux;
 		}
-
-#ifdef	MONITOR_PIN_CLOCKA
-	_PVS (MONITOR_PIN_CLOCKA, 0);
-#endif
 	}
 
 	if (events & AON_RTC_EVFLAGS_CH0) {
 
 		// This one serves only delays; disable immediately
-#ifdef	MONITOR_PIN_CLOCK
-		_PVS (MONITOR_PIN_CLOCK, 1);
-#endif
 		cli_tim;
 
 		__pi_new += setdel;
 		setdel = 0;
 		RISE_N_SHINE;
-
-#ifdef	MONITOR_PIN_CLOCK
-		_PVS (MONITOR_PIN_CLOCK, 0);
-#endif
 	}
 
 	RTNI;
@@ -1507,3 +1495,9 @@ int main (void) {
 //
 //	How to avoid the minute wakeups on MAX delay?
 //
+//
+// 231009 To Check:
+//
+//	- OSCClockSourceGet (OSC_SRC_CLK_HF); What is the clock source on
+//	  startup; should be set from ccfg.c by SetupTrimDevice ()?? It is
+//	  supposed to be RC, but it looks like LFXOSC

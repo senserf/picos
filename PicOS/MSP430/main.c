@@ -214,25 +214,6 @@ static void ssm_init () {
 
 #include "portinit.h"
 
-// ======================
-// Monitor pins overrides
-// ======================
-#ifdef	MONITOR_PIN_CPU
-	_PDS (MONITOR_PIN_CPU, 1);
-#endif
-#ifdef	MONITOR_PIN_CLOCK
-	_PDS (MONITOR_PIN_CLOCK, 1);
-#endif
-#ifdef	MONITOR_PIN_CLOCKA
-	_PDS (MONITOR_PIN_CLOCKA, 1);
-#endif
-#ifdef	MONITOR_PIN_CLOCKS
-	_PDS (MONITOR_PIN_CLOCKS, 1);
-#endif
-#ifdef	MONITOR_PIN_SCHED
-	_PDS (MONITOR_PIN_SCHED, 1);
-#endif
-
 // ===========================================================================
 // Clock setup ===============================================================
 // ===========================================================================
@@ -764,9 +745,6 @@ interrupt (TCI_VECTOR_S) timer_auxiliary () {
 	// This test also removes the interrupt status
 	if (TCI_AUXILIARY_TIMER_INTERRUPT) {
 
-#ifdef	MONITOR_PIN_CLOCKA
-		_PVS (MONITOR_PIN_CLOCKA, 1);
-#endif
 		// Set for the next tick - as quickly as possible
 		TCI_CCA += TCI_HIGH_DIV;
 		// Flag == should we continue?
@@ -804,15 +782,9 @@ EUT:
 			// Nobody wants us
 			cli_aux;
 
-#ifdef	MONITOR_PIN_CLOCKA
-	_PVS (MONITOR_PIN_CLOCKA, 0);
-#endif
 		RTNI;
 	}
 
-#ifdef	MONITOR_PIN_CLOCKS
-	_PVS (MONITOR_PIN_CLOCKS, 1);
-#endif
 	// This is the seconds clock. I thought about reducing its rate even
 	// further. Note that theoretically, the clock can tick once per 16
 	// seconds (the wraparound of the timer, with TCI_CCS being fixed).
@@ -846,18 +818,11 @@ EUT:
 #include "second.h"
 // ============================================================================
 
-#ifdef	MONITOR_PIN_CLOCKS
-	_PVS (MONITOR_PIN_CLOCKS, 0);
-#endif
-
 	RTNI;
 }
 
 interrupt (TCI_VECTOR) timer_int () {
 
-#ifdef	MONITOR_PIN_CLOCK
-	_PVS (MONITOR_PIN_CLOCK, 1);
-#endif
 	// This one serves only delays; utimers are handled by the debounce
 	// timer
 
@@ -866,9 +831,6 @@ interrupt (TCI_VECTOR) timer_int () {
 	setdel = 0;	// Mark that the counting has been accomplished
 	RISE_N_SHINE;
 
-#ifdef	MONITOR_PIN_CLOCK
-	_PVS (MONITOR_PIN_CLOCK, 0);
-#endif
 	RTNI;
 }
 
@@ -883,10 +845,6 @@ interrupt (TCI_VECTOR) timer_int () {
 interrupt (TCI_VECTOR) timer_int () {
 
 	word d;
-
-#ifdef	MONITOR_PIN_CLOCK
-	_PVS (MONITOR_PIN_CLOCK, 1);
-#endif
 
 	// Clear hardware watchdog. Its sole purpose is to guard clock
 	// interrupts, with clock interrupts acting as software watchdog.
@@ -917,9 +875,6 @@ interrupt (TCI_VECTOR) timer_int () {
 		if (d >= JIFFIES || twakecnd (__pi_old, __pi_new, __pi_mintk))
 			RISE_N_SHINE;
 
-#ifdef	MONITOR_PIN_CLOCK
-		_PVS (MONITOR_PIN_CLOCK, 0);
-#endif
 		RTNI;
 
 #if HIGH_CRYSTAL_RATE == 0
@@ -952,9 +907,6 @@ interrupt (TCI_VECTOR) timer_int () {
 #endif
 		RISE_N_SHINE;
 
-#ifdef	MONITOR_PIN_CLOCK
-	_PVS (MONITOR_PIN_CLOCK, 0);
-#endif
 	RTNI;
 #endif	/* HIGH_CRYSTAL_RATE == 0 */
 }

@@ -34,3 +34,5 @@
 
 
 // #define	TCV_LIMIT_RCV	4
+#define	MONITOR_PIN_SCHED 		P2_4
+#define MONITOR_PIN_CC1100_PUP	P2_5
