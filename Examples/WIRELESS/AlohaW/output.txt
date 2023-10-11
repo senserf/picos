@@ -1,0 +1,303 @@
+SMURPH Version 3.26-OA      Simple ALOHA    Wed Mar 14 08:54:03 2018
+Call arguments: data.txt output.txt
+
+Time: 10792544998698 [36000.055074] (ALOHATraffic 0) Performance measures:
+
+AMD - Absolute message delay:
+
+      Number of samples:              17302
+      Minimum value:          0.08272400235
+      Maximum value:           0.2317598997
+      Mean value:             0.08499929988
+      Variance:             0.0001001202317
+      Standard deviation:     0.01000600978
+      Confidence int @95%:    0.00175409654
+      Confidence int @99%:   0.002304489077
+
+APD - Absolute packet delay:
+
+      Number of samples:              17302
+      Minimum value:          0.08272400235
+      Maximum value:          0.09992798418
+      Mean value:              0.0833356951
+      Variance:             2.647055149e-06
+      Standard deviation:    0.001626977304
+      Confidence int @95%:  0.0002909097989
+      Confidence int @99%:  0.0003821901694
+
+WMD - Weighted message delay:
+
+      Number of samples:           11073280
+      Minimum value:          0.08272400235
+      Maximum value:           0.2317598997
+      Mean value:             0.08499929988
+      Variance:             0.0001001202317
+      Standard deviation:     0.01000600978
+      Confidence int @95%:   6.93367538e-05
+      Confidence int @99%:  9.109292909e-05
+
+MAT - Message access time:
+
+      Number of samples:              18145
+      Minimum value:          0.08270732414
+      Maximum value:           0.2305807173
+      Mean value:             0.08457756768
+      Variance:             9.971817275e-05
+      Standard deviation:    0.009985898695
+      Confidence int @95%:   0.001717946162
+      Confidence int @99%:   0.002256995596
+
+PAT - Packet access time:
+
+      Number of samples:              18145
+      Minimum value:          0.08270732414
+      Maximum value:          0.09874880175
+      Mean value:             0.08290695346
+      Variance:             2.407405085e-06
+      Standard deviation:    0.001551581479
+      Confidence int @95%:  0.0002723085109
+      Confidence int @99%:  0.0003577522528
+
+MLS - Message length statistics:
+
+      Number of samples:              18145
+      Minimum value:                    640
+      Maximum value:                    640
+      Mean value:                       640
+      Variance:                           0
+      Standard deviation:                 0
+      Confidence int @95%:                0
+      Confidence int @99%:                0
+
+    Number of generated messages:             18145
+    Number of queued messages:                    0
+    Number of transmitted messages:           18145
+    Number of received messages:              17302
+    Number of transmitted packets:            18145
+    Number of received packets:               17302
+    Number of queued bits:                        0
+    Number of transmitted bits:            11612800
+    Number of received bits:               11073280
+
+    Measurement start time:                       0
+
+(ALOHATraffic 0) End of list
+
+Time: 10792544998698 [36000.055074] (ALOHATraffic 1) Performance measures:
+
+AMD - Absolute message delay:
+
+      Number of samples:              36090
+      Minimum value:          0.09272400041
+      Maximum value:            8.489408443
+      Mean value:              0.3915916128
+      Variance:                0.4532418881
+      Standard deviation:      0.6732324176
+      Confidence int @95%:    0.01773757599
+      Confidence int @99%:    0.02330319294
+
+APD - Absolute packet delay:
+
+      Number of samples:              36090
+      Minimum value:          0.09272400041
+      Maximum value:            7.786831982
+      Mean value:              0.3422347186
+      Variance:                0.2927203539
+      Standard deviation:      0.5410363702
+      Confidence int @95%:    0.01631041555
+      Confidence int @99%:    0.02142822451
+
+WMD - Weighted message delay:
+
+      Number of samples:           23097600
+      Minimum value:          0.09272400041
+      Maximum value:            8.489408443
+      Mean value:              0.3915916128
+      Variance:                0.4532418881
+      Standard deviation:      0.6732324176
+      Confidence int @95%:  0.0007011392536
+      Confidence int @99%:  0.0009211395806
+
+MAT - Message access time:
+
+      Number of samples:              36090
+      Minimum value:            0.128782149
+      Maximum value:            9.201764642
+      Mean value:              0.4475814641
+      Variance:                0.4970962586
+      Standard deviation:      0.7050505362
+      Confidence int @95%:    0.01625214861
+      Confidence int @99%:    0.02135167484
+
+PAT - Packet access time:
+
+      Number of samples:              36090
+      Minimum value:            0.128782149
+      Maximum value:            9.201764642
+      Mean value:              0.3982245699
+      Variance:                0.3344780171
+      Standard deviation:      0.5783407448
+      Confidence int @95%:    0.01498367582
+      Confidence int @99%:    0.01968518635
+
+MLS - Message length statistics:
+
+      Number of samples:              36091
+      Minimum value:                    640
+      Maximum value:                    640
+      Mean value:                       640
+      Variance:                           0
+      Standard deviation:                 0
+      Confidence int @95%:                0
+      Confidence int @99%:                0
+
+    Number of generated messages:             36091
+    Number of queued messages:                    1
+    Number of transmitted messages:           36090
+    Number of received messages:              36090
+    Number of transmitted packets:            36090
+    Number of received packets:               36090
+    Number of queued bits:                      640
+    Number of transmitted bits:            23097600
+    Number of received bits:               23097600
+
+    Measurement start time:                       0
+
+(ALOHATraffic 1) End of list
+
+Time: 10792544998698 [36000.055074] (Client) Global performance measures:
+
+AMD - Absolute message delay:
+
+      Number of samples:              53392
+      Minimum value:          0.08272400235
+      Maximum value:            8.489408443
+      Mean value:              0.2922385225
+      Variance:                0.3269884192
+      Standard deviation:      0.5718290122
+      Confidence int @95%:     0.0165976537
+      Confidence int @99%:    0.02180559096
+
+APD - Absolute packet delay:
+
+      Number of samples:              53392
+      Minimum value:          0.08272400235
+      Maximum value:            7.786831982
+      Mean value:              0.2583369267
+      Variance:                0.2125456304
+      Standard deviation:      0.4610267133
+      Confidence int @95%:    0.01513761929
+      Confidence int @99%:     0.0198874335
+
+WMD - Weighted message delay:
+
+      Number of samples:           34170880
+      Minimum value:          0.08272400235
+      Maximum value:            8.489408443
+      Mean value:              0.2922385225
+      Variance:                0.3269884192
+      Standard deviation:      0.5718290122
+      Confidence int @95%:  0.0006560798689
+      Confidence int @99%:  0.0008619416645
+
+MAT - Message access time:
+
+      Number of samples:              54235
+      Minimum value:          0.08270732414
+      Maximum value:            9.201764642
+      Mean value:              0.3261339542
+      Variance:                0.3601562494
+      Standard deviation:      0.6001301937
+      Confidence int @95%:    0.01548694338
+      Confidence int @99%:    0.02034636694
+
+PAT - Packet access time:
+
+      Number of samples:              54235
+      Minimum value:          0.08270732414
+      Maximum value:            9.201764642
+      Mean value:              0.2927311035
+      Variance:                0.2447100805
+      Standard deviation:      0.4946817972
+      Confidence int @95%:    0.01422241376
+      Confidence int @99%:     0.0186850589
+
+MLS - Message length distribution:
+
+      Number of samples:              54236
+      Minimum value:                    640
+      Maximum value:                    640
+      Mean value:                       640
+      Variance:                           0
+      Standard deviation:                 0
+      Confidence int @95%:                0
+      Confidence int @99%:                0
+
+    Number of generated messages:             54236
+    Number of queued messages:                    1
+    Number of transmitted messages:           54235
+    Number of received messages:              53392
+    Number of transmitted packets:            54235
+    Number of received packets:               53392
+    Number of queued bits:                      640
+    Number of transmitted bits:            34710400
+    Number of received bits:               34170880
+    Measurement start time:                       0
+    Throughput:                          949.189659
+
+(Client) End of list
+
+Time: 10792544998698 [36000.055074] (ALOHARF 0) Performance measures:
+
+    Number of transmit attempts:              54761
+    Number of transmitted packets:            54761
+    Number of transmitted bits:            11612800
+    Number of received packets:               17302
+    Number of received bits:               11073280
+    Number of transmitted messages:           18145
+    Number of received messages:              17302
+    Throughput (by received bits):      307.5906406
+    Throughput (by trnsmtd bits):       322.5772843
+
+(ALOHARF 0) End of list
+
+Time: 10792544998698 [36000.055074] (ALOHARF 1) Performance measures:
+
+    Number of transmit attempts:              41931
+    Number of transmitted packets:            41931
+    Number of transmitted bits:            26835840
+    Number of received packets:               36090
+    Number of received bits:               23097600
+    Number of transmitted messages:           41931
+    Number of received messages:              36090
+    Throughput (by received bits):      641.5990185
+    Throughput (by trnsmtd bits):       745.4388596
+
+(ALOHARF 1) End of list
+
+Terminal 0, distance 193:
+  From hub --->  Sent:     3145    Rcvd:     3014    PDF: 0.958
+  To hub <-----  Sent:     5988    Retr: 1.189546
+
+Terminal 1, distance  28:
+  From hub --->  Sent:     3069    Rcvd:     2953    PDF: 0.962
+  To hub <-----  Sent:     6041    Retr: 1.100480
+
+Terminal 2, distance  31:
+  From hub --->  Sent:     3039    Rcvd:     2932    PDF: 0.965
+  To hub <-----  Sent:     6018    Retr: 1.102692
+
+Terminal 3, distance   5:
+  From hub --->  Sent:     3034    Rcvd:     2955    PDF: 0.974
+  To hub <-----  Sent:     5979    Retr: 1.032112
+
+Terminal 4, distance 179:
+  From hub --->  Sent:     2959    Rcvd:     2866    PDF: 0.969
+  To hub <-----  Sent:     6120    Retr: 1.187092
+
+Terminal 5, distance 354:
+  From hub --->  Sent:     2899    Rcvd:     2582    PDF: 0.891
+  To hub <-----  Sent:     5944    Retr: 1.360532
+
+
+@@@ End of output

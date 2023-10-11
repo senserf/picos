@@ -154,10 +154,10 @@ typedef void (*SIGARG) (int);
 
 /* The following defs are inserted by maker. Everything starting with the */
 /* next line will be removed and written from scratch.                    */
-#define  ZZ_SOURCES      "/home/nripg/SOFTWARE/SIDE/SOURCES"
-#define  ZZ_LIBPATH      "/home/nripg/SOFTWARE/SIDE/LIB"
-#define  ZZ_INCPATH      "-I /home/nripg/SOFTWARE/SIDE/Examples/IncLib -I /home/nripg/SOFTWARE/VUEE/PICOS"
-#define  ZZ_XINCPAT      {"/home/nripg/SOFTWARE/PICOS/Apps/DataLib", NULL}
+#define  ZZ_SOURCES      "/cygdrive/c/Users/nripg/OneDrive/STORAGE/SOFTWARE/SIDE/SOURCES"
+#define  ZZ_LIBPATH      "/cygdrive/c/Users/nripg/OneDrive/STORAGE/SOFTWARE/SIDE/LIB"
+#define  ZZ_INCPATH      "-I /cygdrive/c/Users/nripg/OneDrive/STORAGE/SOFTWARE/SIDE/Examples/IncLib -I /cygdrive/c/Users/nripg/OneDrive/STORAGE/SOFTWARE/VUEE/PICOS"
+#define  ZZ_XINCPAT      {"/cygdrive/c/Users/nripg/OneDrive/STORAGE/SOFTWARE/PICOS/Apps/DataLib", NULL}
 #define  ZZ_MONHOST      "localhost"
 #define  ZZ_MONSOCK      4442
-#define  ZZ_RTAG	"PG201004A"
+#define  ZZ_RTAG	"PG220324A"
