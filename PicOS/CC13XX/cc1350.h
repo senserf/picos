@@ -16,6 +16,12 @@
 
 // ============================================================================
 
+#ifndef RADIO_BASE_BITRATE
+// This determines the set, i.e., the base config file (from SmartRF Studio)
+// to be applied. This will determine the actual range of other parameters
+#define	RADIO_BASE_BITRATE	1
+#endif
+
 #ifndef	RADIO_DEFAULT_POWER
 #define	RADIO_DEFAULT_POWER	7
 #endif
@@ -24,70 +30,92 @@
 #error "S: RADIO_DEFAULT_POWER > 8!!!"
 #endif
 
-// Rates: 	0: 625 bps, long range, must be compiled in with power 8
-//		1: 10.0K
-//		2: 38.4K
-//		3: 50.0K (TI default)
-
 #ifndef	RADIO_DEFAULT_BITRATE
 #define	RADIO_DEFAULT_BITRATE	3
 #endif
 
-#if RADIO_DEFAULT_BITRATE == 625 || RADIO_DEFAULT_BITRATE == 0
-#define	RADIO_BITRATE_INDEX	0
-#elif RADIO_DEFAULT_BITRATE == 10000 || RADIO_DEFAULT_BITRATE == 1
-#define	RADIO_BITRATE_INDEX	1
-#elif RADIO_DEFAULT_BITRATE == 38400 || RADIO_DEFAULT_BITRATE == 2
-#define	RADIO_BITRATE_INDEX	2
-#elif RADIO_DEFAULT_BITRATE == 50000 || RADIO_DEFAULT_BITRATE == 3
-#define	RADIO_BITRATE_INDEX	3
-#else
-#error "S: Unknown bit rate, legal rates are: 0-625, 1-10000, 2-38400, 3-50000"
+#if RADIO_DEFAULT_BITRATE < 0 || RADIO_DEFAULT_BITRATE > 3
+#error "S: RADIO_DEFAULT_BITRATE > 3"
+#endif
+//
+// Rates are relative. I no longer mention the (intended) bps values because
+// they were wrong. I will try to calibrate and give numbers here. For now,
+// stay tuned.
+//
+
+#if RADIO_BASE_BITRATE == 0
+// This is the special low-rate mode with max power
+#if RADIO_DEFAULT_POWER != 8
+#error "S: RADIO_BASE_BITRATE == 0 requires RADIO_DEFAULT_POWER == 8"
+#endif 
+#if RADIO_DEFAULT_BITRATE > 0
+#error "S: RADIO_DEFAULT_BITRATE must be 0 with RADIO_BASE_BITRATE == 0"
+#endif
 #endif
 
-// Channels have to be implemented by direct frequency adjustments; to be
-// determined, but we will probably have just a few
-
-#ifndef RADIO_DEFAULT_CHANNEL
-#define	RADIO_DEFAULT_CHANNEL	0
+#if RADIO_DEFAULT_POWER == 8
+#ifdef CC1350_PATABLE
+#error "S: No PATABLE can be defined for RADIO_DEFAULT_POWER == 8"
+#endif
 #endif
 
-#if RADIO_DEFAULT_CHANNEL < 0 || RADIO_DEFAULT_CHANNEL > 7
-#error "S: RADIO_DEFAULT_CHANNEL > 7!!!"
+#if RADIO_BASE_BITRATE == 0
+// There is just one option: fixed power, fixed rate
+//+++ smartrf_settings_625b_p8.c
+#ifdef CC1350_RATABLE
+#error "S: No RATABLE can be defined for RADIO_BASE_BITRATE == 0"
+// FIXME: we need it in the driver
 #endif
-
-#ifndef	RADIO_SYSTEM_IDENT
-// Can be set to zero and means "use the value provided by SmartRF Studio"
-#define	RADIO_SYSTEM_IDENT	0xAB3553BA
-#endif
-
-#ifndef	RADIO_DEFAULT_OFFDELAY
-// The deafult linger time before turning off the radio after last xmit with
-// RX off (msecs)
-#define	RADIO_DEFAULT_OFFDELAY	256
-#endif
-
-#ifndef	RADIO_WOR_MODE
-#define	RADIO_WOR_MODE		0
-#endif
-
-#ifndef	RADIO_DEFAULT_WOR_INTERVAL
-#define	RADIO_DEFAULT_WOR_INTERVAL	512
-#endif
-
-#ifndef	RADIO_DEFAULT_WOR_RSSI
-#define	RADIO_DEFAULT_WOR_RSSI		(-111 + 128)
 #endif
 
 // ============================================================================
 
-// Consistency checks
-#if RADIO_BITRATE_INDEX == 0
-// This is long range, high power setting
-#if RADIO_DEFAULT_POWER < 8
-#error "S: RADIO_DEFAULT_BITRATE == 625 requires RADIO_DEFAULT_POWER == 8"
+#if RADIO_BASE_BITRATE == 1
+#if RADIO_DEFAULT_POWER == 8
+//+++ smartrf_settings_50k_p8.c
+#else
+//+++ smartrf_settings_50k_p7.c
 #endif
+
+#ifndef	CC1350_RATABLE
+// The entry number 0 is not used for setting the rate, because rate #0 must be
+// hardwired (and the rate is then not settable)
+#define	CC1350_RATABLE 		{ \
+					{ 0xF,  0x199A, 10000 }, \
+					{ 0xB,	0x12C5, 9997 }, \
+					{ 0x7,	0x2DE0, 38399 }, \
+					{ 0xF,	0x8000, 50000 }, \
+				}
 #endif
+
+#endif
+
+// ============================================================================
+
+#if RADIO_BASE_BITRATE == 2
+#if RADIO_DEFAULT_POWER == 8
+//+++ smartrf_settings_200k_p8.c
+#else
+//+++ smartrf_settings_200k_p7.c
+#endif
+
+#ifndef	CC1350_RATABLE
+// This is dummy for now, the last enty works; first entry unused
+#define	CC1350_RATABLE 		{ \
+					{ 0xF,  0x10000, 200000 }, \
+					{ 0xF,	0x10000, 200000 }, \
+					{ 0xF,	0x18000, 200000 }, \
+					{ 0xF,	0x20000, 200000 }, \
+				}
+#endif
+
+#endif
+
+// ============================================================================
+
+#if RADIO_DEFAULT_POWER != 8
+
+// This works for both BASE BITRATES (SmartRF Studio returns same values)
 
 #ifndef	CC1350_PATABLE
 // ============================================================================
@@ -120,22 +148,54 @@
 					0xBC2B, \
 				}
 #endif
-
-// Highest power has a separate smartf_settings.c in two versions:
-//	- long range, low rate
-//	- 50 kbps, TI default
-
-#ifndef	CC1350_RATABLE
-// The entry number 0 is not used for setting the rate, because rate #0 must be
-// hardwired (and the rate is then not settable)
-#define	CC1350_RATABLE 		{ \
-					{ 0xF,  0x199A, 10000 }, \
-					{ 0xB,	0x12C5, 9997 }, \
-					{ 0x7,	0x2DE0, 38399 }, \
-					{ 0xF,	0x8000, 50000 }, \
-				}
 #endif
-// Channel increment; for now, 1 channel == 1 MHz
+
+// ============================================================================
+
+// Channels have to be implemented by direct frequency adjustments; to be
+// determined, but we will probably have just a few
+
+#ifndef RADIO_DEFAULT_CHANNEL
+#define	RADIO_DEFAULT_CHANNEL	0
+#endif
+
+#if RADIO_DEFAULT_CHANNEL < 0 || RADIO_DEFAULT_CHANNEL > 7
+#error "S: RADIO_DEFAULT_CHANNEL > 7!!!"
+#endif
+
+#ifndef	RADIO_SYSTEM_IDENT
+// Can be set to zero and means "use the value provided by SmartRF Studio"
+#define	RADIO_SYSTEM_IDENT	0x930B51DE
+#endif
+
+#ifndef	RADIO_DEFAULT_OFFDELAY
+// The deafult linger time before turning off the radio after last xmit with
+// RX off (msecs)
+#define	RADIO_DEFAULT_OFFDELAY	256
+#endif
+
+#ifndef	RADIO_WOR_MODE
+#define	RADIO_WOR_MODE		0
+#endif
+
+#if RADIO_WOR_MODE && !defined(CC1350_RATABLE)
+#error "S: RADIO_WOR_MODE requires PATABLE and RATABLE"
+#endif
+
+#ifndef	RADIO_DEFAULT_WOR_INTERVAL
+#define	RADIO_DEFAULT_WOR_INTERVAL	512
+#endif
+
+#ifndef	RADIO_DEFAULT_WOR_RSSI
+#define	RADIO_DEFAULT_WOR_RSSI		(-111 + 128)
+#endif
+
+// ============================================================================
+
+#define	RADIO_BITRATE_INDEX RADIO_DEFAULT_BITRATE
+
+// Channel increment; for now, 1 channel == 1 MHz; this should depend on
+// rate; FIXME
 #ifndef	CC1350_BASEFREQ
 #define	CC1350_BASEFREQ		868	// Megahertz
 #endif
@@ -271,8 +331,5 @@ typedef struct {
 	((address)(pkt)) [(tcv_tlength ((address)(pkt)) >> 1) - 1] = \
 	((lbt) ? 0x0000 : 0x8000) | ((pwr) << 12) | (cav); } while (0)
 #endif
-
-// This is superfluous
-//---
 
 #endif

@@ -33,19 +33,6 @@
 #include "kernel.h"
 #include "cc1350.h"
 
-// Which config file to compile in?
-
-#if RADIO_BITRATE_INDEX == 0
-// High-power, low-rate
-//+++ smartrf_settings_hp_lr.c
-#elif RADIO_DEFAULT_POWER > 7
-// High-power, high-rate, the highest power must be compiled in
-//+++ smartrf_settings_hp_hr.c
-#else
-// Low-power (well, not so low, just not the highest possible), high-rate
-//+++ smartrf_settings_lp_hr.c
-#endif
-
 // ============================================================================
 
 #if 0

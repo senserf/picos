@@ -475,6 +475,8 @@ struct __RFC_STRUCT rfc_CMD_PROP_RADIO_SETUP_s {
       uint32_t preScale:4;              //!<        Prescaler value
       uint32_t :4;
       uint32_t rateWord:21;             //!<        Rate word
+// PG: inserted from the TIRTOS version, probably not needed
+      uint32_t decimMode:3;
    } symbolRate;                        //!<        Symbol rate setting
    uint8_t rxBw;                        //!<        Receiver bandwidth
    struct {
@@ -565,6 +567,8 @@ struct __RFC_STRUCT rfc_CMD_PROP_RADIO_DIV_SETUP_s {
       uint32_t preScale:4;              //!<        Prescaler value
       uint32_t :4;
       uint32_t rateWord:21;             //!<        Rate word
+// PG: inserted from the TIRTOS version, probably not needed
+      uint32_t decimMode:3;
    } symbolRate;                        //!<        Symbol rate setting
    uint8_t rxBw;                        //!<        Receiver bandwidth
    struct {

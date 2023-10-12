@@ -33,9 +33,6 @@
 // for synchronized acks (and stuff like that). I don't think we can detect
 // reception and postpone transmission any other way.
 //
-// Cold-starting up the transmitter takes 5ms; check the reference code again
-// Can we do better?
-//
 // ============================================================================
 
 #if 0
@@ -177,10 +174,10 @@ static byte	txtries = 0;		// Number of TX attempts for current pkt
 // The secret (undocumented) command (stolen from tirtos)
 #define	RF_CMD0		0x0607
 
-static byte	vrate = RADIO_BITRATE_INDEX,
+static byte	vrate = RADIO_DEFAULT_BITRATE,
 		channel = RADIO_DEFAULT_CHANNEL;
 
-#if RADIO_DEFAULT_POWER <= 7
+#ifdef CC1350_PATABLE
 // ============================================================================
 // Power can be changed; the max power must be hardwired (with rate 0) for
 // long range operation
@@ -190,6 +187,7 @@ static byte txpower;
 
 // Used to be const, but we want to be able to modify the values from the
 // default settings and also be able to revert to the defaults
+
 static word patable_def [] = CC1350_PATABLE;	// Default power settings
 static address patable = patable_def;		// Effective settings
 
@@ -237,8 +235,10 @@ static cc1350_rfparams_t params = {
 #endif
 };
 
+#ifdef CC1350_RATABLE
+
 typedef struct {
-		word	ps,	// prescale
+		lword	ps,	// prescale
 			rw;	// rate word
 		// The actual exact rate computed from the raw parameters, so
 		// we don't have to compute it
@@ -248,6 +248,8 @@ typedef struct {
 static const ratable_t ratable [] = CC1350_RATABLE;
 
 #define	NRATES	(sizeof (ratable)/sizeof (ratable_t))
+
+#endif
 
 // Pointer to the queue of reception buffers; this is shared with the WOR mode
 #define	rbuffs 		(RF_cmdPropRx . pQueue)
@@ -433,6 +435,12 @@ static void rf_on () {
 	if (dstate & DSTATE_RFON)
 		return;
 
+	// I have redone it a bit (231012) so it takes less time than before.
+	// Having looked into TI code, I have managed to parallelize the XOSC
+	// statup with other stuff, and also chained the last three setup commands
+	// into one which nets us less than 300 us for the coldstart, as witnessed
+	// by my crappy oscilloscope.
+
 	TIME_COLDSTART_ON;
 
 #ifdef	RADIO_PINS_ON
@@ -467,7 +475,7 @@ static void rf_on () {
 	rf_patch_rfe_genfsk ();	
 
 	// Undo the magic
-        issue_cmd (CMDR_DIR_CMD_2BYTE (RF_CMD0, 0));
+	issue_cmd (CMDR_DIR_CMD_2BYTE (RF_CMD0, 0));
 
         // Initialize bus request; AFAICT, this is only needed if we want to
 	// deep sleep while the radio is sending data to our RAM
@@ -479,7 +487,7 @@ static void rf_on () {
 
 
 	// This must be done with RF core on, on every startup
-       	RFCRfTrimSet (&rfTrim);
+	RFCRfTrimSet (&rfTrim);
 
 	sync_cmd ();
 
@@ -490,16 +498,17 @@ static void rf_on () {
 
 	issue_cmd ((lword)&RF_cmdPropRadioDivSetup);
 #if 0
+	// the three are now chained
 	wait_cmd ((rfc_radioOp_t*)&RF_cmdPropRadioDivSetup, PROP_DONE_OK,
 		10000);
 	issue_cmd ((lword)&cmd_srt);
 	issue_cmd ((lword)&RF_cmdFs);
 #endif
-	// The last command in chain
+	// The last command in the chain
 	wait_cmd ((rfc_radioOp_t*)&RF_cmdFs, DONE_OK, 10000);
 
 #if 0
-	// Show up the firmware version on first power up
+	// Show the firmware version on first power up (for tests only)
 	issue_cmd ((lword)&cmd_gfi);
 	diag ("RF: %x %x %x %x",
 					cmd_gfi.versionNo,
@@ -544,8 +553,6 @@ static void rf_off () {
 	if ((dstate & DSTATE_RFON) == 0)
 		return;
 
-	// TIME_COLDSTART_ON;
-
 	rx_de ();
 
 	IntDisable (INT_RFC_CPE_0);
@@ -570,8 +577,6 @@ static void rf_off () {
 #endif
 	_BIC (dstate, DSTATE_RFON);
 	LEDI (0, 0);
-
-	// TIME_COLDSTART_OFF;
 }
 
 #if RADIO_WOR_MODE
@@ -748,7 +753,7 @@ static void plugch () {
 		RF_cmdPropRadioDivSetup.centerFreq = CC1350_BASEFREQ + channel;
 }
 
-#if RADIO_BITRATE_INDEX > 0
+#ifdef CC1350_RATABLE
 
 static void plugrt () {
 //
@@ -1125,7 +1130,7 @@ Bkf:
 		rf_on ();
 		rx_de ();
 
-#if (RADIO_OPTIONS & RADIO_OPTION_PXOPTIONS)
+#if defined(CC1350_PATABLE) && (RADIO_OPTIONS & RADIO_OPTION_PXOPTIONS)
 		// Set the transmit power according to what the packet requests
 		if ((pcav = patable [(*ppm >> 12) & 0x7]) !=
 		    RF_cmdPropRadioDivSetup.txPower) {
@@ -1533,7 +1538,7 @@ OREvnt:
 
 		case PHYSOPT_RESET:
 
-#if RADIO_DEFAULT_POWER <= 7
+#ifdef CC1350_PATABLE
 			// Replace the patable
 			patable = (val == NULL) ? patable_def : val;
 Reset_pwr:
@@ -1541,9 +1546,9 @@ Reset_pwr:
 #endif
 			goto ORst;
 
-#if RADIO_DEFAULT_POWER <= 7 && (RADIO_OPTIONS & RADIO_OPTION_PXOPTIONS) == 0
-		// Can be set
 		case PHYSOPT_SETPOWER:
+
+#if RADIO_DEFAULT_POWER <= 7 && (RADIO_OPTIONS & RADIO_OPTION_PXOPTIONS) == 0
 
 			// This goes via a global reset; apparently, we can do
 			// per-packet power via a special command; the global
@@ -1553,6 +1558,9 @@ Reset_pwr:
 			ret = txpower = (val == NULL) ? RADIO_DEFAULT_POWER :
 				(*val > 7) ? 7 : *val;
 			goto Reset_pwr;
+#else
+			ret = RADIO_DEFAULT_POWER;
+			goto RVal;
 #endif
 		case PHYSOPT_GETCHANNEL:
 
@@ -1573,11 +1581,10 @@ ORst:
 			ret = (int) vrate;
 			goto RVal;
 
-#if RADIO_BITRATE_INDEX > 0
-
 		case PHYSOPT_SETRATE:
 
-			vrate = (val == NULL) ? RADIO_BITRATE_INDEX :
+#ifdef	CC1350_RATABLE
+			vrate = (val == NULL) ? RADIO_DEFAULT_BITRATE :
 				(*val >= NRATES) ? NRATES - 1 :
 					(*val < 1) ? 1 : *val;
 			plugrt ();
@@ -1586,6 +1593,8 @@ ORst:
 			update_wor_params ();
 #endif
 			goto ORst;
+#else
+			goto RVal;
 #endif
 		case PHYSOPT_SETPARAMS:
 
@@ -1668,7 +1677,7 @@ void phys_cc1350 (int phy, int mbs) {
 	LEDI (2, 0);
 
 #if DIAG_MESSAGES
-	diag ("CC1350: %u, %u, %u", RADIO_BITRATE_INDEX, RADIO_DEFAULT_POWER,
+	diag ("CC1350: %u, %u, %u", RADIO_DEFAULT_BITRATE, RADIO_DEFAULT_POWER,
 		RADIO_DEFAULT_CHANNEL);
 #endif
 	// Install the backoff timer
@@ -1687,7 +1696,7 @@ void phys_cc1350 (int phy, int mbs) {
 #endif
 	// Preset the power, rate, and channel
 
-#if RADIO_DEFAULT_POWER <= 7
+#ifdef CC1350_PATABLE
 #if (RADIO_OPTIONS & RADIO_OPTION_PXOPTIONS)
 	cmd_sp.txPower =
 #endif
@@ -1695,7 +1704,7 @@ void phys_cc1350 (int phy, int mbs) {
 		patable [txpower = RADIO_DEFAULT_POWER];
 #endif
 
-#if RADIO_BITRATE_INDEX > 0
+#ifdef CC1350_RATABLE
 	plugrt ();
 #endif
 	plugch ();

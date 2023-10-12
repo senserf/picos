@@ -5621,3 +5621,8 @@ PG231011A:
 
 	Redone the power-up funcion in the CC1350 RF driver. By doing a few
 	things in parallel, we can turn on the radio in less than 0.3ms.
+
+PG231012A:
+
+	Cleaned up some parts of the radio configuration for CC1350. Added
+	options for higher transmission rates up to 200 kbps.

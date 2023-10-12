@@ -14,6 +14,7 @@
 #define	RADIO_BITRATE_SETTABLE		1
 #define	RADIO_POWER_SETTABLE		1
 #define	RADIO_CHANNEL_SETTABLE		1
+
 #define	RADIO_WOR_MODE			0
 
 #define	RESET_ON_MALLOC			0
@@ -48,6 +49,7 @@
 #define	RADIO_OPTIONS	(RADIO_OPTION_RBKF)
 // Make it shorter than max, the official max is large
 #define	MAX_PACKET_LENGTH	64
+// #define	RADIO_BASE_BITRATE	2
 #define	RADIO_DEFAULT_BITRATE	3
 #define	RADIO_DEFAULT_POWER	7
 #define	RF_INCLUDE_PHY		"phys_cc1350.h"
@@ -81,7 +83,7 @@
 #define	STATUS_LED		1
 #define	RADIO_USE_LEDS		0
 #define	RADIO_DEFAULT_OFFDELAY	0
-#if 1
+#if 0
 // With UART inactive
 #define	UART_TCV		0
 #define	DIAG_IMPLEMENTATION	0
