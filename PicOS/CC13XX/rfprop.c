@@ -1,5 +1,5 @@
 /*
-	Copyright 2002-2020 (C) Olsonet Communications Corporation
+	Copyright 2002-2023 (C) Olsonet Communications Corporation
 	Programmed by Pawel Gburzynski & Wlodek Olesinski
 	All rights reserved
 
@@ -27,11 +27,6 @@
 //
 // Check if using RF memory allows us to lower the power budget. This is tricky
 // because we have to circumvent the patch area.
-//
-// How can we prevent interrupting reception in progress by a transmission?
-// We can have reception with a timeout while waiting for sync, which should do
-// for synchronized acks (and stuff like that). I don't think we can detect
-// reception and postpone transmission any other way.
 //
 // ============================================================================
 
@@ -426,6 +421,10 @@ static void enable_event (aword ev) {
 					RFC_DBELL_RFCPEIEN_INTERNAL_ERROR);
 }
 
+static void disable_event () {
+	to_trigger = 0;
+}
+
 // ============================================================================
 
 static void rf_on () {
@@ -715,7 +714,6 @@ static void rx_ac () {
 	rfc_dataEntryGeneral_t *re;
 	int i;
 
-	// One hard prereq
 	rf_on ();
 	if (dstate & DSTATE_RXAC)
 		// Don't touch anything if RX is active. Note that in order to
@@ -765,28 +763,15 @@ static void plugrt () {
 
 #endif
 
-static int rx_int_enable () {
-
-	rfc_dataEntryGeneral_t *db;
-	int i, pl, nr;
-
-	// This clears all interrupt flags and enables those that we want; this
-	// is different than (e.g.) in CC1100/MSP430, because events can be
-	// lost (the clear operation may remove an event that we haven't looked
-	// at yet); so we do the reception with interrupts enabled; if an
-	// interrupt arrives while we are looking, it will just unblock the
-	// driver thread which will force (later) another invocation of this
-	// function. But it is important to always make sure that when the
-	// function is being invoked, the driver thread is already waiting for
-	// qevent.
-
-	enable_event (qevent);
+static int rx_receive () {
 
 #define	__dp	(&(db->data))
 #define	__pk	((address)(__dp + 2))
 #define	__ni	(__pk [0])
 
-	// Receive
+	rfc_dataEntryGeneral_t *db;
+	int i, pl, nr;
+
 	for (db = (rfc_dataEntryGeneral_t*) (rbuffs->pCurrEntry), i = nr = 0;
 	    i < NRBUFFS; i++, db = (rfc_dataEntryGeneral_t*)(db->pNextEntry)) {
 		if (db->status == DATA_ENTRY_FINISHED) {
@@ -835,10 +820,28 @@ static int rx_int_enable () {
 			db->status = DATA_ENTRY_PENDING;
 		}
 	}
-
+	LEDI (2, 0);
 #undef __dp
 #undef __pk
 #undef __ni
+	return nr;
+}
+
+static int rx_int_enable () {
+
+	// This clears all interrupt flags and enables those that we want; this
+	// is different than (e.g.) in CC1100/MSP430, because events can be
+	// lost (the clear operation may remove an event that we haven't looked
+	// at yet); so we do the reception with interrupts enabled; if an
+	// interrupt arrives while we are looking, it will just unblock the
+	// driver thread which will force (later) another invocation of this
+	// function. But it is important to always make sure that when the
+	// function is being invoked, the driver thread is already waiting for
+	// qevent.
+
+	enable_event (qevent);
+
+	int nr = rx_receive ();
 
 #if RADIO_WOR_MODE
 	if (dstate & DSTATE_WORA) {
@@ -847,7 +850,6 @@ static int rx_int_enable () {
 			if (params . offdelay) {
 				// Deactivate WOR for the prescribed interval
 				_BIS (dstate, DSTATE_WORS);
-				LEDI (2, 0);
 				return YES;
 			}
 		}
@@ -862,7 +864,6 @@ static int rx_int_enable () {
 		gbackoff_rcv;
 	}
 
-	LEDI (2, 0);
 	// State OK
 	return NO;
 }
@@ -897,13 +898,14 @@ void RFCCPE0IntHandler (void) {
 // ============================================================================
 
 #define	DR_LOOP		0
-#define	DR_XMIT		1
-#define	DR_FRCE		2
-#define	DR_FXMT		3
-#define	DR_GOOF		4
-#define	DR_WRES		5
-#define	DR_WURG		6
-#define	DR_WXMT		7
+#define DR_RXST		1
+#define	DR_XMIT		2
+#define	DR_FRCE		3
+#define	DR_FXMT		4
+#define	DR_GOOF		5
+#define	DR_WRES		6
+#define	DR_WURG		7
+#define	DR_WXMT		8
 
 #define	the_packet 		(RF_cmdPropTx.pPkt)
 #define	the_packet_length 	(RF_cmdPropTx.pktLen)
@@ -1086,6 +1088,8 @@ WorOn:
 			paylen = 0;
 			// Make sure the device is ready
 			rf_on ();
+			// For an urgent TX, we ignore the possible reception
+			// in progress
 			rx_de ();
 			// Go transmit it as an ADV packet
 			goto DR_WURG__;
@@ -1128,7 +1132,48 @@ Bkf:
 #endif
 		// Make sure the device is ready
 		rf_on ();
-		rx_de ();
+		// Here we want to avoid interrupting reception in progress; 
+		// it may make sense to have it as an option; anyway, calling
+		// rx_de instead of doing this block will have that effect
+		if ((dstate & DSTATE_RXAC)) {
+			// Need to stop RX; the reason we block interrupts is
+			// the race between RFCDoorbellSendTo (the command)
+			// and the decisive check of its returned value;
+			cli;
+			wait (txevent, DR_RXST);
+			enable_event (txevent);
+			if ((RFCDoorbellSendTo (CMDR_DIR_CMD_1BYTE (CMD_TRIGGER,
+			    0)) & 0xff) == 0x01) {
+				// Succesful, the reception will stop softly,
+				// just wait for it
+				sti;
+				release;
+			}
+			// Trigger rejected, something wrong, stop it the hard
+			// way
+			unwait ();
+			disable_event ();
+			sti;
+			rx_de ();
+		}
+
+	entry (DR_RXST)
+
+		if ((dstate & DSTATE_RXAC)) {
+			// This will be the case when we have softly
+			// stopped the receiver (rx_de wasn't called); the
+			// proper thing to do now is to drain the RX buffers
+			_BIC (dstate, DSTATE_RXAC | DSTATE_WORA);
+			if (rx_receive ()) {
+				// Should we back off
+				gbackoff_rcv;
+				// When we start from the top, RXAC will be
+				// resumed for the backoff duration
+				goto DR_LOOP__;
+			}
+		}
+
+		// Having settled it with the RX, we are now ready to transmit
 
 #if defined(CC1350_PATABLE) && (RADIO_OPTIONS & RADIO_OPTION_PXOPTIONS)
 		// Set the transmit power according to what the packet requests
@@ -1261,7 +1306,6 @@ TXFin:
 			// Wait for command completion
 			release;
 
-		// Check the CS status
 		if (RF_cmdPropTx.status != PROP_DONE_OK) {
 			// Something wrong
 			delay (1, DR_LOOP);
@@ -1355,6 +1399,7 @@ endthread
 
 #undef	DR_LOOP
 #undef	DR_XMIT
+#undef	DR_RXST
 #undef	DR_FRCE
 #undef	DR_FXMT
 #undef	DR_GOOF
@@ -1426,6 +1471,12 @@ static void init_rbuffs () {
 	// RSSI appended to the received packet; also, by default, the CRC
 	// is discarded and a status byte is appended
 	RF_cmdPropRx . rxConf . bAppendRssi = 1;
+
+	// Trigger to softly stop the receiver; NEVER == by CMD_TRIGGER
+	RF_cmdPropRx . endTrigger . triggerType = TRIG_NEVER;
+	RF_cmdPropRx . endTrigger . bEnaCmd = 1;
+	// I understand it can be zero (the range is 0-3)
+	RF_cmdPropRx . endTrigger . triggerNo = 0;
 
 	// Make rbuffl exactly equal to max payload length
 	rbuffl -= 2;

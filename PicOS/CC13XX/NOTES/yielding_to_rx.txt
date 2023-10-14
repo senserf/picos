@@ -1,0 +1,41 @@
+This is the second trigger in rfc_CMD_PROP_RX_s:
+
+struct {
+      uint8_t triggerType:4;            //!<        The type of trigger
+      uint8_t bEnaCmd:1;                //!< \brief 0: No alternative trigger command<br>
+                                        //!<        1: CMD_TRIGGER can be used as an alternative trigger
+      uint8_t triggerNo:2;              //!<        The trigger number of the CMD_TRIGGER command that triggers this action
+      uint8_t pastTrig:1;               //!< \brief 0: A trigger in the past is never triggered, or for start of commands, give an error<br>
+                                        //!<        1: A trigger in the past is triggered as soon as possible
+   } endTrigger;            
+
+=======
+
+bEnaCmd -> enable trigger from command (CMD_TRIGGER)
+triggerNo -> number to match CMD_TRIGGER arg
+
+RX behavior:
+
+If this trigger occurs while the receiver is searching for sync, the operation ends with the status PROP_DONE_RXTIMEOUT. If the trigger occurs while receiving a packet, the action depends on pktConf.endType (in rfc_CMD_PROP_RX_s).
+
+   struct {
+ 	...
+      	uint8_t endType:1;      // Packet is received to the end if end trigger happens after sync is obtained
+	...
+   } pktConf;
+
+=======
+
+CMD_TRIGGER (immediate):  0x0404
+bytes 0-1 command, 2-trigger number
+
+If the trigger number is outside the valid range 0-3, the radio CPU returns the result ParError in CMDSTA. If no radio operation command running is pending on the trigger number sent, the radio CPU returns the result ContextError in CMDSTA. Otherwise, the radio CPU returns a result of DONE, which may be returned before the running radio operation command responds to the trigger.
+CMD_TRIGGER may be sent as a direct command. If so, the trigger number is given by the parameter in bits 8-15 of CMDR.
+
+ContextError = 0x85, expected result if no RX active, DONE = 0x01
+
+=======
+
+
+
+

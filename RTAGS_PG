@@ -5626,3 +5626,8 @@ PG231012A:
 
 	Cleaned up some parts of the radio configuration for CC1350. Added
 	options for higher transmission rates up to 200 kbps.
+
+PG231014A:
+
+	I have figured out a way to avoid disrupting reception in progress by
+	a transmission. On CC1350, reception in progress isn't easy to tell.
