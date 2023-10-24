@@ -17,6 +17,20 @@
 // It is assumed that if you ever want to use these operations for a
 // variable argument, then you will implement functions referencing these
 // macros.
+//
+// These operations are available:
+//
+//	_PDS (P2_5, 1);		// set direction out
+//	_PFS (P2_5, 1);		// set special function
+//	_PVS (P2_5, 1);		// set pin value to 1
+//	_PPS (P2_5, 1);		// enable pull
+//	_PHS (P2_5, 1);		// set drive strength
+//	_PV (P2_5);		// get pin value
+//	_PF (P2_5);		// get function
+//	_PD (P2_5);		// get direction
+//	_PP (P2_5);		// get pull
+//	_PH (P2_5);		// get drive strength
+//
 
 #if defined(__PORT1_PRESENT__)
 

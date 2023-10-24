@@ -5631,3 +5631,13 @@ PG231014A:
 
 	I have figured out a way to avoid disrupting reception in progress by
 	a transmission. On CC1350, reception in progress isn't easy to tell.
+
+PG231024A:
+
+	A few touch-ups to the CC1100 driver. Fixed the spin startup delays.
+	The previous delay inserted in power_up () after enter_idle () does not
+	seem to be needed. What does seem to be needed, though, is a delay
+	after power_up () and before the first transmission because without it
+	CCA is always negative (on first try). In other words, entering TX
+	throws the chip to RX, as after a negative CCA. The delay amounts to
+	410 us. The coldstart time for CC430 is thus ca. 1.35 ms.

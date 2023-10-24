@@ -36,13 +36,15 @@
 #define	TIME_LBT_PIN		IOID_12
 #endif
 
+//=============================================================================
+
 #ifdef	TIME_COLDSTART_PIN
 #define	TIME_COLDSTART		do { \
-	GPIO_setOutputEnableDio (TIME_COLDSTART_PIN, GPIO_OUTPUT_ENABLE); \
-	GPIO_clearDio (TIME_COLDSTART_PIN); \
+	_PDS (TIME_COLDSTART_PIN, 1); _PFS (TIME_COLDSTART_PIN, 0); \
+		_PVS (TIME_COLDSTART_PIN, 0); \
     } while (0)
-#define	TIME_COLDSTART_ON	GPIO_setDio (TIME_COLDSTART_PIN)
-#define	TIME_COLDSTART_OFF	GPIO_clearDio (TIME_COLDSTART_PIN)
+#define	TIME_COLDSTART_ON	_PVS (TIME_COLDSTART_PIN, 1)
+#define	TIME_COLDSTART_OFF	_PVS (TIME_COLDSTART_PIN, 0)
 #else
 #define	TIME_COLDSTART		CNOP
 #define	TIME_COLDSTART_ON	CNOP
@@ -51,28 +53,28 @@
 
 #ifdef	TIME_XMIT_PIN
 #define	TIME_XMIT		do { \
-	GPIO_setOutputEnableDio (TIME_XMIT_PIN, GPIO_OUTPUT_ENABLE); \
-	GPIO_clearDio (TIME_XMIT_PIN); \
+	_PDS (TIME_XMIT_PIN, 1); _PFS (TIME_XMIT_PIN, 0); \
+		_PVS (TIME_XMIT_PIN, 0); \
     } while (0)
-#define	TIME_XMIT_ON		GPIO_setDio (TIME_XMIT_PIN)
-#define	TIME_XMIT_OFF		GPIO_clearDio (TIME_XMIT_PIN)
+#define	TIME_XMIT_ON	_PVS (TIME_XMIT_PIN, 1)
+#define	TIME_XMIT_OFF	_PVS (TIME_XMIT_PIN, 0)
 #else
 #define	TIME_XMIT		CNOP
-#define	TIME_XMIT_ON	CNOP
-#define	TIME_XMIT_OFF	CNOP
+#define	TIME_XMIT_ON		CNOP
+#define	TIME_XMIT_OFF		CNOP
 #endif
 
 #ifdef	TIME_LBT_PIN
 #define	TIME_LBT		do { \
-	GPIO_setOutputEnableDio (TIME_LBT_PIN, GPIO_OUTPUT_ENABLE); \
-	GPIO_clearDio (TIME_LBT_PIN); \
+	_PDS (TIME_LBT_PIN, 1); _PFS (TIME_LBT_PIN, 0); \
+		_PVS (TIME_LBT_PIN, 0); \
     } while (0)
-#define	TIME_LBT_ON		GPIO_setDio (TIME_LBT_PIN)
-#define	TIME_LBT_OFF		GPIO_clearDio (TIME_LBT_PIN)
+#define	TIME_LBT_ON	_PVS (TIME_LBT_PIN, 1)
+#define	TIME_LBT_OFF	_PVS (TIME_LBT_PIN, 0)
 #else
 #define	TIME_LBT		CNOP
-#define	TIME_LBT_ON	CNOP
-#define	TIME_LBT_OFF	CNOP
+#define	TIME_LBT_ON		CNOP
+#define	TIME_LBT_OFF		CNOP
 #endif
 
 // ============================================================================
@@ -1133,12 +1135,13 @@ Bkf:
 		// Make sure the device is ready
 		rf_on ();
 		// Here we want to avoid interrupting reception in progress; 
-		// it may make sense to have it as an option; anyway, calling
-		// rx_de instead of doing this block will have that effect
+		// it may make sense to have it as an option (I mean xmit
+		// interrupts reception); anyway, calling rx_de instead of
+		// doing this block (as it was before) will have that effect
 		if ((dstate & DSTATE_RXAC)) {
 			// Need to stop RX; the reason we block interrupts is
 			// the race between RFCDoorbellSendTo (the command)
-			// and the decisive check of its returned value;
+			// and the decisive check of its returned value
 			cli;
 			wait (txevent, DR_RXST);
 			enable_event (txevent);
@@ -1150,7 +1153,7 @@ Bkf:
 				release;
 			}
 			// Trigger rejected, something wrong, stop it the hard
-			// way
+			// way; the unwait is needed because we fall through
 			unwait ();
 			disable_event ();
 			sti;

@@ -16,6 +16,57 @@
 #include "cc1100.h"
 
 // ============================================================================
+// Pins for timing things on the oscilloscope
+// ============================================================================
+
+#if 0
+#define	TIME_COLDSTART_PIN	P2_4
+#define	TIME_XMIT_PIN		P2_5
+#define	TIME_LBT_PIN		P2_6
+#endif
+
+//=============================================================================
+
+#ifdef	TIME_COLDSTART_PIN
+#define	TIME_COLDSTART		do { \
+	_PDS (TIME_COLDSTART_PIN, 1); _PFS (TIME_COLDSTART_PIN, 0); \
+		_PVS (TIME_COLDSTART_PIN, 0); \
+    } while (0)
+#define	TIME_COLDSTART_ON	_PVS (TIME_COLDSTART_PIN, 1)
+#define	TIME_COLDSTART_OFF	_PVS (TIME_COLDSTART_PIN, 0)
+#else
+#define	TIME_COLDSTART		CNOP
+#define	TIME_COLDSTART_ON	CNOP
+#define	TIME_COLDSTART_OFF	CNOP
+#endif
+
+#ifdef	TIME_XMIT_PIN
+#define	TIME_XMIT		do { \
+	_PDS (TIME_XMIT_PIN, 1); _PFS (TIME_XMIT_PIN, 0); \
+		_PVS (TIME_XMIT_PIN, 0); \
+    } while (0)
+#define	TIME_XMIT_ON	_PVS (TIME_XMIT_PIN, 1)
+#define	TIME_XMIT_OFF	_PVS (TIME_XMIT_PIN, 0)
+#else
+#define	TIME_XMIT		CNOP
+#define	TIME_XMIT_ON	CNOP
+#define	TIME_XMIT_OFF	CNOP
+#endif
+
+#ifdef	TIME_LBT_PIN
+#define	TIME_LBT		do { \
+	_PDS (TIME_LBT_PIN, 1); _PFS (TIME_LBT_PIN, 0); \
+		_PVS (TIME_LBT_PIN, 0); \
+    } while (0)
+#define	TIME_LBT_ON	_PVS (TIME_LBT_PIN, 1)
+#define	TIME_LBT_OFF	_PVS (TIME_LBT_PIN, 0)
+#else
+#define	TIME_LBT		CNOP
+#define	TIME_LBT_ON	CNOP
+#define	TIME_LBT_OFF	CNOP
+#endif
+
+// ============================================================================
 // Chip access functions ======================================================
 // ============================================================================
 
@@ -133,7 +184,12 @@ byte cc1100_strobe (byte b) {
 		if (sb) {
 			// Transiting from SLEEP or WOR
 			while (chip_not_ready);
+			// I don't quite remember what this is for, but I see
+			// that this delay never happens on CC430; I am
+			// setting it to zero 231024
+#if DELAY_CHIP_READY
 			udelay (DELAY_CHIP_READY);
+#endif
 		}
 	}
 
@@ -597,19 +653,29 @@ static void power_up () {
 //
 // Return from sleep
 //
+	TIME_COLDSTART_ON;
 #if defined(__CC430__) && RADIO_WOR_MODE
 	// Disable the WOR interrupt automaton in case we're returning from WOR
 	cc1100_worstate = 0;
 #endif
+	// Fo the timing (COLDSTART), this is trivially short. 231022
 	enter_idle ();
 
-#ifdef	__CC430__
+// ============================================================================
+
+#if 0
 	// This delay seems to be needed on CC430 to prevent hangups occurring
 	// when transmitting with RXOFF. On my device (CHRONOS). 125 us seems
 	// to work fine, while 60 is too small. Let's hope that 200 will do the
 	// trick.
+
+	// It doesn't seem to be needed anymore. Things seem to work fine.
+	// May be it was some artifact from early stages? Maybe needed for WOR?
+	// 231022
 	udelay (DELAY_IDLE_PDOWN);
 #endif
+
+// ============================================================================
 
 #if RADIO_WOR_MODE
 	if (woron) {
@@ -617,9 +683,21 @@ static void power_up () {
 			sizeof (cc1100_wor_sr));
 	}
 #endif
+	TIME_COLDSTART_OFF;
 	// Load PATABLE
 	set_reg_burst (CCxxx0_PATABLE, (byte*) patable, sizeof (patable));
 	rx_reset ();
+	TIME_COLDSTART_ON;
+#if DELAY_IDLE_PDOWN
+	// I am instering this to make sure that CCA for the first transmission,
+	// immediately issued after power up is done properly, rather than
+	// always coming up negative. This isn't needed when CCA is completely
+	// OFF (which we never do globally). There may be some way to apply it
+	// dynamically, say we can skip it, if the packet says no CCA.
+	// 231024
+	udelay (DELAY_IDLE_PDOWN);
+#endif
+	TIME_COLDSTART_OFF;
 }
 
 // ============================================================================
@@ -895,12 +973,14 @@ DR_LOOP__:
 	}
 
 	// There is a packet to transmit
+	TIME_XMIT_ON;
 
 	if (bckf_timer) {
 		// Backoff wait
 #if (RADIO_OPTIONS & RADIO_OPTION_PXOPTIONS)
 Bkf:
 #endif
+		TIME_LBT_ON;
 		wait (__cc1100_v_qevent, DR_LOOP);
 		delay (bckf_timer, DR_LOOP);
 		if (RxST != RCV_STATE_PD)
@@ -919,6 +999,7 @@ Bkf:
 	}
 #endif
 	// Transmission OK
+	TIME_LBT_OFF;
 
 	if (RxST == RCV_STATE_PD) {
 		// We are powered down, have to power up, cannot happen with
@@ -927,16 +1008,16 @@ Bkf:
 		RxST = RCV_STATE_OFF;
 	}
 
-	// ====================================================================
-	// LBT ================================================================
-	// ====================================================================
-
 #if (RADIO_OPTIONS & RADIO_OPTION_PXOPTIONS) && RADIO_POWER_SETTABLE
 	if ((byte)(pcav = (*ppm >> 12) & 0x7) != power) {
 		power = (byte)pcav;
 		set_reg (CCxxx0_FREND0, FREND0_SET | power);
 	}
 #endif
+
+	// ====================================================================
+	// LBT ================================================================
+	// ====================================================================
 
 #if RADIO_LBT_MODE == 3
 	// Staged/limited
@@ -945,6 +1026,7 @@ Bkf:
 		// LBT off requested by the packet
 		retr = LBT_RETR_FORCE_OFF;
 #endif
+
 	if (retr < LBT_RETR_FORCE_RCV) {
 		// Retry count below forcing threshold
 		if (retr == 0) {
@@ -969,10 +1051,14 @@ Bkf:
 				MCSM1_LBT_OFF);
 	}
 #endif
-	// Channel assessment
+
+	// Start transmission
 	strobe (CCxxx0_STX);
 	if (read_status () != CC1100_STATE_TX) {
-
+		// On negative CCA, the state is CC1100_STATE_RX; this also
+		// happens on immediate TX after power up, like CCA is always
+		// negative on the first TX unless delayed for about 410uS
+		// after power up 231024
 #if RADIO_LBT_MODE == 3
 		if (retr == LBT_RETR_LIMIT-1) {
 			// Limit reached, ignore and start again; I guess we
@@ -1084,6 +1170,7 @@ Bkf:
 		release;
 	}
 #endif
+	TIME_XMIT_OFF;
 
 #if RADIO_RECALIBRATE
 	// Explicit transition to RX to recalibrate
@@ -1453,6 +1540,9 @@ void phys_cc1100 (int phy, int mbs) {
 // reserved for the reception buffer is exactly mbs, even though its useful
 // length is (always) mbs - 2.
 //
+	TIME_COLDSTART;
+	TIME_XMIT;
+	TIME_LBT;
 #if (RADIO_OPTIONS & RADIO_OPTION_NOCHECKS) == 0
 	if (rbuff != NULL)
 		/* We are allowed to do it only once */

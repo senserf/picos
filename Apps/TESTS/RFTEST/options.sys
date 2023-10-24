@@ -11,7 +11,8 @@
 #undef	DIAG_IMPLEMENTATION
 #undef	DIAG_MESSAGES
 
-#define	RADIO_BITRATE_SETTABLE		1
+// This is deprecated
+// #define	RADIO_BITRATE_SETTABLE		0
 #define	RADIO_POWER_SETTABLE		1
 #define	RADIO_CHANNEL_SETTABLE		1
 
@@ -35,7 +36,8 @@
 #if CC1100
 #define	RADIO_OPTIONS	(RADIO_OPTION_RBKF + RADIO_OPTION_STATS + RADIO_OPTION_REGWRITE + RADIO_OPTION_ENTROPY)
 #define	MAX_PACKET_LENGTH	CC1100_MAXPLEN
-#define	RADIO_DEFAULT_BITRATE	1
+// This is 38,400
+#define	RADIO_DEFAULT_BITRATE	2
 #define	RADIO_DEFAULT_POWER	7
 #define	RADIO_CRC_MODE		0
 #define	RF_INCLUDE_PHY		"phys_cc1100.h"
@@ -50,6 +52,7 @@
 // Make it shorter than max, the official max is large
 #define	MAX_PACKET_LENGTH	64
 #define	RADIO_BASE_BITRATE	1
+// This is nominally 50k, more like 38,400
 #define	RADIO_DEFAULT_BITRATE	3
 #define	RADIO_DEFAULT_POWER	7
 #define	RF_INCLUDE_PHY		"phys_cc1350.h"
@@ -64,6 +67,27 @@
 #error	"S: NO RADIO MODULE!!!"
 #endif
 
+// ============================================================================
+#if defined(BOARD_OLIMEX_CCRF)
+#define	POWER_DOWN_MODE		1
+#define	RADIO_USE_LEDS		0
+#define	STATUS_LED		0
+#define SIGNALING_LED		0
+#if 0
+#define	RADIO_LBT_MODE		0
+#endif
+#if 0
+// With UART inactive
+#define	UART_TCV		0
+#define	DIAG_IMPLEMENTATION	0
+#define	DIAG_MESSAGES		0
+#else
+// With UART active
+#define	UART_TCV		1
+#define	DIAG_IMPLEMENTATION	1
+#define	DIAG_MESSAGES		1
+#endif
+#endif
 // ============================================================================
 
 // ============================================================================

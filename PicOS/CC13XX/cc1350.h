@@ -164,7 +164,8 @@
 #endif
 
 #ifndef	RADIO_SYSTEM_IDENT
-// Can be set to zero and means "use the value provided by SmartRF Studio"
+// Can be set to zero and means "use the value provided by SmartRF Studio";
+// well, this is the value:
 #define	RADIO_SYSTEM_IDENT	0x930B51DE
 #endif
 

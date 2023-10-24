@@ -221,7 +221,11 @@
 // Time the CPU must remain powered up while the radio is transiting from a 
 // power down state (approximately in usecs)
 #ifndef	DELAY_CHIP_READY
-#define	DELAY_CHIP_READY	900
+// No, I don't think this matters anymore. I am removing the delay from the
+// driver and replacing it with a spin loop just in case. I don't think the
+// actual delay is ever executed.
+// #define	DELAY_CHIP_READY	900
+#define	DELAY_CHIP_READY	0
 #endif
 
 // After detecting a state that needs settling until next try (usecs)
@@ -234,9 +238,14 @@
 #define	DELAY_SRX_FAILURE	100
 #endif
 
-// After entering IDLE in powerdown state before doing anything (CC430, usecs)
+// This is the delay after power up and before starting a transmission (in
+// usec), to make sure that CCA for that transmission is done properly. Without
+// it, the first CCA unavoidably fails. Previously the delay (400) was applied
+// after enter_idle () because of some hangups (that don't seem to be there any
+// more, at least on CC430). See the comments in power_up (). I am adding 10
+// because 400 seems to be tight. 231024
 #ifndef	DELAY_IDLE_PDOWN
-#define	DELAY_IDLE_PDOWN	400
+#define	DELAY_IDLE_PDOWN	410
 #endif
 // ============================================================================
 
