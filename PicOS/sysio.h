@@ -30,22 +30,10 @@
 
 // ============================================================================
 
-/* ================================================= */
-/* Options are now settable on per-application basis */
-/* ================================================= */
-
-#ifndef SIM_NET
-#define	SIM_NET		0
-#endif
-
-#if SIM_NET==0
-
 #include "board_options.sys"
 
 #ifdef	__OPTIONS_SYS__
 #include __OPTIONS_SYS__
-#endif
-
 #endif
 
 //+++ "main.c"
@@ -135,8 +123,6 @@
 #include "diag_sys.h"
 #include "dbgtrc.h"
 #include "board_headers.h"
-
-#if SIM_NET==0
 
 #if	CC1000
 
@@ -566,12 +552,6 @@ word rnd (void);
 #define lrnd()	(((lword)rnd ()) << 16 | rnd ())
 #endif
 
-#if	SWITCHES
-word	switches (void);
-#else
-#define	switches()	0
-#endif
-
 #if MAX_DEVICES
 /* ======================================= */
 /* This is the common i/o request function */
@@ -735,8 +715,6 @@ extern	lword entropy;
 #define	add_entropy(w)	do { } while (0)
 #define	entropy		0
 #endif
-
-#endif // if SIM_NET==0
 
 // Tools for isolating SMURPH-specific code from VUEE
 

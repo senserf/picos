@@ -861,9 +861,20 @@ static const byte cc1100_agcctrl_table [LBT_RETR_FORCE_RCV] = {
 
 #endif
 
+// ============================================================================
+
 #ifndef CC1100_PATABLE
+
+#if 0
 #define	CC1100_PATABLE { 0x00, 0x03, 0x1C, 0x57, 0x8E, 0x85, 0xCC, 0xE0 }
 #endif
+// This is the recommended PATABLE setting determined in experiments with
+// OLIMEX boards (with no external antennas) 231024:
+#define	CC1100_PATABLE { 0x6C, 0x30, 0x03, 0x0A, 0x1C, 0x65, 0xAD, 0xD0 }
+
+#endif
+
+// ============================================================================
 
 #define	TXEND_POLL_DELAY	1	/* Milliseconds */
 

@@ -317,31 +317,28 @@ typedef	struct {
 // ============================================================================
 
 #if	CRYSTAL_RATE != 32768
+// ============================================================================
+// High crystal rate (1MHz)
+// ============================================================================
 
 #if	CRYSTAL_RATE < 1000000
 #error "S: CRYSTAL_RATE can be 32768 or >= 1000000"
 #endif
 
-// The number of slow ticks per second
-#define	TCI_LOW_PER_SEC		16
-
 #define	HIGH_CRYSTAL_RATE 	1
 
-// ============================================================================
-
-#ifdef	TRIPLE_CLOCK
+// We have the high-rate 1MHz crystal
+#ifndef	TRIPLE_CLOCK
+// We need this with a high-rate crystal; no problem, ebergy savings are off
+#define	TRIPLE_CLOCK	0
+#endif
 
 #if TRIPLE_CLOCK
 #error "S: TRIPLE_CLOCK is incompatible with HIGH_CRYSTAL_RATE"
 #endif
 
-#else
-
-#define	TRIPLE_CLOCK		0
-
-#endif
-
-// ============================================================================
+// The number of slow ticks per second
+#define	TCI_LOW_PER_SEC		16
 
 // No clockdown/clockup modes with HIGH_CRYSTAL_RATE (power savings are not
 // possible, anyway)
@@ -350,22 +347,21 @@ typedef	struct {
 
 #define	TCI_LOW_DIV	TCI_HIGH_DIV
 
-#else	/* Low crystal rate */
-
-// We used this with old WATCHDOG_ENABLED
-// #define	TCI_LOW_PER_SEC		2
-
-#define	TCI_LOW_PER_SEC		1
+#else
+// ============================================================================
+// Low crystal rate (32768 kHz)
+// ============================================================================
 
 #define	HIGH_CRYSTAL_RATE	0
 
-// ============================================================================
-// This is the default with a standard 32768 Hz crystal =======================
-// ============================================================================
-
 #ifndef	TRIPLE_CLOCK
-#define	TRIPLE_CLOCK		1
+// This is the default for the low-rate crystal
+#define	TRIPLE_CLOCK	1
 #endif
+
+// We used this with old WATCHDOG_ENABLED
+// #define	TCI_LOW_PER_SEC		2
+#define	TCI_LOW_PER_SEC		1
 
 // ============================================================================
 // The maximum "hold" second delay to carry out in a single go (converted to
@@ -379,8 +375,9 @@ typedef	struct {
 
 #define	TCI_LOW_DIV		(CRYSTAL_RATE/(8*TCI_LOW_PER_SEC))
 
-#endif	/* CRYSTAL_RATE != 32768 */
-
+#endif
+// ============================================================================
+// Crystal rate settled
 // ============================================================================
 
 #if	__TCI_CONFIG__ == 1
@@ -447,9 +444,30 @@ typedef	struct {
 #endif
 
 // ============================================================================
+// Second clock rate: it can be 1, 2, 4, 8, 16 [231028]
+// ============================================================================
 
-// Subdivision of the seconds clock timer (exactly one tick per second)
-#define	TCI_SEC_DIV	(CRYSTAL_RATE/8)
+#ifndef	SECOND_CLOCK_RATE
+#define	SECOND_CLOCK_RATE	1
+#endif
+
+#if SECOND_CLOCK_RATE != 1 && SECOND_CLOCK_RATE != 2 && SECOND_CLOCK_RATE != 4 && SECOND_CLOCK_RATE != 8 && SECOND_CLOCK_RATE != 16
+#error "S: SECOND_CLOCK_RATE must be one of: 1, 2, 4, 8, 16!"
+#endif
+
+#if SECOND_CLOCK_RATE != 1 && TRIPLE_CLOCK == 0
+#error "S: SECOND_CLOCK_RATE must be 1 unless TRIPLE_CLOCK is selected!"
+#endif
+
+// Timer increment for the required SECOND_CLOCK_RATE; we have the 32K crystal,
+// which means that 1 sec = 32768/8 = 4K ticks; so with SECOND_CLOCK_RATE == 1,
+// this should yield 4K
+#define	TIMER_TICKS_PER_SECOND	(CRYSTAL_RATE/8)
+// Note: for SECOND_CLOCK_RATE == 16, this overflows into 64K, which should
+// rightfully produce 0 when cast to a word [231028]
+#define	TCI_SEC_DIV	(TIMER_TICKS_PER_SECOND * SECOND_CLOCK_RATE)
+
+// ============================================================================
 
 // Initializers for the timer in "up" mode, i.e., when there is no
 // separate seconds clock
@@ -881,7 +899,16 @@ extern uart_t __pi_uart [];
 
 // Seconds clock
 extern	lword		__pi_nseconds;
+
+// ============================================================================
+#if SECOND_CLOCK_RATE != 1
+// We need to adjust the second counter [231028]
+lword seconds ();
+#else
 #define	seconds()	__pi_nseconds
+#endif
+// ============================================================================
+
 #define	setseconds(a)	(__pi_nseconds = (lword) (a));
 
 // Power status

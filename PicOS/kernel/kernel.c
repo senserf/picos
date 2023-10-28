@@ -8,9 +8,9 @@
 */
 #include "kernel.h"
 #include "tcv.h"
-
-// Needed this once for something, apparently not any more
-// #include "pins.h"
+#include "storage.h"
+// Needed this once for something, apparently not any more?
+#include "pins.h"
 
 #if	ENTROPY_COLLECTION
 lword	entropy;

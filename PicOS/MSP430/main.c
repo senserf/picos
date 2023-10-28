@@ -569,7 +569,7 @@ static void ssm_init () {
 #if TRIPLE_CLOCK
 	// Continuous mode
 	TCI_CTL = TASSEL0 | TACLR | ID0 | ID1 | MC1;
-	TCI_CCS = TCI_SEC_DIV;
+	TCI_CCS = (word) TCI_SEC_DIV;
 	sti_sec;
 	sti_aux;
 #else
@@ -785,41 +785,59 @@ EUT:
 		RTNI;
 	}
 
-	// This is the seconds clock. I thought about reducing its rate even
-	// further. Note that theoretically, the clock can tick once per 16
-	// seconds (the wraparound of the timer, with TCI_CCS being fixed).
-	// The actual number of seconds within the last 16th could be derived
-	// from the difference between the timer and TCI_CCS. There is,
-	// however, a nasty race that gets in the way. Namely, we may have
-	// a situation when the timer == TCI_CCS and we don't know whether
-	// __pi_nseconds has been updated or not. Note that this problem is
-	// avoided in the delay timer where setdel makes it clear which is
-	// the case.
-	//
-	// Perhaps this would work:
-	//
-	//	cli_aux;
-	//	gettav ->
-	//	timer != TCI_CCS -> easy, calculate the difference
-	//	timer == TCI_CCS -> delay for 1 us and check TBIF
-	//		TBIF == 1 -> __pi_nseconds not updated
-	//		TBIF == 0 -> __pi_nseconds updated
-	//
-	// This looks complicated and, perhaps, does not warrant the
-	// modification, especially that there are arguments for having the
-	// tick every second (or so), e.g., for diagnosing stack overflow,
-	// or handling the stuff in "second.h".
-	//
+	// This is the seconds clock. By default it ticks at 1 sec, which is
+	// mostly OK. If we are really obsessive about power savings, the rate
+	// of the clock can be reduced by setting SECOND_CLOCK_RATE to a value
+	// higher than 1, which must be a power of two not exceeding 16, so the
+	// valid settings are 1 (the default), 2, 4, 8, 16. At 16, the clock
+	// ticks once every 16 seconds which means that __pi_nseconds is going
+	// to be incremented by 16 every 16 seconds of real time.
+	// Note that any code included in "second.h"/"board_second.h" (like
+	// emergency resets and stuff) will be run at the update rate of the
+	// clock. [231028]
 
-	TCI_CCS += TCI_SEC_DIV;
-	__pi_nseconds++;
+	// TCI_SEC_DIV can be legitimately 64K (full wrap around) which should
+	// quietly translate to zero; hence the cast
+	TCI_CCS += (word) TCI_SEC_DIV;
+
+	__pi_nseconds += SECOND_CLOCK_RATE;
+
 	check_stack_overflow;
+
 // ============================================================================
 #include "second.h"
 // ============================================================================
 
 	RTNI;
 }
+
+#if SECOND_CLOCK_RATE != 1
+
+// When returning the number of seconds (with the second clock being coarse),
+// we adjust __pi_nseconds by the number of ticks elapsed since last timer
+// setting divided by the number of ticks per second. This is cruder than my
+// original plans, but OK, I think. The worst that can happen when we call
+// seconds is that the timer is exactly on the target (so we shall spin). The
+// tick lasts for up to 256 us, so we may occasionally spin for that much.
+// [231028]
+
+lword seconds () {
+
+	word t;
+	lword res;
+
+	do {
+		cli_sec;
+		t = gettav () - TCI_CCS;
+		res =  __pi_nseconds;
+		sti_sec;
+
+	} while (t == 0);
+
+	return res + (t / TIMER_TICKS_PER_SECOND);
+}
+
+#endif
 
 interrupt (TCI_VECTOR) timer_int () {
 

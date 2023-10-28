@@ -5641,3 +5641,13 @@ PG231024A:
 	CCA is always negative (on first try). In other words, entering TX
 	throws the chip to RX, as after a negative CCA. The delay amounts to
 	410 us. The coldstart time for CC430 is thus ca. 1.35 ms.
+
+PG231028A:
+
+	I am going randomly through the code fixing some of the old (minor)
+	problems. Here is an option the reduce the interrupt rate for the
+	seconds clock down to about once per 16 seconds. SECOND_CLOCK_RATE can
+	be set to 1, 2, 4, 8, or 16, with the default setting of 1.
+
+	Revised the PATABLE fo CC1100. Added some power levels (in comments)
+	to cc1350.h.

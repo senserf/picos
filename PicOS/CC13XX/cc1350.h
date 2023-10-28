@@ -100,7 +100,7 @@
 #endif
 
 #ifndef	CC1350_RATABLE
-// This is dummy for now, the last enty works; first entry unused
+// This is dummy for now, the last entry works; first entry unused
 #define	CC1350_RATABLE 		{ \
 					{ 0xF,  0x10000, 200000 }, \
 					{ 0xF,	0x10000, 200000 }, \
@@ -122,21 +122,26 @@
 // Power settings (from SmartRF Studio):
 //
 //	14dBm	-> AB3F, special override (different smartrf_settings.c)
-//	12  	-> BC2B
+//	12  	-> BC2B	*
 //	11	-> 90E5
-//	10	-> 58D8
+//	10	-> 58D8 *
 //	 9  	-> 40D2
-//	 8  	-> 32CE
+//	 8  	-> 32CE *
 //	 7  	-> 2ACB
-//	 6  	-> 24C9
+//	 6  	-> 24C9 *
 //	 5  	-> 20C8
-//	 4  	-> 1844
+//	 4  	-> 1844 *
 //	 3  	-> 1CC6
-//	 2  	-> 18C5
+//	 2  	-> 18C5 *
 //	 1  	-> 16C4
-//	 0  	-> 12C3
-//     -10	-> 04C0
+//	 0  	-> 12C3 *
+//	-5	-> 08C1	[my heuristics]
+//	-9	-> 06C0	[-------------]
+//     -10	-> 04C0 *
+//     -12	-> 02C0 [-------------]
+//     -12	-> 00C0 [??-----------]
 //
+
 #define	CC1350_PATABLE		{ \
 					0x04C0, \
 					0x12C3, \
@@ -147,6 +152,8 @@
 					0x58D8, \
 					0xBC2B, \
 				}
+
+
 #endif
 #endif
 

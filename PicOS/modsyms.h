@@ -287,11 +287,6 @@
 #define	MAX_EVENTS_PER_TASK	4
 #endif
 
-// Use switches for PIO input [eCOG]
-#ifndef	SWITCHES
-#define	SWITCHES		0
-#endif
-
 // Indicates whether the UART driver is present at all (0/1/2, 2 == both UARTs,
 // i.e., A and B)
 #ifndef	UART_DRIVER

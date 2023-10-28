@@ -94,13 +94,16 @@ static void setpm (word pm) {
 		setpowermode (pmode = pm);
 }
 
+static word gen_rnd (word min, word max) {
+	return (rnd () % (max - min + 1)) + min;
+}
+
 static word gen_packet_length (void) {
 
 #if MIN_PACKET_LENGTH >= MAX_PACKET_LENGTH
 	return MIN_PACKET_LENGTH;
 #else
-	return ((rnd () % (MAX_PACKET_LENGTH - MIN_PACKET_LENGTH + 1)) +
-			MIN_PACKET_LENGTH) & 0xFFE;
+	return gen_rnd (MIN_PACKET_LENGTH, MAX_PACKET_LENGTH) & 0xFFE;
 #endif
 
 }
@@ -407,7 +410,7 @@ fsm root {
     const char *fmt;
     char obuf [32];
     word p [3];
-    lint lp;
+    lword lp [3];
 
     entry RS_INIT:
 
@@ -461,6 +464,7 @@ fsm root {
 		"i        -> set sid\r\n"
 		"z        -> reset\r\n"
 		"m n d r  -> power mode\r\n"
+		"c n d d  -> seconds\r\n"
 #ifdef PIN_OPERATIONS_INCLUDED
 		"p n      -> read pin\r\n"
 		"u n v    -> set pin\r\n"
@@ -512,6 +516,7 @@ fsm root {
 	    case 'i': proceed RS_SSID;
 	    case 'z': proceed RS_RES;
 	    case 'm': proceed RS_PDM;
+	    case 'c': proceed RS_CLK;
 #ifdef __CC1350__
 	    case 'e': proceed RS_GEC;
 #endif
@@ -561,6 +566,58 @@ fsm root {
 
 	ser_outf (RS_SND1, "Sender rate: %d\r\n", n1);
 	proceed RS_RCMD;
+
+    entry RS_CLK:
+
+	// Second clock test
+	lp [2] = 0;
+	p [0] = p [1] = p [2] = 0;
+	scan (ibuf + 1, "%lu %u %u", lp+2, p+0, p+1, p+2);
+	if (lp [2] == 0)
+		// One shot
+		proceed RS_CLK_OS;
+
+	lp [0] = 0;
+
+    entry RS_CLK_LP:
+
+	lp [1] = seconds ();
+	if (lp [1] < lp [0])
+		proceed RS_CLK_ERROR;
+	lp [0] = lp [1];
+	if (lp [0] >= lp [2])
+		proceed RS_DONE;
+	if (p [0] == 0 && p [1] == 0)
+		// Continuous, silent
+		proceed RS_CLK_LP;
+	if (++p[2] == 100) {
+		p [2] = 0;
+		proceed RS_CLK_SHOW;
+	}
+
+    entry RS_CLK_CONT:
+	delay (gen_rnd (p [0], p [1]), RS_CLK_LP);
+	release;
+
+    entry RS_CLK_SHOW:
+
+	ser_outf (RS_CLK_SHOW, "Time: %ld\r\n", lp [0]);
+	proceed RS_CLK_CONT;
+
+    entry RS_CLK_ERROR:
+
+	ser_outf (RS_CLK_ERROR, "ERROR: %ld %ld\r\n", lp [0], lp [1]);
+	proceed RS_RCMD;
+
+    entry RS_CLK_OS:
+
+	ser_outf (RS_CLK_OS, "Time: %ld\r\n", seconds ());
+	proceed RS_RCMD;
+
+    entry RS_CLK_DONE:
+
+
+
 
     entry RS_BUNCH:
 
@@ -734,26 +791,26 @@ fsm root {
     entry RS_PSCN:
 
 	k = 0;
-	lp = 0;
-	scan (ibuf + 1, "%lu %u", &lp, &k);
-	pmon_start_cnt (lp, (Boolean) k);
+	lp [0] = 0;
+	scan (ibuf + 1, "%lu %u", lp, &k);
+	pmon_start_cnt (lp [0], (Boolean) k);
 	proceed RS_RCMD;
 
     entry RS_PSCM:
 
-	if (scan (ibuf + 1, "%lu", &lp) < 1)
+	if (scan (ibuf + 1, "%lu", lp) < 1)
 		proceed RS_RCMD1;
 
-	pmon_set_cmp (lp);
+	pmon_set_cmp (lp [0]);
 	proceed RS_RCMD;
 
     entry RS_PGCN:
 
-	lp = pmon_get_cnt ();
+	lp [0] = pmon_get_cnt ();
 
     entry RS_PGCN1:
 
-	ser_outf (RS_PGCN1, "Counter = %lu\r\n", lp);
+	ser_outf (RS_PGCN1, "Counter = %lu\r\n", lp [0]);
 	proceed RS_RCMD;
 
     entry RS_PQCN:
@@ -842,5 +899,10 @@ fsm root {
 	write_actuator (RS_SETA1, p [0], p + 1);
 	proceed RS_RCMD;
 #endif
+
+    entry RS_DONE:
+
+	ser_out (RS_DONE, "Done\r\n");
+	proceed RS_RCMD;
 
 }
