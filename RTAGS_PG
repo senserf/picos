@@ -878,3 +878,8 @@ PG220324A:
 	   Fixed a compilation glitch in mparithm.cc involving btoa. The new
 	   compiler doesn't like multiple default assignments of function
 	   arguments.
+
+PG231121A:
+
+	   Fixed sxml_handle_includes to search for files with relative paths
+	   (also) relative to the directory of the including file.

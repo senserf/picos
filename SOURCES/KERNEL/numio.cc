@@ -756,7 +756,55 @@ void    zz_ptime (TIME &t, int s) {
 /* Wrappers for sxml functions */
 /* =========================== */
 
-static char *sxml_handle_includes (char *IF, int *MS, char **err) {
+static int sxml_try_open (const char *ff, const char *cfp, Boolean dir,
+								char **path) {
+//
+// Try to open a file in the specified directory or relative to the path of
+// another file
+//
+	int sk, n;
+
+	n = cfp ? strlen (cfp) : 0;
+	if (n) {
+		// There is going to be a prefix
+		if (!dir) {
+			// Treat cfp as a file; remove the tail
+			while (--n && cfp [n] != '/');
+			if (n == 0 && cfp [n] == '/')
+				n++;
+		} else if (n > 1 && cfp [n-1] == '/') {
+			n--;
+		}
+	}
+
+	*path = (char*) malloc ((n ? (n + 2) : 1) + strlen (ff));
+
+	if (*path == NULL)
+		excptn ("sxml_try_open: out of memory");
+
+	if (n) {
+		if (n == 1 && cfp [0] == '/') {
+			strcpy (*path, "/");
+		} else {
+			strncpy (*path, cfp, n);
+			(*path) [n] = '\0';
+			strcat (*path, "/");
+		}
+		strcat (*path, ff);
+	} else {
+		// Just the file
+		strcpy (*path, ff);
+	}
+
+	if ((sk = open (*path, O_RDONLY)) >= 0)
+		return sk;
+
+	free (*path);
+	*path = NULL;
+	return -1;
+}
+
+static char *sxml_handle_includes (char *IF, int *MS, char *LFN, char **err) {
 /*
  * Searches (heuristically and inefficiently) for included files and reads
  * them in. Note: I tried to do it in sxml.c, but that would require a rather
@@ -766,12 +814,18 @@ static char *sxml_handle_includes (char *IF, int *MS, char **err) {
  * as we go. Consequently, I have to pre-include them before invoking the
  * parser.
  */
+
+// Modified [231116] to go recursively keeping track of the previous file, so
+// relative filename searches work as they should
+
 	int sk, tl, nc, nr, ms;
-	char *e, *s, *t, *u, *v, *w, *f, *fn;
+	char *e, *s, *t, *u, *v, *w, *f;
 	const char *fc;
+	char *cfp;
 
 	e = (s = IF) + *MS;
 	*err = NULL;
+	cfp = NULL;
 
 	// The really stupid thing is that these naive heuristics do not
 	// account for comments
@@ -805,6 +859,8 @@ NoHref:
 			*err = "include tag requires an href attribute";
 Error:
 			free (IF);
+			if (cfp)
+				free (cfp);
 			return NULL;
 		}
 
@@ -864,39 +920,36 @@ Unmatched:
 
 		// ============================================================
 
-		if ((sk = open (v, O_RDONLY)) < 0) {
-#ifdef	ZZ_XINCPAT
-			if (*v == '/') {
+		if (*v == '/') {
+			// Absolute file name, a single go
+			if ((sk = sxml_try_open (v, NULL, YES, &cfp)) < 0) {
 NoFile:
 				*err = form ("cannot open include file: %s", v);
 				goto Error;
 			}
-
-			// Check if you can locate it in one of the
-			// include directories
-			ms = 0;
-			fn = NULL;
-			do {
-				free (fn);
-				if ((fc = DataLibDirs [ms++]) == NULL)
-					goto NoFile;
-				fn = (char*) malloc (strlen (fc) +
-						     strlen (v) + 2);
-				if (fn == NULL)
-					goto Mem;
-
-				strcpy (fn, fc);
-				strcat (fn, "/");
-				strcat (fn, v);
-				if ((sk = open (fn, O_RDONLY)) >= 0) {
-					free (fn);
-					break;
+		} else {
+			if ((sk = sxml_try_open (v, LFN, NO, &cfp)) < 0) {
+				// Didn't work, try this
+				if ((sk = sxml_try_open (v, NULL, YES, &cfp)) <
+					0) {
+					// Didn't work either
+#ifdef	ZZ_XINCPAT
+					// Check if you can locate it in one of
+					// the include directories
+					ms = 0;
+					do {
+						if ((fc = DataLibDirs [ms++])
+						    == NULL)
+							goto NoFile;
+						if ((sk = sxml_try_open (v,
+						    fc, YES, &cfp)) >= 0)
+							break;
+					} while (1);
 				}
-			} while (1);
 #else
-			*err = form ("cannot open include file: %s", v);
-			goto Error;
+				goto NoFile;
 #endif
+			}
 		}
 
 		// ============================================================
@@ -905,6 +958,7 @@ NoFile:
 Mem:
 			excptn ("sxml_handle_includes: out of memory");
 		}
+
 		nc = 0;
 
 		while (1) {
@@ -936,6 +990,11 @@ Mem:
 
 		close (sk);
 
+		if ((f = sxml_handle_includes (f, &nc, cfp, err)) == NULL)
+			goto Error;
+
+		free (cfp);
+
 		// Offset from the beginning of how far we are
 		ms = (s - IF);
 
@@ -957,7 +1016,7 @@ Mem:
 		free (IF);
 		free (f);
 		IF = w;
-		s = IF + ms;
+		s = IF + ms +nc;
 		e = IF + *MS;
 	}
 }
@@ -1017,7 +1076,7 @@ sxml_t	sxml_parse_input (char del, char **data, int *len) {
 		EOL == (c == '\n');
 	}
 
-	if ((IF = sxml_handle_includes (IF, &CSize, &SF)) == NULL)
+	if ((IF = sxml_handle_includes (IF, &CSize, zz_ifn, &SF)) == NULL)
 		// IF has been freed by sxml_handle_includes
 		return sxml_parse_str (SF, 0);
 

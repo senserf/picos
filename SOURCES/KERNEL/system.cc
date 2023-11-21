@@ -302,7 +302,7 @@ static void outmes (ostream &fiptr, char *txt) {
 		fiptr << form (" [%12.9f]", ituToEtu (Time));
 	fiptr << '\n';
 	fiptr << ">>> Input data file name     = ";
-	if ((zz_ifn == NULL) || ((zz_ifn[0] == '.') && (zz_ifn[1] == '\0')))
+	if (zz_ifn == NULL)
 		fiptr << "STDIN";
 	else
 		fiptr << zz_ifn;
@@ -684,7 +684,11 @@ EOA:	// Arguments visible to the model
 #endif
 	// Open input file
 
-	if ((zz_ifn == NULL) || ((zz_ifn[0] == '.') && (zz_ifn[1] == '\0'))) {
+	if (zz_ifn != NULL && ((zz_ifn[0] == '.') || (zz_ifn[1] == '\0')))
+		// Make the checks simple: 311116
+		zz_ifn == NULL;
+
+	if (zz_ifn == NULL) {
 		// Reading from standard input
 		zz_ifpp = &cin;
 	} else {

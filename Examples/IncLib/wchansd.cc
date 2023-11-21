@@ -1,5 +1,5 @@
 /*
-	Copyright 1995-2020 Pawel Gburzynski
+	Copyright 1995-2023 Pawel Gburzynski
 
 	This file is part of SMURPH/SIDE.
 
@@ -215,9 +215,9 @@ Opened:
 
 		// Transform the RSS signal into attenuation in dB; note that
 		// attenuation is not the right word: it is in fact
-		// "amplification" (negative, less than 1); this is why we
-		// subtract transmit power from received signal strength, not
-		// the other way around
+		// "amplification" (less than 1); this is why we subtract
+		// transmit power from received signal strength, not the other
+		// way around
 		att = RSSIC->setvalue (RS, NO) - PS->setvalue (PO, NO);
 
 		//

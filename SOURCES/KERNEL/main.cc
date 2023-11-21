@@ -987,7 +987,7 @@ int main (int argc, char *argv []) {
 	zz_init_windows ();             // Initialize the window system
 
 	// Deallocate input file
-	if ((zz_ifn != NULL) && ((zz_ifn[0] != '.') || (zz_ifn[1] != '\0'))) {
+	if (zz_ifn != NULL) {
 		// Inf.close ();
 		delete (zz_ifpp);
 		zz_ifpp = NULL;
