@@ -1424,3 +1424,9 @@ PG210804A:	PICOS >= PG210804A
     Made the RF headers in PicOS usable by VUEE.
 
     Irrelevant cosmetics.
+
+PG231206A:
+
+    Fixed a race condition in RM_ADC in rfmodule.cc and a bug in PXOPTIONS
+    power setting (introduced with 200926A). Fixed a minor bug in udaemon.
+    A few cosmetics.

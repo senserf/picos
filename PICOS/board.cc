@@ -1,5 +1,5 @@
 /*
-	Copyright 2002-2020 (C) Olsonet Communications Corporation
+	Copyright 2002-2023 (C) Olsonet Communications Corporation
 	Programmed by Pawel Gburzynski & Wlodek Olesinski
 	All rights reserved
 
@@ -4717,7 +4717,7 @@ void BoardRoot::initNodes (sxml_t data, int NT, int NN, const char *BDLB [],
 			ss = nod_type ? nod_type : "*";
 			if (D == NULL)
 				excptn ("Root: node type <%s>, number %1d, "
-					"requires board default, but no such "
+					"requires a board default, but no such "
 					"default is available", ss, i);
 			print (form ("  Inserting defaults: board=%s\n\n", ss));
 		} else {

@@ -897,7 +897,8 @@ process RM_ADC (PicOSNode) {
 
 	double sigLevel ();
 
-	states { ADC_WAIT, ADC_RESUME, ADC_UPDATE, ADC_STOP };
+	// 231106: removed ADC_STOP
+	states { ADC_WAIT, ADC_RESUME, ADC_UPDATE };
 
 	perform;
 

@@ -6501,7 +6501,7 @@ proc w_state_change { Sok } {
 
 	if { $Stat(PNN,$nn) == "F" } {
 		set cl "gray"
-		set ss "diabled"
+		set ss "disabled"
 		append pt " The node is currently powered down, so the red\
 			point shows zero."
 		append pq ". The button is disabled, because the node is\

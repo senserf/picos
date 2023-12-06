@@ -116,24 +116,23 @@ double RM_ADC::sigLevel () {
 }
 
 void RM_ADC::start () {
-
 	if (!On) {
+		// 231206: I have removed wrong consistency checks; if RSS is
+		// started together with the process, ADC_WAIT may find On set
+		// even though the signal to set it on is pending; thus, the
+		// proper course of action is not to interpret the signal value
+		// only the value of On; what we need is a Monitor signal
 		On = YES;
-		// This one can be legitimately rejected on a race: the signal
-		// repo may be pending with the previous "off" signal. This is
-		// exactly what the On flag is for.
-		this->signal ((void*)YES);
+		this->signal ((void*)0);
 	}
 }
 
 void RM_ADC::stop () {
-
 	if (On) {
 		On = NO;
-		if (this->signal ((void*)NO) == REJECTED)
-			excptn ("RM_ADC: rejected stop signal");
-	} else
-		excptn ("RM_ADC: unexpected stop signal");
+		// Same signal number (231206)
+		this->signal ((void*)0);
+	}
 }
 
 RM_ADC::perform {
@@ -157,7 +156,7 @@ RM_ADC::perform {
 #endif
 	// In case something is already pending
 	rfi->wait (ANYEVENT, ADC_UPDATE);
-	this->wait (SIGNAL, ADC_STOP);
+	this->wait (SIGNAL, ADC_WAIT);
 
     state ADC_UPDATE:
 
@@ -179,13 +178,7 @@ RM_ADC::perform {
 #endif
 	// Only new events, no looping!
 	rfi->wait (ANYEVENT, ADC_UPDATE);
-	this->wait (SIGNAL, ADC_STOP);
-
-    state ADC_STOP:
-
-	Assert (ptrtoint (TheSignal) == NO, "ADC: illegal OFF signal");
-	// Done: wait for another request
-	sameas ADC_WAIT;
+	this->wait (SIGNAL, ADC_WAIT);
 }
 
 void RM_Xmitter::setup () {
@@ -290,32 +283,30 @@ Bkf:
 		goto Bkf;
 	}
 
-#if 0
-	// This transmitter is not used any more with a neutrion-type channel
-	if (__pi_channel_type != CTYPE_NEUTRINO) {
-		// Xmit power setting?
-		ppw = (*ppm >> 12) & 0x7;
-		if (ppw != lastp) {
-			if (ppw > (w = Ether->PS->upper ()))
-				ppw = w;
-			else if (ppw < (w = Ether->PS->lower ()))
-				ppw = w;
-			rf->setrfpowr (lastp = ppw);
-		}
-		// trace ("PXOPT pl: %1d", ppw);
+	// This transmitter is not used any more with a neutrino-type channel
+	// if (__pi_channel_type != CTYPE_NEUTRINO) {
+
+	// 231114 when removing the above if, I accidentally removed the code
+	// for setting PXOPTIONS power level; putting it back
+	ppw = (*ppm >> 12) & 0x7;
+	if (ppw != lastp) {
+		if (ppw > (w = Ether->PS->upper ()))
+			ppw = w;
+		else if (ppw < (w = Ether->PS->lower ()))
+			ppw = w;
+		rf->setrfpowr (lastp = ppw);
 	}
-#endif
+	// trace ("PXOPT pl: %1d", ppw);
 
 	if (*ppm & 0x8000)
-		goto Force;	// What an ugly jump!
+		// The bypass was wrong; fixed 231115
+		goto Xmit;
 #endif
-
 	// trace ("TR: %1d %1d %1d", lbtries, ntry, lbtnths);
 	if (!lbtries || ntry < lbtries) {
-Force:
 		if (rcvg) {
 #if 0
-			// need this for safety?
+			// need this for safety? NO! 231115
 			delay (minbkf, XM_LOOP);
 			ntry++;
 #endif
