@@ -45,23 +45,28 @@ proc parse_args { } {
 
 proc make_target_directory { } {
 
-	global TDIR
+	global TDIR BDIR
 
 	catch { file delete -force -- $TDIR }
 
 	if [catch { file mkdir $TDIR } err] {
 		abt "Cannot create $TDIR, $err"
 	}
+
+	set BDIR [file join $TDIR "BIN"]
+	if [catch { file mkdir $BDIR } err] {
+		abt "Cannot create lib in $TDIR, $err"
+	}
 }
 
 proc copy_cygwin_dlls { } {
 
-	global TDIR CYGDLLS
+	global BDIR CYGDLLS
 
 	foreach f $CYGDLLS {
-		if [catch { file copy [file join "/bin" $f] $TDIR } err] {
+		if [catch { file copy [file join "/bin" $f] $BDIR } err] {
 			puts "No file in /bin: $f, skipped"
-			# abt "Cannot copy $f from /bin to $TDIR, $err"
+			# abt "Cannot copy $f from /bin to $BDIR, $err"
 		}
 	}
 }
@@ -76,7 +81,7 @@ proc copy_applib { } {
 
 	set pp [file join $PP "Apps" "DataLib"]
 
-	set FW [file join $PP "Scripts" "Tcl" fullwrap.exe]
+	set FW [file join $PP "Scripts" "Tcl" freewrap.exe]
 
 	set fl [glob -nocomplain -path "${pp}/" "*"]
 
@@ -117,20 +122,20 @@ proc copy_data { } {
 
 proc copy_side { } {
 
-	global TDIR
+	global BDIR
 
 	if ![file exists "side.exe"] {
 		abt "Project not compiled for VUEE, no side.exe file"
 	}
 
-	if [catch { file copy "side.exe" $TDIR } err] {
-		abt "Cannot copy side.exe to $TDIR, $err"
+	if [catch { file copy "side.exe" $BDIR } err] {
+		abt "Cannot copy side.exe to $BDIR, $err"
 	}
 }
 
 proc wrap_script { pn } {
 
-	global TDIR PP FW
+	global BDIR PP FW
 
 	set tpn "${pn}.tcl"
 
@@ -138,13 +143,13 @@ proc wrap_script { pn } {
 		abt "Cannot locate $pn"
 	}
 
-	if [catch { exec cp $ud [file join $TDIR $tpn] } err] {
-		abt "Cannot copy $pn to $TDIR, $err"
+	if [catch { exec cp $ud [file join $BDIR $tpn] } err] {
+		abt "Cannot copy $pn to $BDIR, $err"
 	}
 
 	set CD [pwd]
-	if [catch { cd $TDIR } err] {
-		abt "Cannot cd to $TDIR, $err"
+	if [catch { cd $BDIR } err] {
+		abt "Cannot cd to $BDIR, $err"
 	}
 
 	if [catch { exec $FW $tpn } err] {
@@ -260,7 +265,7 @@ proc copy_udaemon_plug { } {
 		return
 	}
 
-	set td [file join $TDIR "shared_plug.tcl"]
+	set td [file join $TDIR "DATAFILES" "shared_plug.tcl"]
 	if [catch { file copy $BL $td } err] {
 		abt "Cannot copy $BL to $td, $err"
 	}

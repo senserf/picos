@@ -194,6 +194,14 @@ static word	physid,
 		statid = 0,
 		bckf_timer = 0;
 
+// Note: as things stand now, WOR is pretty much useless because the uC still
+// drains lots of power with WOR on because I cannot put the CPU to deep sleep
+// while the radio is formally on. In order for it to make sense (if at all),
+// we should (probably) run things from the radio core, which I am not sure
+// how to do. For the DOGS praxis, I cooked an app-level WOR mode which seems
+// to work way better than anything the present WOR mode can accomplish and
+// (probably) not significantly worse that what the RF-core-level WOR operation
+// could possibly net us [231030].
 #if RADIO_WOR_MODE
 // ============================================================================
 // Need extra commands for sniffing (receiving) in WOR mode, as well as
@@ -438,7 +446,7 @@ static void rf_on () {
 
 	// I have redone it a bit (231012) so it takes less time than before.
 	// Having looked into TI code, I have managed to parallelize the XOSC
-	// statup with other stuff, and also chained the last three setup commands
+	// startup with other stuff, and also chained the last three setup commands
 	// into one which nets us less than 300 us for the coldstart, as witnessed
 	// by my crappy oscilloscope.
 
@@ -461,8 +469,7 @@ static void rf_on () {
 	// revert to it when the radio is switched off
 	OSCHF_TurnOnXosc();
 
-	// ====================================================================
-
+	// Magic for the patches to go through
 	issue_cmd_async (CMDR_DIR_CMD_2BYTE (RF_CMD0,
 		RFC_PWR_PWMCLKEN_MDMRAM | RFC_PWR_PWMCLKEN_RFERAM));
 
@@ -478,35 +485,32 @@ static void rf_on () {
 	// Undo the magic
 	issue_cmd (CMDR_DIR_CMD_2BYTE (RF_CMD0, 0));
 
-        // Initialize bus request; AFAICT, this is only needed if we want to
+	// Initialize bus request; AFAICT, this is only needed if we want to
 	// deep sleep while the radio is sending data to our RAM
 	issue_cmd_async (CMDR_DIR_CMD_1BYTE (CMD_BUS_REQUEST, 1));
 
 	RFCAdi3VcoLdoVoltageMode (true);
-
-	// ====================================================================
-
 
 	// This must be done with RF core on, on every startup
 	RFCRfTrimSet (&rfTrim);
 
 	sync_cmd ();
 
-	// ====================================================================
 
 	// Make sure the clock is up
 	while (!OSCHF_AttemptToSwitchToXosc ()) { udelay (50); }
 
 	issue_cmd ((lword)&RF_cmdPropRadioDivSetup);
 #if 0
-	// the three are now chained
+	// Dead code: the three are now chained
 	wait_cmd ((rfc_radioOp_t*)&RF_cmdPropRadioDivSetup, PROP_DONE_OK,
 		10000);
 	issue_cmd ((lword)&cmd_srt);
 	issue_cmd ((lword)&RF_cmdFs);
-#endif
+#else
 	// The last command in the chain
 	wait_cmd ((rfc_radioOp_t*)&RF_cmdFs, DONE_OK, 10000);
+#endif
 
 #if 0
 	// Show the firmware version on first power up (for tests only)

@@ -813,6 +813,8 @@ EUT:
 
 #if SECOND_CLOCK_RATE != 1
 
+// Otherwise, seconds is a macro simply returning __pi_nseconds
+
 // When returning the number of seconds (with the second clock being coarse),
 // we adjust __pi_nseconds by the number of ticks elapsed since last timer
 // setting divided by the number of ticks per second. This is cruder than my

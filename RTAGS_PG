@@ -5651,3 +5651,8 @@ PG231028A:
 
 	Revised the PATABLE fo CC1100. Added some power levels (in comments)
 	to cc1350.h.
+
+PG231206A:
+
+	Updated mksvm.tcl and runmodel.tcl for the revived interest in
+	VUEE-packing. A few cosmetics.

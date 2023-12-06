@@ -27,14 +27,34 @@ proc alert { msg } {
 	tk_dialog [cw].alert "Attention!" "${msg}!" "" 0 "OK"
 }
 
-proc xq { pgm { pargs "" } } {
+proc kill_cygwin { plist } {
 #
-# Execute program
+# Cygwin kill
 #
-	set ef [auto_execok $pgm]
-	set re [eval [list exec] [list $pgm] $pargs]
-	#set re [eval [list exec] [list $ef] $pargs]
-	return $re
+	set ef [auto_execok "./BIN/kill.exe"]
+	if { $ef == "" } {
+		return 0
+	}
+
+	foreach p $plist {
+		if [catch { eval [list exec] [list $ef] "-f $p" } err] {
+			return 0
+		}
+		term_output "Killed (cyg): $p"
+	}
+
+	return 1
+}
+
+proc kill_windows { plist } {
+#
+# Windows kill
+#
+	foreach p $plist {
+		if ![catch { eval exec "taskkill" "/F /PID $p" } err] {
+			term_output "Killed (win): $p"
+		}
+	}
 }
 
 proc kill_pipe { fd } {
@@ -45,10 +65,10 @@ proc kill_pipe { fd } {
 		return
 	}
 
-	foreach p $pp {
-		if ![catch { exec kill -f $p } err] {
-			term_output "Killed: $p"
-		}
+	# try the cygwin kill first, probably isn't going to work, we are on
+	# Windows
+	if ![kill_cygwin $pp] {
+		kill_windows $pp
 	}
 	catch { close $fd }
 }
@@ -78,7 +98,7 @@ proc run { } {
 		}
 	}
 
-	set ef [auto_execok "./side.exe"]
+	set ef [auto_execok "./BIN/side.exe"]
 	if { $ef == "" } {
 		alert "Cannot execute the simulator"
 	}
@@ -142,7 +162,7 @@ proc run { } {
 
 	after 2000
 
-	set ef [auto_execok "./udaemon.exe"]
+	set ef [auto_execok "./BIN/udaemon.exe"]
 	if { $ef == "" } {
 		alert "Cannot execute udaemon"
 	}
@@ -153,8 +173,17 @@ proc run { } {
 		lappend ar $s
 	}
 
-	if { [file isfile "uplug.tcl"] || [file isfile "shared_plug.tcl"] } {
+	set pf [file join "DATAFILES" "uplug.tcl"]
+	if ![file isfile $pf] {
+		set pf [file join "DATAFILES" "shared_plug.tcl"]
+		if ![file isfile $pf] {
+			set pf ""
+		}
+	}
+
+	if { $pf != "" } {
 		lappend ar "-P"
+		lappend ar $pf
 	}
 
 	append ar " 2>@1"

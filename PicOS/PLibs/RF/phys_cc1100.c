@@ -601,7 +601,9 @@ static void set_default_wor_params () {
 
 static void chip_reset () {
 //
-// Reset the module to standard register setting in power down mode
+// Reset the module to standard register setting in power down mode; this
+// includes spin delays (see cc1100_full_reset), but chip_reset is NOT done
+// on (normal) power-up [231030].
 //
 #if RADIO_WOR_MODE
 	woron = 0;
