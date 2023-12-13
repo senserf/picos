@@ -19,8 +19,18 @@
 /* SIDE version number */
 #define  VERSION      "3.9-AG"
 
-#ifdef	__CYGWIN32__
+#ifdef	__CYGWIN__
+// 231206: I am adding this (back) because neither select nor pselect work for
+// me on Cygwin (they don't delay, which amounts to spinning). With this,
+// sockets are actively polled (at SOCKCHKINT intervals).
+// This used to be the case some time ago; then, with the advent of 64-bit
+// Cygwin, I reverted to select without paying attention to the spinning
+// CPU (one core anyway) which has started to bother me recently ;-).
+// 
 #define	ZZ_CYW				1
+#endif
+
+#ifdef	__CYGWIN32__
 #define	ZZ_ARCH_EXPL_SM
 
 #define		MAXSHORT		((short int)0x7fff)
@@ -160,4 +170,4 @@ typedef void (*SIGARG) (int);
 #define  ZZ_XINCPAT      {"/cygdrive/c/Users/nripg/OneDrive/STORAGE/SOFTWARE/PICOS/Apps/DataLib", NULL}
 #define  ZZ_MONHOST      "localhost"
 #define  ZZ_MONSOCK      4442
-#define  ZZ_RTAG	"PG220324A"
+#define  ZZ_RTAG	"PG231121A"

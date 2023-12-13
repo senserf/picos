@@ -55,7 +55,8 @@ static inline double vlength (sdpair_t &sdp) {
 	x = (double) (sdp.XA - sdp.XB);
 	y = (double) (sdp.YA - sdp.YB);
 #if ZZ_R3D
-	y = (double) (sdp.ZA - sdp.ZB);
+	// Fixed 231212 replaced 'y' with 'z'; what a nasty little bug!
+	z = (double) (sdp.ZA - sdp.ZB);
 #endif
 	return sqrt (x * x + y * y
 #if ZZ_R3D

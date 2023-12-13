@@ -883,3 +883,14 @@ PG231121A:
 
 	   Fixed sxml_handle_includes to search for files with relative paths
 	   (also) relative to the directory of the including file.
+
+PG231213A:
+
+	   Put back polling for scoket I/O, instead of relying on select, in
+	   the Cygwin version. This eliminates spinning on the event loop in
+	   the real-time mode. It seems that select still doesn't work properly
+	   under Cygwin (or maybe there is something I don't know).
+
+	   Fixed a nasty bug in wchansd.cc causing that incorrect value of the
+	   y coordinate was used when calculating distance-based attenuation in
+	   the 3-d variant.
