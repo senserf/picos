@@ -226,18 +226,18 @@ Opened:
 		// variance:
 		//
 		//	def online_variance(data):
-    		//		n = 0
-    		//		mean = 0
-    		//		M2 = 0
+   		//		n = 0
+   		//		mean = 0
+   		//		M2 = 0
 		//
 		//		for x in data:
-        	//			n = n + 1
-        	//			delta = x - mean
-        	//			mean = mean + delta/n
-        	//			M2 = M2 + delta*(x - mean)
+       	//			n = n + 1
+       	//			delta = x - mean
+       	//			mean = mean + delta/n
+       	//			M2 = M2 + delta*(x - mean)
 		//
-    		//		variance = M2/(n - 1)
-    		//		return variance
+   		//		variance = M2/(n - 1)
+   		//		return variance
 		//
 
 		RSMP->NS++;
@@ -548,7 +548,7 @@ double RFSampled::RFC_add (int n, int own, const SLEntry **sl,
 
 double RFSampled::RFC_att (const SLEntry *xp, double d, Transceiver *src) {
 
-	double res;
+	double att, res;
 	sdpair_t SDP;
 	unsigned short pow, cha;
 
@@ -574,15 +574,16 @@ double RFSampled::RFC_att (const SLEntry *xp, double d, Transceiver *src) {
 		SDP.XA, SDP.YA,
 		SDP.XB, SDP.YB, d);
 #endif
-
-	res = res * xp->Level * attenuate (SDP);
+	att = attenuate (SDP);
+	res = res * xp->Level * att;
 
 	if (gain)
 		res *= gain (src, TheTransceiver);
 
-	trc ("RFC_att (sl) = [%g,%g,%d,%d] -> %g [%g dBm]",
-		xp->Level, d, src->getSID (), TheTransceiver->getSID (), res,
-			linTodB (res));
+	trc ("RFC_att (sl) = [%u->%u](%g), %g->%g->%g",
+		src->getSID (), TheTransceiver->getSID (), d,
+			linTodB (xp->Level), linTodB (att), linTodB (res));
+
 	return res;
 }
 

@@ -886,7 +886,7 @@ PG231121A:
 
 PG231213A:
 
-	   Put back polling for scoket I/O, instead of relying on select, in
+	   Put back polling for socket I/O, instead of relying on select, in
 	   the Cygwin version. This eliminates spinning on the event loop in
 	   the real-time mode. It seems that select still doesn't work properly
 	   under Cygwin (or maybe there is something I don't know).

@@ -554,6 +554,25 @@ INLINE double dRndGauss (double mean, double sigma) {
 	zz_nfp ("dRndGauss");
 	return 0.0;
 #else
+#if 0
+	// This is a slightly different version that basically works the same
+	// 240112
+	static double spare;
+	static Boolean spare_ready = NO;
+	double u, v, m;
+
+	if (spare_ready) {
+		spare_ready = NO;
+		return spare;
+	}
+
+	while ((u = rnd (SEED_toss)) == 0.0);
+	spare_ready = YES;
+	m = sigma * sqrt (-2.0 * log (u));
+	v = rnd (SEED_toss) * (2.0 * M_PI);
+	spare = m * sin (v) + mean;
+	return m * cos (v) + mean;
+#else
 	static double extra = HUGE;
 	double r, t;
 
@@ -574,5 +593,6 @@ INLINE double dRndGauss (double mean, double sigma) {
 	}
 
 	return sigma * r + mean;
+#endif
 #endif
 };
