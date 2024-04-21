@@ -917,7 +917,7 @@ double	Transceiver::setXPower (double p) {
 		p = RFC->DefXPower;
 
 	assert (p >= 0.0,
-		"Transceiver->setXPower: %s, llegal (undefined) power (%f)",
+		"Transceiver->setXPower: %s, illegal (undefined) power (%f)",
 			getSName (), p);
 
 	op = XmtSig.Level;

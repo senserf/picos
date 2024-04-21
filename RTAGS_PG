@@ -894,3 +894,7 @@ PG231213A:
 	   Fixed a nasty bug in wchansd.cc causing that incorrect value of the
 	   y coordinate was used when calculating distance-based attenuation in
 	   the 3-d variant.
+
+PG240421A:
+
+	   Cooked option for samples in the sampled channel model (wchansd.cc).

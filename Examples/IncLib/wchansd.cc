@@ -38,7 +38,7 @@ typedef struct {
 //
 	sdpair_t	SDP;
 	double		Attenuation,
-			Sigma;
+				Sigma;
 	Long		NS;		// Number of specimens so far
 
 } rss_rsample_t;
@@ -75,19 +75,19 @@ void RFSampled::read_samples (const char *sfname) {
 //
 // The last number is optional and defaults to a model parameter
 //
-	rss_rsample_t		*RSamples;
+	rss_rsample_t	*RSamples;
 	Long			SRSamples, ln, e, i;
 	FILE			*sf;
 	nparse_t		NP [__ntrd];
 	sdpair_t		SDP;
-	rss_rsample_t           *RSMP;
-	rss_sample_t            *SMP, SSMP;
+	rss_rsample_t   *RSMP;
+	rss_sample_t    *SMP, SSMP;
 	char			*c, *linebuf;
 	size_t			lbs;
-	unsigned short		RS, PO;
-	unsigned int		uv;
-	double			d, att;
-	int			cnt;
+	unsigned short	RS, PO;
+	unsigned int	uv;
+	double			d, att, sif;
+	int				cnt;
 	
 	NSamples = SRSamples = 0;
 
@@ -131,9 +131,11 @@ Opened:
 
 	NP [__nrof + 0] . type =
 	NP [__nrof + 1] . type =
-						TYPE_int;
-
-	// x, y, [z,] x, y, [z,] rss, plevel
+		// 240419 for cooked samples (K == 1), we have fp (average) gain (att)
+		// and fp sigma:
+		// K != 1 --> x, y, [z,] x, y, [z,] rss, plevel
+		// K == 1 --> x, y, [z,] x, y, [z,] gain, sigma
+		(K == 1) ? TYPE_double : TYPE_int;
 
 	ln = 0;
 	lbs = 0;
@@ -163,29 +165,37 @@ Opened:
 #if ZZ_R3D
 		SDP.ZB = (Long) duToItu (NP [cnt++] . DVal);
 #endif
-		PO = PS->upper ();
-		uv = (unsigned int) (NP [cnt++] . IVal);
-		assert (uv <= 0x0FFFF, "RFSampled: illegal RSSI (%1u) in line "
-			"%1d in the sample file", uv, ln);
-		RS = (unsigned short) uv;
-		if (e > __ntrd - 1) {
-			uv = (unsigned int) (NP [cnt] . IVal);
-			assert (uv <= 0x0FFFF,
-				"RFSampled: illegal power level (%1u) in line "
-				"%1d in the samples file", uv, ln);
-			PO = (unsigned short) uv;
-		}
-
-		// Look up the same pair of points in the existing set
-		
 		RSMP = NULL;
-		for (i = 0; i < NSamples; i++) {
-			if (sdpcmp (SDP, RSamples [i] . SDP)) {
-				RSMP = &(RSamples [i]);
-				break;
+		PO = PS->upper ();
+		if (K == 1) {
+			// Exact samples: the gain (called att) and sigma
+			att = NP [cnt++] . DVal;
+			sif = NP [cnt++] . DVal;
+		} else {
+			// K != 1 --> normal samples
+			uv = (unsigned int) (NP [cnt++] . IVal);
+			assert (uv <= 0x0FFFF, "RFSampled: illegal RSSI (%1u) in line "
+				"%1d in the sample file", uv, ln);
+			RS = (unsigned short) uv;
+			if (e > __ntrd - 1) {
+				uv = (unsigned int) (NP [cnt] . IVal);
+				assert (uv <= 0x0FFFF,
+					"RFSampled: illegal power level (%1u) in line "
+					"%1d in the samples file", uv, ln);
+				PO = (unsigned short) uv;
+			}
+			// Look up the same pair of points in the existing set
+			for (i = 0; i < NSamples; i++) {
+				if (sdpcmp (SDP, RSamples [i] . SDP)) {
+					RSMP = &(RSamples [i]);
+					break;
+				}
 			}
 		}
 
+		// 240419 for cooked samples, we know there are no duplicates; note
+		// that RSMP is always NULL when K == 1; this implies that every
+		// reading requires a new entry
 		if (RSMP == NULL) {
 			if (NSamples == SRSamples) {
 				// Reached the limit of present array
@@ -193,37 +203,37 @@ Opened:
 					// Initial allocation
 					SRSamples = 256;
 					RSamples = (rss_rsample_t*)
-					    malloc (sizeof (rss_rsample_t) *
-						SRSamples);
+						malloc (sizeof (rss_rsample_t) * SRSamples);
 				} else {
 					SRSamples += SRSamples;
 					RSamples = (rss_rsample_t*)
-					    realloc (RSamples,
-						sizeof (rss_rsample_t) *
-						    SRSamples);
+						realloc (RSamples, sizeof (rss_rsample_t) * SRSamples);
 				}
-				assert (RSamples != NULL,
-					"RFSampled: out of memory "
-						"(creating list of samples)");
+				assert (RSamples != NULL, "RFSampled: out of memory "
+					"(creating list of samples)");
 			}
 			RSMP = &(RSamples [NSamples]);
 			NSamples++;
 			RSMP->SDP = SDP;
+			RSMP->NS = 0;
+			if (K == 1) {
+				// We have the complete sample
+				RSMP->Attenuation = att;
+				RSMP->Sigma = sif;
+				continue;
+			}
 			RSMP->Attenuation = 0.0;
 			RSMP->Sigma = 0.0;
-			RSMP->NS = 0;
 		}
-
-		// Transform the RSS signal into attenuation in dB; note that
-		// attenuation is not the right word: it is in fact
-		// "amplification" (less than 1); this is why we subtract
-		// transmit power from received signal strength, not the other
-		// way around
+		// We get here for a 'standard' (accumulated) sample; we get the RSS
+		// value which we must transform into attenuation in dB; or gain, to be
+		// precise; this is why we subtract the transmit power from received
+		// signal strength, not the other way around; for a 'cooked' sample,
+		// the value is right already
 		att = RSSIC->setvalue (RS, NO) - PS->setvalue (PO, NO);
 
 		//
-		// Here's the "online" algorithm (due to Knuth) for mean and
-		// variance:
+		// Here's the algorithm (due to Knuth) for online mean and variance:
 		//
 		//	def online_variance(data):
    		//		n = 0
@@ -267,12 +277,16 @@ Opened:
 		SMP = Samples + e;
 		RSMP = RSamples + e;
 
-		// Prepare the target view
+		// Prepare the target view; this is a bit messy beacause for cooked
+		// samples we could do this in the first pass, but it is easier this
+		// way
 		SSMP.SDP = RSMP->SDP;
-
 		SSMP.Attenuation = (float)(RSMP->Attenuation);
 		SSMP.Distance = (float)(d = vlength (SSMP.SDP));
-		if (K == 0 || RSMP->NS < K) {
+		if (K == 1) {
+			// The cooked case; the Sigma is ready
+			SSMP.Sigma = RSMP->Sigma;
+		} else if (K == 0 || RSMP->NS < K) {
 			// Below threshold, use the default Sigma
 			SSMP.Sigma = (SIGMA == NULL) ? Sigma :
 				SIGMA->setvalue (d);
@@ -280,7 +294,6 @@ Opened:
 			SSMP.Sigma = (float) sqrt (RSMP->Sigma /
 				(RSMP->NS - 1));
 		}
-
 		memcpy (SMP, &SSMP, sizeof (rss_sample_t));
 
 #if ZZ_R3D
@@ -317,7 +330,7 @@ void RFSampled::setup (
 	Long nt,		// The number of transceivers
 	const sir_to_ber_t *st,	// SIR to BER conversion table
 	int    sl,		// Length of the conversion table
-	int	k,		// Sampled sigma threshold
+	int	k,			// Sampled sigma threshold
 	double sig,		// Default lognormal random component
 	double no,		// Background noise (dBm)
 	double bu,		// Channel busy signal threshold dBm
@@ -343,9 +356,13 @@ void RFSampled::setup (
 	Symmetric = symm;
 	Sigma = sig;
 
-	if ((K = k) > 0 && K < 2)
-		excptn ("RFSampled: sampled sigma threshold (K=%1d) must be "
-			"either zero or greater than 1", K);
+	// 240419 K=1 is used as a flag for cooked samples
+	if ((K = k) < 0)
+		excptn ("RFSampled: sampled sigma threshold (K=%1d) cannot be negative",
+			K);
+	if (K == 1 && Symmetric)
+		excptn ("RFSampled: sampled sigma threshold K=1 illegal together "
+				"with 'symmetric'");
 
 	ATTB = (DVMapper*)(ivcc [XVMAP_ATT]);
 	SIGMA = (DVMapper*)(ivcc [XVMAP_SIGMA]);
