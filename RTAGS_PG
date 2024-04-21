@@ -1430,3 +1430,8 @@ PG231206A:
     Fixed a race condition in RM_ADC in rfmodule.cc and a bug in PXOPTIONS
     power setting (introduced with 200926A). Fixed a minor bug in udaemon.
     A few cosmetics.
+
+PG240421A:	SIDE >= PG240421A
+
+	Cooked option added to RFSampled. This option is selected by setting
+	sthreshold to 1 (this value was previously illegal)

@@ -1799,7 +1799,7 @@ int BoardRoot::initChannel (sxml_t data, int NN, Boolean nc) {
 
 		// Power
 		if ((cur = sxml_child (data, "power")) == NULL)
-			xenf ("<power>", "<network>");
+			xenf ("<power>", "<channel>");
 
 		att = sxml_txt (cur);
 
@@ -1907,9 +1907,10 @@ int BoardRoot::initChannel (sxml_t data, int NN, Boolean nc) {
 			if (nr == 0)
 				xeai ("sthreshold", "<propagation>", att);
 			K = (int) (np [0].LVal);
-			if (K < 0 || K == 1)
-				excptn ("Root: the sigma threshold must be"
-					"> 1 or 0, is %1d", K);
+			// 240419: K == 1 now means 'exact' samples
+			if (K < 0)
+				excptn ("Root: sthreshold (the sigma threshold) "
+					"must be >= 0, is %1d", K);
 			np [0].type = TYPE_double;
 		}
 
@@ -1917,6 +1918,11 @@ int BoardRoot::initChannel (sxml_t data, int NN, Boolean nc) {
 		if ((att = sxml_attr (prp, "symmetric")) != NULL &&
 			*att == 'y')
 				symm = YES;
+
+		// 240419
+		if (symm && K == 1)
+			excptn ("Root: sthreshold=1 (meaning 'exact samples')"
+				" cannot be used with 'symmetric=y'");
 
 		att = sxml_txt (prp);
 
