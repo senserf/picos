@@ -406,12 +406,18 @@ proc sxml_child { s n } {
 	return ""
 }
 
+proc sxml_fctl { s } {
+#
+# A secret (public) function: first character, lower case
+#
+	return [string tolower [string index $s 0]]
+}
+
 proc sxml_yes { item attr } {
 #
 # A useful shortcut
 #
-	if { [string tolower [string index [sxml_attr $item $attr] 0]] == \
-		"y" } {
+	if { [sxml_fctl [sxml_attr $item $attr]] == "y" } {
 			return 1
 	}
 	return 0
