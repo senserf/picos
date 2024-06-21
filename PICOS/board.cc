@@ -469,7 +469,8 @@ rfm_intd_t::rfm_intd_t (const data_no_t *nd) {
 	rfmc.lbt_nthrs = rf->LBTNThrs;
 
 	rfmc.DefXPower   = rf->Power;			// Index
-	// This one has to be converted
+	// These have to be converted
+	rfmc.POffset	 = dBToLin (rf->POffset);
 	rfmc.DefRPower   = dBToLin (rf->Boost);		// Value in dB
 	rfmc.DefRate     = rf->Rate;			// Index
 	rfmc.DefChannel  = rf->Channel;
@@ -534,7 +535,8 @@ void rfm_intd_t::setrfpowr (word ix) {
 		v = m->setvalue (ix);
 	}
 
-	RFInterface -> setXPower (v);
+	// Augment by the offset (240421)
+	RFInterface -> setXPower (v * cpars->POffset);
 }
 
 void rfm_intd_t::setrfrate (word ix) {
@@ -1867,11 +1869,6 @@ int BoardRoot::initChannel (sxml_t data, int NN, Boolean nc) {
 
 			sptypes (np, TYPE_double);
 
-		} else if (__pi_channel_type == CTYPE_SAMPLED &&
-							sfname != NULL) {
-
-			excptn ("Root: \"sampled\" propagation model with "
-				"non-empty sample file requires RSSI table");
 		}
 	}
 
@@ -1912,6 +1909,16 @@ int BoardRoot::initChannel (sxml_t data, int NN, Boolean nc) {
 				excptn ("Root: sthreshold (the sigma threshold) "
 					"must be >= 0, is %1d", K);
 			np [0].type = TYPE_double;
+		}
+
+		if (sfname == NULL) {
+			// Samples must be provided when declared as cooked
+			if (K == 1)
+				excptn ("Root: samples must be provided for the \"sampled\" "
+					"channel with the cooked option on");
+		} else if (K != 1 && !ivc [XVMAP_RSSI]) {
+			excptn ("Root: \"sampled\" propagation model with "
+				"non-empty and raw sample file requires RSSI table");
 		}
 
 		symm = NO;
@@ -3012,7 +3019,7 @@ data_no_t *BoardRoot::readNodeParams (sxml_t data, int nn, const char *lab,
 			" is no RF <channel>", xname (nn, lab));
 
 		RF = ND->rf = new data_rf_t;
-		RF->Boost = HUGE;
+		RF->Boost = RF->POffset = HUGE;
 		RF->Power = RF->Rate = RF->Channel = RF->Pre = RF->LBTDel =
 			RF->BCMin = RF->BCMax = WNONE;
 		// LBTDel == WNONE implies that LBTThs is irrelevant
@@ -3022,10 +3029,10 @@ data_no_t *BoardRoot::readNodeParams (sxml_t data, int nn, const char *lab,
 
 		/* POWER */
 		if ((cur = sxml_child (mai, "power")) != NULL) {
-			// This is the index
+			np [0] . type = TYPE_LONG;
 			if (parseNumbers (sxml_txt (cur), 1, np) != 1)
 				xesi ("<power>", xname (nn, lab));
-			RF->Power = (word) (np [0] . LVal);
+			RF->Power = np [0] . LVal;
 			if (__pi_channel_type != CTYPE_NEUTRINO &&
 			    !(Ether->PS->exact (RF->Power)))
 				excptn ("Root: power index %1d (in %s) does not"
@@ -3035,6 +3042,31 @@ data_no_t *BoardRoot::readNodeParams (sxml_t data, int nn, const char *lab,
 			ppf = YES;
 			RF->absent = NO;
 		}
+
+		np [0] . type = TYPE_double;
+
+		/* OFFSET (added 240425) */
+		if ((cur = sxml_child (mai, "offset")) != NULL) {
+			if (parseNumbers (sxml_txt (cur), 1, np) != 1)
+				xesi ("<offset>", xname (nn, lab));
+			RF->POffset = np [0] . DVal;
+			print (form ("  Offset:     %gdB\n", RF->POffset));
+			ppf = YES;
+			RF->absent = NO;
+		}
+
+		/* BOOST */
+		if ((cur = sxml_child (mai, "boost")) != NULL ||
+			(cur = sxml_child (mai, "gain")) != NULL) {
+			if (parseNumbers (sxml_txt (cur), 1, np) != 1)
+				xefi ("<boost>", xname (nn, lab));
+			RF->Boost = np [0] . DVal;
+			print (form ("  Boost:      %gdB\n", RF->Boost));
+			ppf = YES;
+			RF->absent = NO;
+		}
+
+		np [0] . type = TYPE_LONG;
 	
 		/* RATE */
 		if ((cur = sxml_child (mai, "rate")) != NULL) {
@@ -3063,6 +3095,8 @@ data_no_t *BoardRoot::readNodeParams (sxml_t data, int nn, const char *lab,
 			print (form ("  Channel:    %1d\n", RF->Channel));
 			RF->absent = NO;
 		}
+
+		np [1] . type = TYPE_LONG;
 	
 		/* BACKOFF */
 		if ((cur = sxml_child (mai, "backoff")) != NULL) {
@@ -3174,19 +3208,6 @@ data_no_t *BoardRoot::readNodeParams (sxml_t data, int nn, const char *lab,
 					sizeof (double) * RF->LBTNThrs, YES);
 			}
 			
-			ppf = YES;
-			RF->absent = NO;
-		}
-	
-		// ============================================================
-	
-		np [0] . type = TYPE_double;
-	
-		if ((cur = sxml_child (mai, "boost")) != NULL) {
-			if (parseNumbers (sxml_txt (cur), 1, np) != 1)
-				xefi ("<boost>", xname (nn, lab));
-			RF->Boost = np [0] . DVal;
-			print (form ("  Boost:      %gdB\n", RF->Boost));
 			ppf = YES;
 			RF->absent = NO;
 		}
@@ -4768,6 +4789,9 @@ void BoardRoot::initNodes (sxml_t data, int NT, int NN, const char *BDLB [],
 			if (NRF->Boost == HUGE)
 				NRF->Boost = DRF->Boost;
 
+			if (NRF->POffset == HUGE)
+				NRF->POffset = DRF->POffset;
+
 			if (NRF->Rate == WNONE)
 				NRF->Rate = DRF->Rate;
 
@@ -4936,6 +4960,10 @@ void BoardRoot::initNodes (sxml_t data, int NT, int NN, const char *BDLB [],
 			if (NRF->Boost == HUGE)
 				// The default is no boost (0dB)
 				NRF->Boost = 0.0;
+
+			if (NRF->POffset == HUGE)
+				// The default is no offset (0dB)
+				NRF->POffset = 0.0;
 
 			if (NRF->Rate == WNONE)
 				// This one has a reasonable default

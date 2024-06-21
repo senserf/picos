@@ -187,16 +187,17 @@ typedef struct {
 // multiple nodes
 //
 	double	DefRPower,	// Receiver boost
-		*lbt_threshold;
+			POffset,	// Power offset (240421)
+			*lbt_threshold;
 
 	word	DefXPower,	// These are indices
-		DefRate,
-		DefChannel,
-		min_backoff,
-		max_backoff,
-		lbt_nthrs,
-		lbt_delay,
-		lbt_tries;
+			DefRate,
+			DefChannel,
+			min_backoff,
+			max_backoff,
+			lbt_nthrs,
+			lbt_delay,
+			lbt_tries;
 } rfm_const_t;
 
 class rfm_intd_t {

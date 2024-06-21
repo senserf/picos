@@ -1435,3 +1435,9 @@ PG240421A:	SIDE >= PG240421A
 
 	Cooked option added to RFSampled. This option is selected by setting
 	sthreshold to 1 (this value was previously illegal)
+
+PG240621A:
+
+	Settable power offset added to node attributes to define node-specific
+	power bias to the radio module.
+	Doc updated accordingly.

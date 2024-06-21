@@ -1,5 +1,5 @@
 /*
-	Copyright 2002-2020 (C) Olsonet Communications Corporation
+	Copyright 2002-2024 (C) Olsonet Communications Corporation
 	Programmed by Pawel Gburzynski & Wlodek Olesinski
 	All rights reserved
 
@@ -25,16 +25,17 @@ typedef	struct {
 // RF module
 
 	double	Boost,		// Receiver boost
-		*LBTThs;	// LBT thresholds; the number equals LBTTries
-				// ... stored as strpool items
+			POffset,	// Power offset (240421)
+			*LBTThs;	// LBT thresholds; the number equals LBTTries
+						// ... stored as strpool items
 	word	Rate,		// Rate select
-		Power,		// Power select
-		Channel,	// Channel number
-		BCMin, BCMax,	// Minimum and maximum backoff
-		LBTDel,		// LBT delay
-		LBTTries,	// Maximum number of attempts
-		LBTNThrs,	// The number of thresholds
-		Pre;		// Preamble length
+			Power,		// Power select
+			Channel,	// Channel number
+			BCMin, BCMax,	// Minimum and maximum backoff
+			LBTDel,		// LBT delay
+			LBTTries,	// Maximum number of attempts
+			LBTNThrs,	// The number of thresholds
+			Pre;		// Preamble length
 
 	Boolean absent;		// Explicitly absent
 
