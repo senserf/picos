@@ -12,7 +12,7 @@ exec tclsh "$0" "$@"
 package require Tk
 package require Ttk
 
-set ST(VER) 1.5
+set ST(VER) 1.6
 
 ###############################################################################
 # Determine the system type ###################################################
@@ -1115,17 +1115,22 @@ proc confirm { msg } {
 	return $w
 }
 
-proc trunc_fname { n fn } {
+proc trunc_fname { fn { n 64 } } {
 #
 # Truncate a file name to be displayed
 #
-	if { $fn == "" } {
-		return "---"
+	if { $n < 16 } {
+		# cannot be too short
+		set n 16
 	}
 
 	set ln [string length $fn]
 	if { $ln > $n } {
-		set fn "...[string range $fn end-[expr $n - 3] end]"
+		# how many characters to remove
+		set d [expr { $ln - $n + 3 }]
+		set lf [expr { $ln / 2 - $d / 2 }]
+		set lt [expr { $lf + $d + 1 }]
+		set fn "[string range $fn 0 $lf]...[string range $fn $lt end]"
 	}
 	return $fn
 }
@@ -1431,16 +1436,21 @@ proc file_location { f } {
 
 proc relative_path { f } {
 #
-# Transforms an absolute path into a project-relative path (just to shorten it,
-# but also to make it independent of Cygwin/Tcl mismatches
+# Transforms an absolute path into a project-relative path, if possible;
+# otherwise, retains the full normalized path
 #
 	global P
 
 	set f [fpnorm $f]
 
+	if { [file_location $f] != "T" } {
+		# not in project
+		return $f
+	}
+
 	if { [string first $P(AC) $f] != 0 } {
 		# not in project
-		return ""
+		return $f
 	}
 
 	set f [string range $f [string length $P(AC)] end]
@@ -6231,197 +6241,162 @@ proc mk_vuee_conf_window { } {
 	global P FFont
 
 	set w [md_window "VUEE configuration"]
+	set row 0
 
 	##
-	set f $w.td
-	frame $f
-	pack $f -side top -expand y -fill x
-	label $f.l -text "Disable VUEE for this project: "
-	pack $f.l -side left -expand n
-	checkbutton $f.c -variable P(M0,VDISABLE) -command "set P(M0,EV) 2"
-	pack $f.c -side right -expand n
+	label $w.tdl -text "Disable VUEE:"
+	grid $w.tdl -row $row -column 0 -sticky w -padx 1 -pady 1
+	checkbutton $w.tdc -variable P(M0,VDISABLE) -command "set P(M0,EV) 2"
+	grid $w.tdc -row $row -column 2 -sticky ne -padx 1 -pady 1
 
 	##
-	set f $w.te
-	frame $f
-	pack $f -side top -expand y -fill x
-	label $f.l -text "3d network layout: "
-	pack $f.l -side left -expand n
-	set P(M0,thrd) [checkbutton $f.c -variable P(M0,THRD)]
-	pack $f.c -side right -expand n
+	incr row
+	label $w.tel -text "3d network layout:"
+	grid $w.tel -row $row -column 0 -sticky w -padx 1 -pady 1
+	set P(M0,thrd) [checkbutton $w.tec -variable P(M0,THRD)]
+	grid $w.tec -row $row -column 2 -sticky ne -padx 1 -pady 1
 
 	##
-	set f $w.tf
-	frame $f
-	pack $f -side top -expand y -fill x
-	label $f.l -text "Compile all functions as idiosyncratic: "
-	pack $f.l -side left -expand n
-	set P(M0,cmpis) [checkbutton $f.c -variable P(M0,CMPIS)]
-	pack $f.c -side right -expand n
+	incr row
+	label $w.tfl -text "Functions are idiosyncratic:"
+	grid $w.tfl -row $row -column 0 -sticky w -padx 1 -pady 1
+	set P(M0,cmpis) [checkbutton $w.tfc -variable P(M0,CMPIS)]
+	grid $w.tfc -row $row -column 2 -sticky ne -padx 1 -pady 1
 
 	##
-	set f $w.tk
-	frame $f
-	pack $f -side top -expand y -fill x
-	label $f.l -text "Do not propagate board config to VUEE: "
-	pack $f.l -side left -expand n
-	set P(M0,dpbc) [checkbutton $f.c -variable P(M0,DPBC)]
-	pack $f.c -side right -expand n
+	incr row
+	label $w.tkl -text "No board config:"
+	grid $w.tkl -row $row -column 0 -sticky w -padx 1 -pady 1
+	set P(M0,dpbc) [checkbutton $w.tkc -variable P(M0,DPBC)]
+	grid $w.tkc -row $row -column 2 -sticky ne -padx 1 -pady 1
 
 	##
-	set f $w.tv
-	frame $f
-	pack $f -side top -expand y -fill x
-	label $f.l -text "Port for agent connections: "
-	pack $f.l -side left -expand n
-	tk_optionMenu $f.m P(M0,PFAC) "Default" 3066 3067 3068 4013 4014 4015\
+	incr row
+	label $w.tvl -text "Port for agent connections: "
+	grid $w.tvl -row $row -column 0 -sticky w -padx 1 -pady 1
+	tk_optionMenu $w.tvm P(M0,PFAC) "Default" 3066 3067 3068 4013 4014 4015\
 		4444 4445 4446 4447
-	set P(M0,pfac) $f.m
-	pack $f.m -side right -expand n
+	set P(M0,pfac) $w.tvm
+	grid $w.tvm -row $row -column 2 -sticky nwe -padx 1 -pady 1
 
 	##
-	set f $w.tg
-	frame $f
-	pack $f -side top -expand y -fill x
-	label $f.l -text "Run with udaemon: "
-	pack $f.l -side left -expand n
-	set P(M0,udon) [checkbutton $f.c -variable P(M0,UDON) \
+	incr row
+	label $w.tgl -text "Run with udaemon:"
+	grid $w.tgl -row $row -column 0 -sticky w -padx 1 -pady 1
+	set P(M0,udon) [checkbutton $w.tgc -variable P(M0,UDON) \
 		-command "set P(M0,EV) 2"]
-	pack $f.c -side right -expand n
+	grid $w.tgc -row $row -column 2 -sticky ne -padx 1 -pady 1
 
 	##
-	set f $w.tt
-	frame $f
-	pack $f -side top -expand y -fill x
-	label $f.l -text "    Terminate when udaemon quits: "
-	pack $f.l -side left -expand n
-	set P(M0,udtm) [checkbutton $f.c -variable P(M0,UDTM)]
-	pack $f.c -side right -expand n
+	incr row
+	label $w.ttl -text "    Terminate when udaemon quits:"
+	grid $w.ttl -row $row -column 0 -sticky w -padx 1 -pady 1
+	set P(M0,udtm) [checkbutton $w.ttc -variable P(M0,UDTM)]
+	grid $w.ttc -row $row -column 2 -sticky ne -padx 1 -pady 1
 
 	##
-	set f $w.tq
-	frame $f
-	pack $f -side top -expand y -fill x
-	label $f.l -text "    Y coordinate goes up->down: "
-	pack $f.l -side left -expand n
-	set P(M0,ycdn) [checkbutton $f.c -variable P(M0,YCDN)]
-	pack $f.c -side right -expand n
+	incr row
+	label $w.tql -text "    Y coordinate goes up->down:"
+	grid $w.tql -row $row -column 0 -sticky w -padx 1 -pady 1
+	set P(M0,ycdn) [checkbutton $w.tqc -variable P(M0,YCDN)]
+	grid $w.tqc -row $row -column 2 -sticky ne -padx 1 -pady 1
 
 	##
-	set f $w.up
-	frame $f
-	pack $f -side top -expand y -fill x
-	label $f.l -text "    Plugin file: "
-	pack $f.l -side left -expand n
-	set P(M0,udpl) [button $f.b -text "Select" -command "vuee_conf_psel"]
-	pack $f.b -side right -expand n
-	label $f.f -textvariable P(M0,UDPL)
-	pack $f.f -side right -expand n
+	incr row
+	label $w.upl -text "    Plugin file:"
+	grid $w.upl -row $row -column 0 -sticky w -padx 1 -pady 1
+	set P(M0,udpl_l) [trunc_fname $P(M0,UDPL)]
+	label $w.upf -textvariable P(M0,udpl_l)
+	grid $w.upf -row $row -column 1 -sticky e -padx 1 -pady 1
+	set P(M0,udpl) [button $w.upb -text "Select" -command "vuee_conf_psel"]
+	grid $w.upb -row $row -column 2 -sticky nwe -padx 1 -pady 1
 
 	if [oss_available] {
 
 		##
-		set f $w.og
-		frame $f
-		pack $f -side top -expand y -fill x
-		label $f.l -text "Run with oss: "
-		pack $f.l -side left -expand n
-		set P(M0,oson) [checkbutton $f.c -variable P(M0,OSON) \
+		incr row
+		label $w.ogl -text "Run with oss:"
+		grid $w.ogl -row $row -column 0 -sticky w -padx 1 -pady 1
+		set P(M0,oson) [checkbutton $w.ogc -variable P(M0,OSON) \
 			-command "set P(M0,EV) 2"]
-		pack $f.c -side right -expand n
+		grid $w.ogc -row $row -column 2 -sticky ne -padx 1 -pady 1
 
 		##
-		set f $w.ot
-		frame $f
-		pack $f -side top -expand y -fill x
-		label $f.l -text "    Node number: "
-		pack $f.l -side left -expand n
+		incr row
+		label $w.otl -text "    Node number:"
+		grid $w.otl -row $row -column 0 -sticky w -padx 1 -pady 1
 		set P(M0,osnn) \
-		    [entry $f.c -width 4 -font $FFont -textvariable P(M0,OSNN)]
-		pack $f.c -side right -expand n
+		    [entry $w.otc -width 4 -font $FFont -textvariable P(M0,OSNN)]
+		grid $w.otc -row $row -column 2 -sticky nwe -padx 1 -pady 1
 
 		##
-		set f $w.ou
-		frame $f
-		pack $f -side top -expand y -fill x
-		label $f.l -text "    Number is host ID: "
-		pack $f.l -side left -expand n
-		set P(M0,osnh) [checkbutton $f.c -variable P(M0,OSNH)]
-		pack $f.c -side right -expand n
+		incr row
+		label $w.oul -text "    Number is HID:"
+		grid $w.oul -row $row -column 0 -sticky w -padx 1 -pady 1
+		set P(M0,osnh) [checkbutton $w.ouc -variable P(M0,OSNH)]
+		grid $w.ouc -row $row -column 2 -sticky ne -padx 1 -pady 1
 	}
 
 	##
-	set f $w.th
-	frame $f
-	pack $f -side top -expand y -fill x
-	label $f.l -text "Praxis data file: "
-	pack $f.l -side left -expand n
-	set P(M0,vudf) [button $f.b -text "Select" -command "vuee_conf_dsel"]
-	pack $f.b -side right -expand n
-	label $f.f -textvariable P(M0,VUDF)
-	pack $f.f -side right -expand n
+	incr row
+	label $w.thl -text "Praxis data file:"
+	grid $w.thl -row $row -column 0 -sticky w -padx 1 -pady 1
+	set P(M0,vudf_l) [trunc_fname $P(M0,VUDF)]
+	label $w.thf -textvariable P(M0,vudf_l)
+	grid $w.thf -row $row -column 1 -sticky e -padx 1 -pady 1
+	set P(M0,vudf) [button $w.thb -text "Select" -command "vuee_conf_dsel"]
+	grid $w.thb -row $row -column 2 -sticky nwe -padx 1 -pady 1
 
 	##
-	set f $w.ta
-	frame $f
-	pack $f -side top -expand y -fill x
-	label $f.l -text "Praxis output file: "
-	pack $f.l -side left -expand n
-	set P(M0,vuof) [button $f.b -text "Select" -command "vuee_conf_osel"]
-	pack $f.b -side right -expand n
-	label $f.f -textvariable P(M0,VUOF)
-	pack $f.f -side right -expand n
+	incr row
+	label $w.tal -text "Praxis output file:"
+	grid $w.tal -row $row -column 0 -sticky w -padx 1 -pady 1
+	set P(M0,vuof_l) [trunc_fname $P(M0,VUOF)]
+	label $w.taf -textvariable P(M0,vuof_l)
+	grid $w.taf -row $row -column 1 -sticky e -padx 1 -pady 1
+	set P(M0,vuof) [button $w.tab -text "Select" -command "vuee_conf_osel"]
+	grid $w.tab -row $row -column 2 -sticky nwe -padx 1 -pady 1
 
 	##
-	set f $w.ts
-	frame $f
-	pack $f -side top -expand y -fill x
-	label $f.l -text "Slo-mo factor: "
-	pack $f.l -side left -expand n
-	tk_optionMenu $f.m P(M0,VUSM) \
+	incr row
+	label $w.tsl -text "Slo-mo factor:"
+	grid $w.tsl -row $row -column 0 -sticky w -padx 1 -pady 1
+	tk_optionMenu $w.tsm P(M0,VUSM) \
 		"U" 0.25 0.5 1.0 2.0 3.0 4.0 5.0 10.0 20.0 50.0 100.0
-	set P(M0,vusm) $f.m
-	pack $f.m -side right -expand n
+	grid $w.tsm -row $row -column 2 -sticky nwe -padx 1 -pady 1
+	set P(M0,vusm) $w.tsm
 
 	##
-	set f $w.tz
-	frame $f
-	pack $f -side top -expand y -fill x
-	label $f.l -text "Resync interval: "
-	pack $f.l -side left -expand n
-	tk_optionMenu $f.m P(M0,VURI) \
+	incr row
+	label $w.tzl -text "Resync interval:"
+	grid $w.tzl -row $row -column 0 -sticky w -padx 1 -pady 1
+	tk_optionMenu $w.tzm P(M0,VURI) \
 		1000 750 500 300 200 100 75 50 40 30 20 10 5
-	set P(M0,vuri) $f.m
-	pack $f.m -side right -expand n
+	grid $w.tzm -row $row -column 2 -sticky nwe -padx 1 -pady 1
+	set P(M0,vuri) $w.tzm
 
 	##
-	set f $w.tb
-	frame $f
-	pack $f -side top -expand y -fill x
-	label $f.l -text "Extra comp args: "
-	pack $f.l -side left -expand n
-	entry $f.m -width 16 -font $FFont -textvariable P(M0,EBRG)
-	set P(M0,ebrg) $f.m
-	pack $f.m -side right -expand y -fill x
+	incr row
+	label $w.tbl -text "Extra comp args:"
+	grid $w.tbl -row $row -column 0 -sticky w -padx 1 -pady 1
+	entry $w.tbm -width 16 -font $FFont -textvariable P(M0,EBRG)
+	grid $w.tbm -row $row -column 1 -columnspan 2 -sticky nwe -padx 1 -pady 1
+	set P(M0,ebrg) $w.tbm
 
 	##
-	set f $w.ty
-	frame $f
-	pack $f -side top -expand y -fill x
-	label $f.l -text "Extra exec args: "
-	pack $f.l -side left -expand n
-	entry $f.m -width 16 -font $FFont -textvariable P(M0,EARG)
-	set P(M0,earg) $f.m
-	pack $f.m -side right -expand y -fill x
+	incr row
+	label $w.tyl -text "Extra exec args:"
+	grid $w.tyl -row $row -column 0 -sticky w -padx 1 -pady 1
+	entry $w.tym -width 16 -font $FFont -textvariable P(M0,EARG)
+	grid $w.tym -row $row -column 1 -columnspan 2 -sticky nwe -padx 1 -pady 1
+	set P(M0,earg) $w.tym
 
 	##
-	set f $w.tj
-	frame $f
-	pack $f -side top -expand y -fill x
-	button $f.c -text "Cancel" -command "md_click -1"
-	pack $f.c -side left -expand n
-	button $f.d -text "Done" -command "md_click 1"
-	pack $f.d -side right -expand n
+	incr row
+	button $w.tjc -text "Cancel" -command "md_click -1"
+	grid $w.tjc -row $row -column 0 -sticky nw -padx 1 -pady 1
+	button $w.tjd -text "Done" -command "md_click 1"
+	grid $w.tjd -row $row -column 2 -sticky ne -padx 1 -pady 1
 
 	bind $w <Destroy> "md_click -1"
 }
@@ -6456,26 +6431,19 @@ proc vuee_conf_dsel { } {
 		if { $fn == "" } {
 			# cancelled, cancel
 			set P(M0,VUDF) ""
+			set P(M0,vudf_l) ""
 			return
 		}
-
-		# check if OK
-		if { [file_location $fn] != "T" } {
-			alert "The file must belong to the project tree"
-			continue
-		}
-
+		set fn [relative_path $fn]
 		if ![file isfile $fn] {
 			alert "The file doesn't exist"
 			continue
 		}
-
 		# assume it is OK, but use a relative path
-		set P(M0,VUDF) [relative_path $fn]
-
+		set P(M0,VUDF) $fn
 		# for posterity
 		set P(LFS,VUDF) [file dirname $fn]
-
+		set P(M0,vudf_l) [trunc_fname $P(M0,VUDF)]
 		return
 	}
 }
@@ -6510,17 +6478,13 @@ proc vuee_conf_osel { } {
 		if { $fn == "" } {
 			# cancelled, cancel
 			set P(M0,VUOF) ""
+			set P(M0,vuof_l) ""
 			return
 		}
 
-		# check if OK
-		if { [file_location $fn] != "T" } {
-			alert "The file must belong to the project tree"
-			continue
-		}
-
-		# assume it is OK, but use a relative path
+		# assume it is OK, but try to use a relative path
 		set P(M0,VUOF) [relative_path $fn]
+		set P(M0,vuof_l) $P(M0,VUOF)
 
 		# for posterity
 		set P(LFS,VUOF) [file dirname $fn]
@@ -6559,22 +6523,20 @@ proc vuee_conf_psel { } {
 		if { $fn == "" } {
 			# cancelled, cancel
 			set P(M0,UDPL) ""
+			set P(M0,udpl_l) ""
 			return
 		}
 
-		# check if OK
-		if { [file_location $fn] != "T" } {
-			alert "The file must belong to the project tree"
-			continue
-		}
+		# try to use a relative path
+		set fn [relative_path $fn]
 
 		if ![file isfile $fn] {
 			alert "The file doesn't exist"
 			continue
 		}
 
-		# assume it is OK, but use a relative path
-		set P(M0,UDPL) [relative_path $fn]
+		set P(M0,UDPL) $fn
+		set P(M0,udpl_l) $P(M0,UDPL)
 
 		# for posterity
 		set P(LFS,UDPL) [file dirname $fn]
@@ -8648,6 +8610,7 @@ proc side_args { deb } {
 	set of [dict get $P(CO) "VUOF"]
 
 	set argl [list "-e" $df]
+	set argm ""
 
 	if { $of != "" } {
 		lappend argl $of
@@ -8676,8 +8639,15 @@ proc side_args { deb } {
 
 	set ea [dict get $P(CO) "EARG"]
 	if { $ea != "" } {
+		set wh 0
 		foreach aa [split $ea] {
-			lappend argl $aa
+			if { $aa == "--" } {
+				set wh 1
+			} elseif { $wh } {
+				lappend argm $aa
+			} else {
+				lappend argl $aa
+			}
 		}
 	}
 
@@ -9235,7 +9205,7 @@ proc do_console_save { } {
 		return
 	}
 
-	set lf $LCSFile
+	set lf [fpnorm $LCSFile]
 
 	while 1 {
 
@@ -9339,7 +9309,7 @@ proc reset_file_menu { { clear 0 } } {
 		foreach p $LProjects {
 			# this is a full file path, use the last so many
 			# characters
-			set p [trunc_fname 64 $p]
+			set p [trunc_fname $p]
 			$m add command -label $p -command "open_project $ix"
 			incr ix
 		}
@@ -9553,10 +9523,10 @@ proc reset_build_menu { { clear 0 } } {
 	$m add command -label "VUEE" -state $st \
 		-command "do_make_vuee"
 	$m add command -label "VUEE (debug)" -state $st \
-		-command "do_make_vuee { -- -g }"
+		-command "do_make_vuee {} { -g }"
 	# $m add command -label "VUEE (recompile)" -state $st  -command "do_make_vuee -e"
 	$m add command -label "VUEE (status)" -state $st \
-		-command "do_make_vuee { -e -n }"
+		-command "do_make_vuee { -e -n } {}"
 	$m add separator
 
 	$m add command -label "Clear (full)" -command "do_cleanup"
@@ -10253,7 +10223,7 @@ proc do_make_all { { m 0 } { s 0 } } {
 	do_make_node $m 0 "do_make_all $m 2"
 }
 
-proc do_make_vuee { { arg "" } } {
+proc do_make_vuee { { argl "" } { argm ""} } {
 
 	global P ARCHINFO
 
@@ -10279,16 +10249,16 @@ proc do_make_vuee { { arg "" } } {
 			foreach b $bo {
 				set suf [lindex $P(PL) $bi]
 				if ![blindex $bd $bi] {
-					set arg [linsert $arg 0 \
+					set argl [linsert $argl 0 \
 						"-D${suf}+BOARD_$b" \
 						"-D${suf}+BOARD_TYPE=$b"]
 					set fn [board_opts $b]
 					if { $fn != "" } {
-						set arg [linsert $arg 0 \
+						set argl [linsert $argl 0 \
 						    "-H${suf}+[unipath $fn]"]
 					}
 				} else {
-					set arg [linsert $arg 0 "-X${suf}"]
+					set argl [linsert $argl 0 "-X${suf}"]
 					lappend di $suf
 				}
 				incr bi
@@ -10297,11 +10267,11 @@ proc do_make_vuee { { arg "" } } {
 				term_dspline "--DISABLED: [join $di ", "]"
 			}
 		} else {
-			set arg [linsert $arg 0 "-DBOARD_$bo" \
+			set argl [linsert $argl 0 "-DBOARD_$bo" \
 				"-DBOARD_TYPE=$bo"]
 			set fn [board_opts $bo]
 			if { $fn != "" } {
-				set arg [linsert $arg 0 \
+				set argl [linsert $argl 0 \
 					"-H[unipath $fn]"]
 			}
 		}
@@ -10310,29 +10280,41 @@ proc do_make_vuee { { arg "" } } {
 	# arch-specific defines
 	if [info exists ARCHINFO(VUEE,DEFS)] {
 		foreach b $ARCHINFO(VUEE,DEFS) {
-			set arg [linsert $arg 0 "-D$b"]
+			set argl [linsert $argl 0 "-D$b"]
 		}
 	}
 
 	if { [dict get $P(CO) "CMPIS"] != 0 } {
-		set arg [linsert $arg 0 "-i"]
+		set argl [linsert $argl 0 "-i"]
 	}
 
 	# insert the global project defines in the very front of evrything
-	set arg [concat [get_extra_defines] $arg]
+	set argl [concat [get_extra_defines] $argl]
 
 	if { [dict get $P(CO) "THRD"] != 0 } {
-		lappend arg "-3"
+		lappend argl "-3"
 	}
 
 	set ea [dict get $P(CO) "EBRG"]
 	if { $ea != "" } {
+		set wh 0
 		foreach aa [split $ea] {
-			lappend arg $aa
+			if { $aa == "--" } {
+				set wh 1
+			} elseif { $wh } {
+				lappend argm $aa
+			} else {
+				lappend argl $aa
+			}
 		}
 	}
 
-	if [catch { run_term_command "picomp" $arg } err] {
+	if { $argm != "" } {
+		lappend argl "--"
+		set argl [concat $argl $argm]
+	}
+
+	if [catch { run_term_command "picomp" $argl } err] {
 		alert $err
 	}
 

@@ -987,3 +987,9 @@ PG230506A:
 PG230916A:
 
 	Added an option for "alternate" text editor (of the user's choice)
+
+PG240621A:
+
+	VUEE configuration window redone. Cleaned the way to specify additional
+	compilation/execution options which can now include "--" to separate, 
+	e.g., pciomp options from mks options.
