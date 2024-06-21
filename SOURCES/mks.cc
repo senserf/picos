@@ -77,42 +77,43 @@
 	//      -i           -- BITCOUNT should be BIG (default = off)
 	//      -r           -- RATE should be BIG (default = off)
 	//      -n           -- clock errors switched off (default = on)
-	//	-p           -- wait request are tagged with priorities
-	//	-q	     -- message queue size can be limited
-	//	-3           -- 3D geometry of radio channels
-        //      -8           -- use drand48
+	//		-p           -- wait request are tagged with priorities
+	//		-q			 -- message queue size can be limited
+	//		-3           -- 3D geometry of radio channels
+	//      -8           -- use drand48
 	//      -g           -- debugging (default = off)
 	//      -u           -- standard client disabled (default = enabled)
-	//	-z           -- links can be made "faulty"
+	//		-z           -- links can be made "faulty"
 	//      -b n         -- TIME precision (default = 2)
 	//      -o fname     -- send binaries to 'fname' (default 'side')
 	//      -t           -- 'touch' the protocol source files
-        //
-	//	-W           -- vizualization mode
-        //      -R           -- the real-time version of the simulator
-	//	-J	     -- journaling compiled in
-        //      -D           -- deterministic scheduler
-        //      -L           -- no links
-	//	-X           -- no radio
-        //      -C           -- no client, implies -L -X
-        //      -S           -- no rvariables, implies -C
-        //      -F           -- no FP (embedded), implies -S, -D, -R
+	//		-s           -- statically-linked executable
 	//
-	//		The following options are 'undocumented'. If you have
-	//		managed to get this far, you can as well learn about
-	//		them:
+	//		-W           -- vizualization mode
+	//      -R           -- the real-time version of the simulator
+	//		-J           -- journaling compiled in
+	//      -D           -- deterministic scheduler
+	//      -L           -- no links
+	//		-X           -- no radio
+	//      -C           -- no client, implies -L -X
+	//      -S           -- no rvariables, implies -C
+	//      -F           -- no FP (embedded), implies -S, -D, -R
 	//
-	//	-E           -- leave the '.C' files after compilation
-	//	-T	     -- 'verbose'
-	//	-V           -- print version number and exit
+	//	The following options are 'undocumented'. If you have
+	//	managed to get this far, you can as well learn about
+	//	them:
+	//
+	//		-E           -- leave the '.C' files after compilation
+	//		-T           -- 'verbose'
+	//		-V           -- print the version number and exit
 	//
 	// The configuration of options, with exception of '-o', determines the
 	// library subdirectory name.
 	//
 	// filenames describe the files containing the smurph code. Suffixes:
 	// '.c' and '.cc' ('.cpp' and '.cc' in the Windows version) are legal
-        // and treated in the same way.
-        // Suffix '.C' ('.cxx' under Windows) is
+	// and treated in the same way.
+	// Suffix '.C' ('.cxx' under Windows) is
 	// reserved for the output file produced by smpp. If no files
 	// are specified, all files in the current directory ending with the
 	// proper suffix are assumed.
@@ -164,6 +165,7 @@ char    tmpfname [64], tmponame [64], tmpdname [64];
 
 int	LeaveCFiles = 0,	// Flag == do not remove preprocessor '.C' files
 	BeVerbose = 0,		// Inform about what exactly is being done
+	StaticLinkage = 0,	// Statically linked executable
 	TouchSources = 0;	// Flag == touch source files
 
 #define	NOTHING	(-2)		// Special chars for reading the signature
@@ -241,20 +243,20 @@ void    badArgs () {
 	cerr << "       -u         standard client permanently disabled\n";
 	cerr << "       -z         links can be made faulty\n";
 	cerr << "       -W         viewable version (emulate real time)\n";
-        cerr << "       -R         real-time control program\n";
-        cerr << "       -D         deterministic event scheduler, implies -n\n";
-        cerr << "       -L         no link/port objects compiled\n";
-        cerr << "       -X         no radio objects compiled\n";
-        cerr << "       -C         no client objects compiled, implies -L -X\n";
-        cerr << "       -S         no RVariables, implies -C\n";
-        cerr << "       -F         no FP (embedded), implies -S, -D, -R\n";
+	cerr << "       -R         real-time control program\n";
+	cerr << "       -D         deterministic event scheduler, implies -n\n";
+	cerr << "       -L         no link/port objects compiled\n";
+	cerr << "       -X         no radio objects compiled\n";
+	cerr << "       -C         no client objects compiled, implies -L -X\n";
+	cerr << "       -S         no RVariables, implies -C\n";
+	cerr << "       -F         no FP (embedded), implies -S, -D, -R\n";
 	cerr << "       -b n       precision of BIG numbers (default is 2)\n";
 	cerr << "       -o fname   direct binary simulator to 'fname'\n";
 	cerr << "       -t         'touch' the protocol source files\n";
 	cerr << "       -I path    add a library directory (up to 8)\n";
 	cerr << "      Default: '-b 2 -o side' (other flags cleared)\n";
-        cerr << "      Incompatibilities: -F and -8, -R and -V, -b 0 and -F\n";
-        cerr << "                         -G and -g\n";
+	cerr << "      Incompatibilities: -F and -8, -R and -V, -b 0 and -F\n";
+	cerr << "                         -G and -g\n";
 	exit (1);
 }
 
@@ -860,6 +862,14 @@ void    makeSmurph (int argc, char *argv []) {
 		*out << ' ' << toObject (cfiles [i]);
 	*out << '\n';
 
+	// 230618: always re-link
+	unlink (ofname);
+
+	// 230618: force static linkage (-s)
+	if (StaticLinkage) {
+		*out << "OLP=-static\n";
+	}
+
 	// Copy the rest
 
 	while (! inp->eof ()) {
@@ -987,27 +997,27 @@ int main    (int argc, char *argv []) {
 
 	argc--; argv++;
 
-	strcpy (OPT, "-DZZ_OPT=0");             options [LIBX_OPT] = OPT;
-	strcpy (ASR, "-DZZ_ASR=1");             options [LIBX_ASR] = ASR;
-	strcpy (OBS, "-DZZ_OBS=1");             options [LIBX_OBS] = OBS;
-	strcpy (AER, "-DZZ_AER=1");             options [LIBX_AER] = AER;
-	strcpy (BTC, "-DZZ_BTC=1");             options [LIBX_BTC] = BTC;
-	strcpy (RTS, "-DZZ_RTS=1");             options [LIBX_RTS] = RTS;
-	strcpy (TOL, "-DZZ_TOL=1");             options [LIBX_TOL] = TOL;
+	strcpy (OPT, "-DZZ_OPT=0");		options [LIBX_OPT] = OPT;
+	strcpy (ASR, "-DZZ_ASR=1");		options [LIBX_ASR] = ASR;
+	strcpy (OBS, "-DZZ_OBS=1");		options [LIBX_OBS] = OBS;
+	strcpy (AER, "-DZZ_AER=1");		options [LIBX_AER] = AER;
+	strcpy (BTC, "-DZZ_BTC=1");		options [LIBX_BTC] = BTC;
+	strcpy (RTS, "-DZZ_RTS=1");		options [LIBX_RTS] = RTS;
+	strcpy (TOL, "-DZZ_TOL=1");		options [LIBX_TOL] = TOL;
 	strcpy (TAG, "-DZZ_TAG=0");		options [LIBX_TAG] = TAG;
 	strcpy (FLK, "-DZZ_FLK=0");		options [LIBX_FLK] = FLK;
-	strcpy (QSL, "-DZZ_QSL=0");             options [LIBX_QSL] = QSL;
-	strcpy (R3D, "-DZZ_R3D=0");             options [LIBX_R3D] = R3D;
+	strcpy (QSL, "-DZZ_QSL=0");		options [LIBX_QSL] = QSL;
+	strcpy (R3D, "-DZZ_R3D=0");		options [LIBX_R3D] = R3D;
 	strcpy (R48, "-DZZ_R48=0");		options [LIBX_R48] = R48;
-	strcpy (DBG, "-DZZ_DBG=0");             options [LIBX_DBG] = DBG;
-	strcpy (CLI, "-DZZ_CLI=1");             options [LIBX_CLI] = CLI;
-        strcpy (REA, "-DZZ_REA=0");		options [LIBX_REA] = REA;
-        strcpy (JOU, "-DZZ_JOU=0");		options [LIBX_JOU] = JOU;
-        strcpy (DET, "-DZZ_DET=0");		options [LIBX_DET] = DET;
-        strcpy (NOC, "-DZZ_NOC=1");		options [LIBX_NOC] = NOC;
-        strcpy (NOR, "-DZZ_NOR=1");		options [LIBX_NOR] = NOR;
-        strcpy (NOS, "-DZZ_NOS=1");		options [LIBX_NOS] = NOS;
-        strcpy (NFP, "-DZZ_NFP=0");		options [LIBX_NFP] = NFP;
+	strcpy (DBG, "-DZZ_DBG=0");		options [LIBX_DBG] = DBG;
+	strcpy (CLI, "-DZZ_CLI=1");		options [LIBX_CLI] = CLI;
+	strcpy (REA, "-DZZ_REA=0");		options [LIBX_REA] = REA;
+	strcpy (JOU, "-DZZ_JOU=0");		options [LIBX_JOU] = JOU;
+	strcpy (DET, "-DZZ_DET=0");		options [LIBX_DET] = DET;
+	strcpy (NOC, "-DZZ_NOC=1");		options [LIBX_NOC] = NOC;
+	strcpy (NOR, "-DZZ_NOR=1");		options [LIBX_NOR] = NOR;
+	strcpy (NOS, "-DZZ_NOS=1");		options [LIBX_NOS] = NOS;
+	strcpy (NFP, "-DZZ_NFP=0");		options [LIBX_NFP] = NFP;
 	// LONG is always at least 64 bits
 	strcpy (PRC, "-DBIG_precision=1");      options [LIBX_PRC] = PRC;
 
@@ -1136,6 +1146,12 @@ int main    (int argc, char *argv []) {
 			}
 
 			libindex [LIBX_RTS] = RTS [9] = (char)('0' + i);
+			break;
+
+		  case 's':
+
+			if (StaticLinkage) badArgs ();
+			StaticLinkage = 1;
 			break;
 
 		  case 'n' :

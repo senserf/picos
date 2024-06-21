@@ -341,6 +341,10 @@ rfchannel RadioChannel {
 		IVMapper **ivcc,	// RSSI calculator, power setter, ...
 		MXChannels *mxc		// Description of settable channels
 	);
+
+	void setBN (double);
+	double getBN ();
+		
 };
 
 extern RadioChannel *Ether;

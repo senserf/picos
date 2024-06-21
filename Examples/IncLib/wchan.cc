@@ -23,6 +23,14 @@
 
 RadioChannel *Ether = NULL;
 
+void RadioChannel::setBN (double bn) {
+	BNoise = (bn == -HUGE) ? 0.0 : dBToLin (bn);
+}
+
+double RadioChannel::getBN () {
+	return BNoise == 0.0 ? -HUGE : linTodB (BNoise);
+}
+
 void RadioChannel::setup (
 
 	Long nt,		// The number of transceivers
@@ -46,7 +54,7 @@ void RadioChannel::setup (
 
 	RFChannel::setup (nt);
 
-	BNoise = (no == -HUGE) ? 0.0 : dBToLin (no);
+	setBN (no);
 	STB = st;
 	STBL = sl;
 	BitsPerByte = bpb;

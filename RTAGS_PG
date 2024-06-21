@@ -898,3 +898,9 @@ PG231213A:
 PG240421A:
 
 	   Cooked option for samples in the sampled channel model (wchansd.cc).
+
+PG240621A:
+
+	setBN added to RadioChannel to set/modify the background noise level.
+	-s added to mks to compile statically-linked executable of the siulator.
+
