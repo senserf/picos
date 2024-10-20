@@ -1,0 +1,995 @@
+PG111027A:
+
+	Started RTAGS. Previous modifications were crudely described at the
+	respective commits.
+
+	PIP is slowly approaching a shape making it almost presentable. Here is
+	the list of things that work:
+
+	- Opening projects, handling files, adding files to projects, deleting
+	  files, directories, and so on. The file handling part is practically
+	  complete together with the reasonably powerfull, flexible, and
+	  friendly tree viewer in the left pane of the project window.
+
+	- Editing files. Maybe to say that elvis has been integrated with PIP
+	  would be an overstatement, but it has been made to collaborate. Some
+	  work remains to be done (e.g., ctags can be improved), but it is
+	  quite OK already. In particular:
+
+	  - Files are opened for editing by clicking on them, including
+	    clicks in the terminal pane. Clicking on an error location produced
+	    by the compiler (including picomp) opens the file at the requisite
+	    position.
+
+	  - Tagging basically works. When you click on an object in an elvis
+	    window, PIP will locate the file with the object's definition and
+	    try to open that file at the perinent location. Some tags still
+	    don't work, but its is pretty much clear how to fix the problems
+	    (so we will take care of the details after some more desperately
+	    needed things have been made to work).
+
+	  - PIP knows which files have been modified and not saved, so it can
+	    notify the user and even force a file to be saved before a build.
+
+	- Simple (skeletal) builds. PIP invokes mkmk, make, and picomp to
+	  compile things.
+
+	I am going to work next on VUEE, i.e., some integration of picomp and
+	udaemon with PIP.
+
+PG111029A:
+
+	VUEE is now "integrated". this is the first "presentable" version
+	including installation scripts for elvis and PIP. Many cleanups and
+	two or three bugs fixed. Previously, the running status of a term
+	action wasn't recognized properly (in particular when PIP thought it
+	had killed the process, it wasn't always true). That should be OK now.
+
+PG111030A:
+
+	Changed the kill signal for pipe processes from QUIT to INT. QUIT would
+	cause unnecessary core/stack dumps. Also the kill operation now handles
+	pipes with multiple (more than 2) stages in a (hopefully) foolproof
+	manner.
+
+	A few cosmetics in README.txt.
+
+PG111106A:
+
+	Integrated the Elprotronic loader (sort of). Improved the handling of
+	elvis commands (piped to elvis windows) by delaying them for a while
+	until the window has started.
+
+PG111107A:
+
+	Integrated genimage.
+
+PG111107B:
+
+	A few cleanups (genimage integrated slightly better ;-). PIP is now
+	more exact about cleaning up at termination, i.e., killing all its
+	spawned programs and scripts.
+
+PG111108A:
+
+	Debug information is now written to stdout only when pip has been
+	called with -D, i.e., pip -D.
+
+	Ctags handling improved:
+
+	1. static local tags are now included in the scan (the more the better,
+	   I think)
+
+	2. system files are also tagged (and opened read-only when referenced)
+
+	For the latter, PIP needs the project's Makefile(s). Whenever a new
+	Makefile is created, PIP re-runs a script (mkstags) which picks from
+	all the Makefiles currently present in the project all the system
+	files needed by the project and then calls elvtags for them all. This
+	does take some time, but looks acceptable to me, especially that
+	generating a Makefile is not exactly instantaneous.
+
+	The action of opening a project with Makefile(s) present is now
+	noticeably longer, but we can live with that, I guess. Please let me
+	know if you can't.
+
+	To do:
+
+	1. a way to open system files for writing (so you can edit them form a
+	   project)
+
+	2. if there's a compilation error in a system file, a click on the
+	   error message should open the file (possibly for writing, if the
+	   right option is enabled - I guess that option can be a configuration
+	   attribute of the project); at present only local files are opened
+	   on such a click; I have to sleep on this to do it right
+
+PG111113A:
+
+	Simplified loader configuration (auto option included for the path to
+	executable).
+
+	Integrated msp430-gdb (and msp430-gdbproxy) with PIP (under Linux). It
+	was in fact much more challenging that integrating the Elprotronic
+	loader, because I had to write a special (and not completely trivial)
+	Tk script glueing together gdb with the proxy. This script (which can
+	be used independently of PIP) looks like a poor man's GUI for GDB.
+
+	Cleaned up a few minor problems along the way.
+
+	Genimage still doesn't want under Linux, because it requires the Image
+	files to be in the Intel HEX (.a43) format. I will see what I can do.
+
+PG111115A:
+
+	System files can now be openened by clicking on them in the terminal
+	pane, not only via ctag references. They are still always opened
+	read-only. I am not sure of we should allow opening them read-write
+	from a project. Should we? Always? On some flag?
+
+	To do:
+
+	1. Cleaning operations (a Clean button and a way to set up a .mop file)
+
+	2. A possibility to edit an external file and/or copy its content to a
+	   "standard" project file (like options.tagall -> options.sys in
+	   new_eco_demo, which presently must be done from outside)
+
+PG111118A:
+
+	Added color schemes for elvis. The Configuration menu includes a new
+	item named "Editor schemes" which allows you to create/manipulate color
+	(generally elvis configuration) schemes, such that different schemes
+	can be used for different file types (this may be helpful when you edit
+	or view lots of files at once). A bit of documentation may be in order
+	(elvis's help may be of some assistance regarding the meaning of some
+	"faces"), although the basics are simple. For a quick start:
+
+	1. Open a project and click on "Editor schemes" (note that editor
+	   configuration is not part of the per-project config, but belongs to
+	   global PIP settings stored in $HOME/.piprc)
+
+	2. Click on "New" to create a color scheme (using Default for the
+	   starting point); note that you assign names to your schemes
+
+	3. The most important colors are for the face "normal"; an easy test is
+	   to change the background in "normal", which is simply the background
+	   color of the editor screen; do that and click "Done"
+
+	4. Create one or two more schemes
+
+	5. The Assignment section is interpreted in the order of rows; ignore
+	   the regexp pattern for now; whenever you open a file, its name and
+	   location are compared against the rows in Assignment and the scheme
+	   from the first matching row (the last column) is chosen
+
+	To do:
+
+	1. The items from the previous "To do" list
+
+	2. Grep-like search through files, as suggested by Wlodek
+
+PG111119A:
+
+	Added two (minor) project configuration options (see the Options item
+	in the Configuration menu):
+
+	1. The limit on the number of lines saved in the console (previously
+	   there was a tacit limit of 1024); note that some lines are long
+	   (we count lines by newlines, not by the number of soft [wrapped]
+	   lines in the window)
+
+	2. The open mode for system files:
+
+		Never	- never open system files (for ctags or console clicks)
+		Tags	- open system files for ctags only, read-only
+		Always	- open system files for ctags and also on console
+			  clicks, read-only
+		R/W	- as Always, but read-write
+
+	More options will be likely added later.
+
+PG111121A:
+
+	Added a search engine to PIP (something along the lines mentioned by
+	Wlodek). When you click Search (at the bottom of the File menu) you
+	will open a window whereby you can search the project files as well as
+	the related system files. The latter is optional (see a special
+	checkbox in the window) and, similar to ctags, only works if a Makefile
+	is present in the project's directory.
+
+	Here is a brief explanation of the items in the search window:
+
+	String:	the string to search for. It can be:
+
+	- a regular expression (if RE is selected)
+	- a straightforward (verbatim) piece of text (ST)
+	- a "word-matched" pattern (WD)
+
+	The last option works this way that the string is broken at spaces into
+	chunks, with each chunk to be matched exactly, but the amount of
+	spacing between them is arbitrary. Additionally, the first and last
+	chunks, if they are alphanumeric, must be matched at word boundaries.
+	For example: "fun ( i," will match "fun(i," as well as "fun  (i ,",
+	but not "afun (i,".
+
+	Case: whether the case is relevant (it is when the box is checked).
+
+	Sys: whether system files should be searched as well (note that you
+	need a Makefile for this to work).
+
+	H, M: color selections for the search headers and matches (which are
+	highlighted in the presented text).
+
+	Max lines: the limit on the total number of lines stored in the window.
+
+	Max cases: the limit on the number of matches. When that number is
+	reached, the search is stopped.
+
+	Bracket: the number of lines displayed for each match, including the
+	matched line. If this number is even, one more line will be shown in
+	front.
+
+	FN Pat: an optional regexp restricting the names of files to be
+	searched. For example, when you put "\.h$" in there, you will be only
+	searching through headers.
+
+	The Search button becomes Stop when a search is in progress. By hitting
+	it, you will abort the search. Most searches are reasonably fast.
+
+	Note that you can open a file on a matched line by double clicking on
+	the respective line. For system files to be openable this way, the
+	pertinent configuration option (Configuration->Options) must be set
+	properly.
+
+	Added command Clean to clean up the project.
+
+PG111122A:
+
+	PIP detects Elvis's problems with contacting the X server (like when
+	PIP is run in an environment without one) and diagnoses them instead
+	of just quietly failing to open the editor's window.
+
+	Added a "negation" checkbox in front of the file name qualifier regexp
+	in the Search window.
+
+	Added a "Clean" button in the Search window.
+
+PG111123A:
+
+	Fixed the parent of the code picker dialog in the Search window to
+	make the dialog grab control from that window (as opposed to the main
+	window).
+
+	Made sure that alerts, dialogs, and other modal windows (ones that grab
+	focus and event) are properly linked to their parent windows, so that
+	the window to which the modal window applies does not get covered by
+	the root window (to which all modal windows were previously linked by
+	default.
+
+PG111123B:
+
+	Added more options for handling system (PicOS) files in search. Now we
+	have these:
+
+	None	system files are not searched at all
+
+	Proj	only the system files related to the project (based on
+		Makefiles) are searched
+
+	All	all system files related to the given CPU are searched
+
+	Only	only (all) system files are searched, i.e., project files are
+		not searched
+
+	The last two options may be useful when modifying PicOS.
+
+	Fixed: the case number limit in search was not honored properly.
+
+PG111128A:
+
+	Added options to include VUEE (system) files (i.e., ones in VUEE/PICOS)
+	for ctags and search. Many things redone. In particular, the external
+	scripts elvissettings and mkstags eliminated and replaced by internal
+	code. Added buttons to the Search window to edit/create any file
+	anywhere, which will make it more natural to use PIP for fixing PicOS,
+	VUEE, and also SIDE from within a project.
+
+	A manual becomes more and more needed. While many things are obvious,
+	some do call for a bit of explanation.
+
+PG111130A:
+
+	Fixed a problem in the elvis scheme editor with the "extra commands"
+	field which was not copied properly. Not that it extremely useful.
+
+	The string field in the Search window changed to "text", so that cut
+	and paste (UNIX style) works.
+
+PG111207A:	PICOS >= PG111206A, VUEE >= PG111129A
+
+	Script instpip renamed deploy in accord with the remaining packages.
+	The idea is that now the script can be called from PICOS/deploy.
+
+	When you double click on a word in elvis's window, and that word is not
+	found as a ctag, and the Search window is currently open, then the word
+	is put into the search string.
+
+	Sanitize call arguments. There's a weird problem causing that the last
+	argument passed to the script has CR appended as its last character.
+	I don't understand where it comes from, but it has happened to me on
+	several occassions in the past (like on every second Cygwin upgrade).
+	I have added code (and will do it with all our scripts that care) to
+	preprocess arguments before interpretation and make sure that the last
+	one is sane.
+
+	Added code to try to prevent the creation of a directory or a file name
+	with a space in it (if that thing falls into the PICOS tree), because
+	it screws up mkmk. I may eventually get to fixing mkmk to allow such
+	file names, but the flaky interoperability of Cygwin and Windows makes
+	me reluctant (as there will probably be no end to it).
+
+	Be less strict about checking the consistency of a project's directory
+	if config.prj exists. The user may want to edit out the inconsistencies
+	left in the last session.
+
+	The title of PIP's root window tells the program version as well as
+	the project directory.
+
+	Code where a directory is selected checked and improved a bit to allow
+	for new directory creation in those cases where it makes sense.
+	The choose directory dialog on Windows sucks. At some point I may want
+	to program my own dialog, but we are not desperate at this stage.
+
+	In the project type selection dialog for a new project (multiple
+	programs, single program), "Tag" changed to "Label". We will be calling
+	those things "labels" in agreement with the revised terminology in
+	mkmk.pdf.
+
+	Fixed a bug causing multiple instances of the board selection dialog
+	to pop up when switching between single and multiple. It was
+	introduced when I was fixing the window parenthood problem (in
+	PG111123A).
+
+	Fixed the parent for color selection dialog in the editor config
+	window.
+
+	Return key in the search string triggers search (similar to pressing
+	the Search button).
+
+	The msp430-gdbproxy + msp430-gdb combo made to work under Cygwin. In
+	fact, both MSP-FET430UIF and Olimex TINY work, but the DLLs have to
+	be replaced. Added a command (trivial script) to conveniently replace
+	DLLs. This script comes with PICOS, so upgrade. You also have to fetch
+	the new version of mspgcc from our REPO (where the alternative DLLs
+	are present). See http://www.olsoent.com/REPO/contents.html .
+
+	The elvis set that comes with PIP (the Cygwin part) recompiled under
+	XP. Hopefully, it will be more general (it does work on my Windows 7).
+
+PG111208A:
+
+	Fixed a bug causing that ctags were not always re-computed after a
+	file modification that should have triggered the action.
+
+	Made gdbloader (and thus PIP) capable of re-flashing the FET device
+	(at this time applicable only to MSP-FET430UIF).
+
+	The stub FSM that comes with a new project has "state" instead of
+	"entry".
+
+	Added commands to soft-clean the project, i.e., removing the object
+	files but not the Makefiles.
+
+PG111209A:	PICOS >= PG111209A
+
+	Added a line input field to the console. It may be useful for many
+	different things in the future. For now:
+
+	- there's a button allowing you to run any program (e.g., sh) in the
+	  console; it may not be very nice (the console is not a terminal),
+	  but it can be useful
+
+	- there are buttons to compile VUEE in debug mode and run the model
+	  within gdb; again, not very flashy (the interface to gdb is command-
+	  line), but better than nothing
+
+	Yesterday a VUEE model crashed on me (the bug in picomp at PG111208A),
+	and I had to step out of PIP to run gdb on side.exe. Now I don't have
+	to.
+
+	Note that the line input field handles Control-C, which sends INT to
+	the program, but it only works for programs that take input from the
+	line.
+
+	The kill signal for killing external programs connected via a pipe
+	changed from INT to KILL. INT was ineffective in some cases, KILL
+	should always work.
+
+	Fixed a bug in gdbloader causing that flash was not erased properly
+	before load.
+
+	Added a button to clean the console output.
+
+PG111210A:
+
+	PIP manual (or rather introduction) included (a preliminary version,
+	as it always is).
+
+	Fixed a problem with sending the Control-C int signal from the command
+	line, which would detach the program's pipe.
+
+	Added a button to run (trivially) an xterm in the project's directory.
+
+	The input line now changes color and relief when enabled.
+
+PG111214A:
+
+	Apps is now the default directory for project subdirs rather than
+	Apps/VUEE. Apps/VUEE no longer exists.
+
+	A few cosmetics. For example, it is now possible to declare in Config
+	that the project should never be compiled for a VUEE model.
+
+PG111216A:
+
+	Fixed a problem in gdbloader causing that gdbproxy couldn't be
+	restarted after some communication errors with the CPU.
+
+	Fixed genimage to address the argument passing problem mentioned at
+	PG111207A. Previously I thought that genimage was immune. Also, as
+	suggested by Wlodek, the numbers entered in genimage's widgets can now
+	be in hex (as in 0xAF). Anything acceptable as an expression yielding
+	int will work.
+
+	When system files are declared as viewable (!= Never, see PG111119A),
+	PIP shows in the view tree the board directory (or board directories,
+	for multiprogram praxes). I am not yet sure if I like it this way.
+
+PG111222A:
+
+	Library mode added. It is now possible to compile libraries from PIP
+	and then use them to build projects in library mode (as opposed to the
+	old, traditional "source" mode).
+
+	Libraries created by PIP are associated with boards and clean, in the
+	sense that their creation procedure does not admit local options.sys to
+	modify the parameters defined by the board. The libraries are stored in
+	PICOS/LIBRARIES under directory names matching the corresponding board
+	directory names (in MSP430/BOARDS). The cleanup operation in PicOS
+	(starting from PG111222A) removes LIBRARIES from the tree.
+
+	The documentation expanded a bit.
+
+PG120105A:
+
+	Fixed two minor bugs:
+
+	- when the access option to system files changed from Never to anything
+	  else, the board entry in the tree view did not show up until the
+	  Build menu was reset (or the project was re-loaded)
+
+	- when a project was closed because another project was opened, and the
+	  open operation failed half way through, the tree view was left at the
+	  previous project's files and the menus (Build and Exec) were left in
+	  a confused state
+
+	As a part of the second fix, I added an explicit "Close project"
+	operation to the File menu.
+
+	Cosmetic adjustments to the document.
+
+PG120130A:
+
+	It is now possible to "customize" ELF Images, not only their IHEX
+	(.a43) versions, which is useful under Linux (with gdb acting as the
+	loader).
+
+	A few cosmetics. In particular, canceling a file selection in a VUEE
+	config option blanks the file (instead of leaving the previous choice
+	intact), so, for example, you can nullify a previous udaemon geometry
+	file selection.
+
+PG120221A:	PICOS >= PG120221A
+
+	PIP now passes the board information (BOARD_TYPE + SYSVER_B) to the
+	VUEE model, if that information has been configured for real-life
+	compilation.
+
+PG120222A:
+
+	I have discovered that (at least under Windows/Cygwin) pip would
+	hang in a weird way if you:
+
+	1. opened a dialog owned by a non-main window, e.g., Search
+
+	2. tried to open a dialog in the main window, e.g., Config->VUEE while
+	   the previous dialog was open
+
+	So I have made sure to disable all menus when any Tk dialog (file
+	selection, directory selection, color selection) is open and re-
+	enable them when the dialog exits.
+
+	Also added a button to the Search window to open an XTerm in any
+	(indicated) directory.
+
+PG120223A:
+
+	Nothing remotely important. Added buttons to open XTerm on selections
+	in the tree view.
+
+PG120329A:
+
+	Fixed a problem with the interpretation of paths in the Windows
+	version of Tcl/Tk surfacing when the preferred path format for the
+	Cygwin version was "Linux" rather than DOS.
+
+	Yesterday, I updated my Cygwin setup. Had to do it from scratch, i.e.,
+	removing the old installation completely, as the update didn't quite
+	work (programs would fail in every which way). But the clean
+	installation appears to be fine. So my Cygwin is now 1.7.11-1.
+
+	Cygwin Tcl is now 8.5; however, we still need the external (Windows)
+	version because the Img package is missing. That package is only
+	needed by udaemon, so I may try to find a way around this problem
+	(one solution that immediately comes to my mind is to wrap udaemon
+	into an executable and forget about the issue).
+
+	One difference is that the new Tcl uses consistently Cygwin paths
+	(without the drive letter, starting with /), which confused PIP
+	(executed under the Windows version of Tcl/Tk from ActiveState).
+
+	You can now invoke pip in two ways:
+
+	1. As before (using the Windows version of Tcl/Tk)
+	
+	2. As 'tclsh ~/bin/pip' (using the Cygwin version of Tcl/Tk)
+
+	Not everything seems to work yet in the second case (I cannot invoke
+	the Elpro loader, for example), but the compilation and editing work
+	fine.
+
+	I may return to this when I am done with some other stuff (considered
+	more urgent at the time). Perhaps it makes sense to try to eliminate
+	the need for a Windows version of Tcl/Tk.
+
+PG120413A:	SIDE >= PG120413A
+
+	Calling side with -e to enforce error on "implict process termination",
+	which happens in SIDE when the process fails to issue at least one wait
+	request in its last state. This is a point of disagreement between VUEE
+	and PicOS, because in PicOS such a process will loop to its last state.
+	I don't think it makes a lot of sense to modify SIDE to do the same
+	thing, because:
+
+	1. it practically never makes sense
+
+	2. the PicOS behavior is implied by simplicity: anything else would
+	   require adding statements to scheduler (for no good reason)
+
+	3. some SIDE simulators rely on the standard behavior
+
+	Thus, I have decided to introduce an explicit execution option to make
+	this illegal in a SIDE model, i.e., to abort the simulator when
+	something like that happens. This way, you can at least know what is
+	wrong.
+
+PG120421A:	PICOS >= PG120421A
+
+	PIP fixed to work with the native version of Tcl/Tk (both on Cygwin and
+	Linux) as long as it is 8.5 or higher.
+
+	Note: remove .piprc (from the non-native version of PIP) before running
+	PIP with native Tcl/Tk. The paths stored in the old file may confuse
+	PIP.
+
+PG120422A:
+
+	Modified the doc in accordance with PG120421A.
+
+PG120502A:
+
+	Fixed deploy to work under pre 1.7.13 Cygwin. Or so I think.
+
+PG120605A:	SIDE >= PG120605A, PICOS >= PG120605B, VUEE >= PG120605A
+
+	All programs and (serious) scripts now show the version number which
+	always includes at least the last RTAG of the respective package. For
+	command line programs, the version number can be obtained by specifying
+	the -V option. GUI scripts include the tag number in the title of the
+	main window.
+
+PG120814A:	VUEE >= PG120814A
+
+	The VUEE configuration dialog now asks whether udaemon's data should
+	be provided directly (using the -G option -- read the VUEE doc),
+	instead for being sent by the simulator (as its input data file). The
+	data set for udaemon is now the same as for the VUEE model.
+
+PG120829A:
+
+	Removed the confusing "VUEE (recompile)" option from the Build menu.
+
+PG120917A:	SIDE >= PG120917A, VUEE >= PG120917A
+
+	Added a slo-mo config option to the VUEE Configuration dialog. The
+	selection includes "U" which executes the model in an unsynced,
+	full-speed, pure simulation mode (that was suggested by Nick).
+
+	The image loader is now auto-configured to a default if the user hasn't
+	configured it explicitly.
+
+PG121106A:	PICOS >= PG121106B
+
+	PIP now makes sure to (implicitly) include board_options.sys for the
+	program(s) of a VUEE-compiled praxis, if the target board(s) is(are)
+	defined.
+
+PG121113A: 	PICOS >= PG121113A, SIDE >= PG121113A, VUEE >= PG121113A
+
+	A few rather messy changes in the way VUEE gets its options. Read
+	RTAGS_PG.
+
+PG121225A:
+
+	Prevent errors caused by ctagging when a file pointed to by a library
+	Makefile doesn't exist. A situation like that is not considered an
+	error if the user has got the library, but doesn't (isn't supposed to)
+	have the full source set.
+
+PG130211A:	VUEE >= PG130211A
+
+	The direct data option for udaemon has been removed. A couple of
+	inconsequential cleanups.
+
+PG130311A:	VUEE >= PG130311A
+
+	Added an option to invert the y-coordinate in udaemon.
+
+PG130606A:	VUEE >= PG130606A
+
+	Added an option (in the VUEE config menu) to terminate the VUEE model
+	when udaemon quits.
+
+PG130725A:
+
+	Fixed a bug causing an incorrect invocation of side when the simulation
+	mode was on (i.e., "U" was selected from the slo-mo menu). That bug was
+	introduced with the latest modification of VUEE-specific SIDE args: as
+	of that modification, -s 0 and -r ... cannot be specified together.
+
+PG130818A:
+
+	Added cascades to the board selection menu, so the ever growing BOARDS
+	directory can be accommodated better. There is a separate submenu for
+	all board names with the same prefix up to _.
+
+PG131015A:
+
+	Fixed a very minor bug not worthy commenting upon.
+
+PG131104A:
+
+	Fixed a problem with board lists in multiprogram projects causing
+	misassignments of boards to programs when switching between Windows
+	and Linux.
+
+PG131107A:	PICOS >= PG131107A
+
+	The oss script integrated with PIP. The VUEE configuration dialog
+	made a bit more flexible.
+
+PG131119A:
+
+	Added rudimentary support for mspdebug (one more loader choice). At
+	present mspdebug only works under Linux. Even if it never works under
+	Windows/Cygwin, it is a very valuable addition to the Linux platform,
+	because it allows us to flash basically everything. So this is the
+	first time when the Cygwin platform becomes less than critical.
+
+	At present, only command line call to msdebug is supported, which, for
+	example, makes it impossible to re-flash the FET (which must be done
+	externally) or to connect to gdb. That should be possible (from PIP)
+	shortly when I implement a "manual" model for mspdebug intended for
+	these special occasions. Of course, having read the man page of
+	mspdebug, you can easily take advantage of those features (in a truly
+	manual fashion), until there's a special click for it in PIP.
+
+	Fixed a minor glitch in gdbloader.
+
+PG131119B:
+
+	Fixed a minor problem with the mspdebug loader option. Now there is an
+	checkbox to allow firmware replacement which will let us do pretty much
+	everything with a command-line call. Do we need more? I don't know. You
+	can always open an xterm window in the project's directory and invoke
+	mspdebug by hand for tricky cases.
+
+PG131205A:	VUEE >= PG131205A
+
+	An option to choose from a selection of port numbers for UDAEMON
+	connection.
+
+PG131209A:
+
+	There is now an option for the mspdebug loader to act as a connection
+	vehicle (aka proxy) for GDB. When you select this option and then try
+	to load an image file, PIP will run mspdebug (as a proxy) in the main
+	console window and (once mspdebug has initialized successfully) start
+	GDB in an xterm.
+
+	This is a slightly different approach from what I did for the old
+	gbdproxy. In that case, we needed some simple button just for loading,
+	so it made sense to encapsulate GDB into some rudimentary Tcl/Tk GUI.
+	As now there is a special and trivial load mode for mspdebug, there is
+	no need to bend over backward to make the GDB interface appear
+	friendly. Just the opposite: we almost never (well, never) use GDB, so
+	if you decide to use it, you probably need its raw power which is best
+	attained from a simple terminal.
+
+PG131212A:
+
+	Added an option to the Loader Config window for a generic command-line
+	programmer. Instructions on how to configure, say, the olimex
+	programmer to work with PIP are in the doc (which has been brought
+	up to date).
+
+PG140131A:
+
+	Fixed the problem with Windows file paths including (...), e.g., when
+	invoking flash programmers in ...Program Files (x86)...
+
+PG140314A:	PICOS >= PG140314A
+
+	Plugins for udaemon: a new entry in the VUEE config menu.
+
+PG140323A:
+
+	Added a new entry to the "exec" menu (debug+go). When you click it,
+	PIP will run the model through GDB (as for the regular, old debug
+	click), but it will also automatically start the model (with the proper
+	arguments, which otherwise would have to be meticulously entered by the
+	user) and also invoke udaemon, if prescribed by the project config.
+	Especially when the praxis data set refers to node.xml files in board
+	directories, entering the arguments manually may be tedious
+	and error-prone.
+
+PG140327A:
+
+	Fixed a bug causing that options files with labels containing digits
+	were not shown in the tree view.
+
+PG140410A:
+
+	A few cleanups and corrections in the code for clickable commands in
+	the tree view pane. For example, board names were not recognized as
+	clickable directories.
+
+PG140415A:
+
+	Added resync interval to the set of configurable parameters for VUEE.
+
+PG150310A:
+
+	PIP can now invoke the spectrum analyzer with per-project config file.
+
+PG150313A:	PICOS >= PG150313A
+
+	In a library-only installation, PIP will detect the absent components
+	and avoid presenting choices that cannot be fulfilled. There is now a
+	button to save console output to a file.
+
+PG150331A:
+
+	When invoking the Elpro loader, and when the config.ini file is absent
+	in the project directory (so it has to be copied from the loader's
+	installation directory) first try explicitly the VirtualStore shadow of
+	the installation directory. I understand that normally this should be
+	automatic, but it isn't on my system for some reason (some weird UAC
+	configuration which I don't [want to] understand), when the Active
+	version of Tcl/Tk is used (deploy -l). Normally we don't do deploy -l
+	under Cygwin, so ... who cares, really. For one thing, the Active
+	version of Tcl has nicer fonts.
+
+	Minor adjustments to the doc.
+
+PG150515A:
+
+	PIP can now also open Windows Explorer in all those places where it can
+	open an XTerm (when it runs on Windows, that is).
+
+PG150522A:
+
+	Added Windows-style cut-copy-paste capability to PIP's text widgets.
+
+PG150701A:
+
+	Intercept and ignore errors caused by weird Windows file names which
+	Cygwin's Tcl tries to normalize (expand) into even weirder ways.
+
+PG151022A:
+
+	Improved the recognition of Elprotronic configuration file, to decide
+	when (and how) to use the default.
+
+	Improved a bit the operation of killing a Windows process, which should
+	make it more reliable.
+
+PG151025A:
+
+	The console window can now be cleared form the right click menu inside
+	the window as well as via the old menu button.
+
+PG160124A:	VUEE >= PG160124A, SIDE >= PG160124A, PICOS >= PG1601224A
+
+	3d option added.
+
+PG160216A:
+
+	Added 64-bit elvis binaries to elvis installation (for Cygwin as well
+	as Linux). The right version is recognized automatically by instelvis.
+
+PG160323A:
+
+	The VUEE configuration set includes now an extra field to specify
+	extra SMURPH compilation parameters (useful for debugging).
+
+PG160704A:
+
+	Added an option to VUEE config to direct the simulator's output to a
+	file, which is convenient, e.g., when the simulator is producing large
+	volumes of trace data.
+
+PG160712A:
+
+	Modified genimage: 1) a new interpretation of the HID cookie; 2) added
+	a new (APP) cookie; 3) added the Compare button.
+
+	Note that when the Value field of the APP cookie is NULL, the cookie
+	is disabled (the compatibility mode).
+
+	For comparison, put the file name of the second (derived) image into
+	the target field and hit Compare. If the files are compatible, the
+	script will show you the cookie values in the derived image. If not,
+	it will say that the files are "unrelated".
+
+	A right click on the target Change button shortcuts ("normalizes") the
+	target file name to the source file name (handy for Generate).
+
+PG160907A:
+
+	See PICOS. Same thing. Also, I have removed some garbage. We no longer
+	support the old gdbproxy, at least not in PIP. It seems that MSPDebug
+	is better for that role (assuming you ever want to use gdb for
+	debugging real devices). Read the new doc.
+
+PG160919A:	PICOS >= PG160919A
+
+	See PICOS. A few more options in Configuration->Options.
+
+PG160920A:
+
+	Fixed one little problem: yesterday, when providing for the different
+	compiler versions (the toolchain file path prefix), I forgot about the
+	library mode invocation of mkmk. Plus a few cosmetics.
+
+PG170312A:	PICOS >= PG170312A
+
+	Armport merge. Modification matching the new mkmk.
+
+PG170413A:
+
+	Updated the documentation, fixed a minor glitch.
+
+PG170531A:
+
+	Improved the identification of Cygwin bash to avoid confusion with
+	Windows bash (the never ending saga of Cygwin mess). Hopefully, Windows
+	bash (with the proper accommodation of USB devices) is just behind the
+	corner. Then Cygwin will finally go.
+
+PG170720A:	PICOS >= PG170720A
+
+	Removed the restriction that a praxis directory must be located under
+	Apps.
+
+PG170818A:	PICOS >= PG170818A
+
+	Fixed the recognition of "library-only" installation in accordance with
+	the reorganization of PICOS directory structure.
+
+PG170906A:
+
+	A few cosmetics related to the parameters of Elvis.
+
+PG180622A:
+
+	Improved file name/defaults handling in genimage + minor cosmetics.
+
+PG190113A:	PICOS >= PG190113A
+
+	The Arch+Board configuration dialog now allows you to selectively
+	disable individual programs of a multi-program praxis. A disabled
+	program does not compile with "Build all" and, what is more important,
+	does not compile for VUEE. For a large praxis, like Alphanet, it is
+	useful to selectively disable some programs, especially when some of
+	them are intended for different arhitectures and cannot/should not be
+	compiled all together.
+
+	This is accompanied by a modification in picomp (PICOS).
+
+PG190203A:
+
+	A couple of cosmetic fixes to the previous commit.
+
+PG190917A:	PICOS >= PG190917A
+
+	Added a config window to provide (additional) global defines which may
+	be handy for quick and temporary parametrization + a few cosmetics.
+
+PG191108A:
+
+	Added "Refresh" to the tree command menu.
+
+PG200109A:
+
+	A cosmetic improvement to the tree view of project files.
+
+PG200229A:
+
+	Fixed a minor bug in tree view, a few more cosmetics.
+
+PG200310A:
+
+	Replaced the elvis executables (for quick elvis installation) with the
+	newest version. I only updated the 64-bit variants of the executables
+	because I don't have the systems to compile the 32-bit versions.  Who
+	cares!
+
+PG201119A:
+
+	Added a shortcut to redo genimage for the previous settings without
+	having to go through the clicks.
+
+PG210804A:
+
+	The Options window (in the Configuration menu) now includes a Notes
+	pane where you can enter notes and comments (e.g., things to remember).
+
+
+PG211005A:	PICOS >= PG211005A
+
+	Redone flash loader configuration. I have removed the messy legacy code
+	for the Elprotronic loader (which was bending backwards trying to pass
+	arguments to the loader) as well as the complicated setup for MSPDebug,
+	and introduced instead the possibility to create an unlimited number of
+	command line loaders. The idea is that you can either set up a loader
+	the easy way, or (if the setup is messy) create extra wrapper scripts
+	to turn the loader into something that will accept command line
+	arguments.
+
+	A few other things. For example, the toolchain comfiguration file
+	compile.xml) can now be easily replaced from Configure->Arch+Board ...
+	I have discovered that the current TI version of the MSPGCC toolchain
+	generates better (shorter) code than our old (legacy) compiler, so it
+	probably should be used now as the default toolchain. But we may still
+	want to switch, and being able to easily specify an alternative 
+	toolchain configuration file will help.
+
+	Updated (rewritten) the document.
+	
+
+PG230506A:
+
+	Another attempt at fixing execution problems for external programs
+	resulting from Cygwin/Windows/Linux incompatibilities
+
+PG230916A:
+
+	Added an option for "alternate" text editor (of the user's choice)
+
+PG240621A:
+
+	VUEE configuration window redone. Cleaned the way to specify additional
+	compilation/execution options which can now include "--" to separate, 
+	e.g., pciomp options from mks options.

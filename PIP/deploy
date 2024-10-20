@@ -1,0 +1,101 @@
+#!/bin/sh
+###################\
+exec tclsh "$0" "$@"
+#
+# PIP installer 
+#
+
+proc abort { msg } {
+
+	puts stderr "$msg!"
+	exit 99
+}
+
+###############################################################################
+# Determine the system type ###################################################
+###############################################################################
+
+if [catch { exec uname } ST(SYS)] {
+	set ST(SYS) "W"
+} elseif [regexp -nocase "linux" $ST(SYS)] {
+	set ST(SYS) "L"
+} elseif [regexp -nocase "cygwin" $ST(SYS)] {
+	set ST(SYS) "C"
+} else {
+	set ST(SYS) "W"
+}
+
+proc copyscript { src nam suf tar rtg } {
+#
+# Copy script, make sure permissions are right, and optionally create a
+# link
+#
+	set fis [file join $src $nam]
+	set fit "[file rootname [file join $tar $nam]]$suf"
+	set pgm [file tail $fit]
+
+	catch { file delete -force -- $fit }
+	catch { file delete -force -- [file rootname $fit] }
+
+	if [catch { exec sed -e "s/ZZ000000A/$rtg/g" < $fis > $fit } err] {
+		puts "Cannot copy $fis to $fit ($err), script ignored!"
+		return
+	}
+
+	set cwd [pwd]
+
+	if [catch { cd $tar } err] {
+		puts "Cannot cd to $tar ($err)!"
+	} else {
+		catch { exec chmod 0755 $pgm }
+		if { $suf != "" } {
+			set lk [file rootname $pgm]
+			catch { exec ln -sf $pgm $lk }
+		}
+	}
+
+	cd $cwd
+}
+
+
+###############################################################################
+# Determine whether the user has bin or BIN in HOME ###########################
+###############################################################################
+
+set HOME [file normalize $env(HOME)]
+
+set BIN [string trim [lindex $argv 0]]
+set RTG [string trim [lindex $argv 2]]
+
+if { $RTG == "" } {
+	set RTG "none"
+}
+
+if { $BIN == "" } {
+	foreach bc { bin BIN } {
+		if [file isdirectory [file join $HOME $bc]] {
+			set BIN $bc
+			break
+		}
+	}
+}
+
+if { $BIN == "" } {
+	puts "Warning: neither bin nor BIN found in HOME, will create bin"
+	set BIN "bin"
+} else {
+	puts "User executables in $BIN"
+}
+
+set hd [file join $HOME $BIN]
+
+if [catch { file mkdir $hd } err] {
+	abort "Cannot access $hd: $err"
+}
+
+copyscript "." "pip.tcl" "" $hd $RTG
+copyscript "." "genimage.tcl" ".tcl" $hd $RTG
+
+#file copy [file join "ELVIS" "elvisrc"] [file join $HOME ".elvisrc"]
+
+puts "Done"

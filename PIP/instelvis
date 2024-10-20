@@ -1,0 +1,113 @@
+#!/bin/sh
+###################\
+exec tclsh "$0" "$@"
+#
+# PIP installer
+#
+
+set BINDIR "/usr/bin"
+set SHAREDDIR "/usr/share"
+
+set ST(SYS) "W"
+set ST(VER) 32
+
+###############################################################################
+# Determine the system type ###################################################
+###############################################################################
+
+if [catch { exec uname -a } ST(SYS)] {
+
+	puts "cannot determine system type,\
+			assuming (stupidly) $ST(SYS) $ST(VER)"
+} else {
+
+	if { [string first "x86_64" $ST(SYS)] > 0 } {
+		set ST(VER) 64
+	}
+
+	if [regexp -nocase "linux" $ST(SYS)] {
+		set ST(SYS) "L"
+	} elseif [regexp -nocase "cygwin" $ST(SYS)] {
+		set ST(SYS) "C"
+	} else {
+		set ST(SYS) "W"
+	}
+}
+
+###############################################################################
+
+proc abort { msg } {
+
+	puts stderr "$msg!"
+	exit 99
+}
+
+proc cpfiles { fl td mod } {
+
+	foreach f $fl {
+		puts "Copying $f to $td"
+		set ta [file join $td $f]
+		if [file exists $ta] {
+			catch { file delete -force -- $ta }
+		}
+		if [catch { file copy -force -- $f $td } err] {
+			abort "Cannot copy $f to $td: $err"
+		}
+		catch { exec chmod -R $mod $ta }
+	}
+}
+
+proc jac { f g } {
+
+	set f [file join $f $g]
+	if ![file exists $f] {
+		abort "Directory/file $f doesn't exist"
+	}
+	return $f
+}
+
+###############################################################################
+
+set WD [jac [pwd] "ELVIS"]
+
+if { $ST(SYS) == "L" } {
+	# make sure you are root
+	if [catch { exec whoami } res] {
+		abort "Failed to exec whoami"
+	}
+	if { [string trim $res] != "root" } {
+		abort "You must be root"
+	}
+	set TD [file join $WD "LINUX"]
+} else {
+	set TD [file join $WD "CYGWIN"]
+}
+
+if { $ST(VER) == 64 } {
+	set BD "64"
+} else {
+	set BD ""
+}
+
+set BD [jac $TD "BIN$BD"]
+set SD [jac $TD "SHARED"]
+
+puts "Copying from $BD ..."
+
+cd $BD
+
+if { [catch { glob "*" } fl] || $fl == "" } {
+	abort "No binary files present: ELVIS set is incomplete"
+}
+
+cpfiles $fl $BINDIR "+x,go-w"
+
+puts "Copying from $SD ..."
+
+cd $SD
+
+if { [catch { glob "*" } fl] || $fl == "" } {
+	abort "No shared files present: ELVIS set is incomplete"
+}
+
+cpfiles $fl $SHAREDDIR "go-w"
