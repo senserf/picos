@@ -1,0 +1,179 @@
+===============================================================================
+
+The grid:		0.1 m	** i.e., 10 centimeters (distance granularity)
+Number of nodes: 	100
+
+===============================================================================
+			The shadowing channel model
+===============================================================================
+
+Background noise:	-110.0 dBm
+
+The formula:
+
+	RP(d)/XP [dB] = -10 x 4.0 x log(d/1.0m) + X(2.0) - 32.0
+
+			** Note that the formula includes numbers, which are
+			** read in the proper order, i.e., -10 4.0 1.0 2.0 32
+			** the '-' preceding 32 is ignored because it is
+			** followed by a space. Also, you may have noticed
+			** that an asterisk begins a comment, which continues
+			** until the end of line. Numbers in such a comment				** are ignored.
+
+Bits per physical byte:	12 		** 4->6 balanced encoding
+Extra framing bits:	16		** physical (does not cover preamble)
+Minimum rcv preamble:	8		** This is the minimum number of
+					** correctly received preamble bits
+					** that are required to trigger a
+					** packet reception
+
+Number of STB table entries:	10
+
+	  SIR		  BER
+	50.0 dB		1.0E-7		** Note that SIR is in dB and BER is
+	40.0 dB		2.0E-7		** is just the probability that a
+	30.0 dB		5.0E-7		** random bit is received in error.
+	20.0 dB		1.0E-6		** This applies to 'physical' bits.
+	10.0 dB		1.0E-5
+	 5.0 dB		1.0E-4
+	 2.0 dB		1.0E-2
+	 0.0 dB		2.0E-1
+	-2.0 dB		5.0E-1
+	-5.0 dB		9.9E-1
+	
+Cutoff threshold:	-115.0dBm	** This is the received signal level
+					** below which we can assume that there
+					** is no signal. Used to trim node
+					** neighborhoods by ignoring stations
+					** that are so distant that the signal
+					** from them is below this threshold.
+
+Activity threshold:	-96.0dBm
+
+===============================================================================
+			Global parameters for all nodes
+===============================================================================
+
+Transmission rate:		19200	** physical bits per second
+Packet preamble length: 	32	** in physical bits
+
+Transmission power:		1.2	dBm
+Minimum backoff:		0.002	two milliseconds
+Maximum backoff:		0.040	forty milliseconds
+Packet space:			0.000
+
+===============================================================================
+			Node coordinates
+===============================================================================
+BEGIN NODES
+1000.0 1000.0
+1050.0 1000.0
+1100.0 1000.0
+1150.0 1000.0
+1200.0 1000.0
+1250.0 1000.0
+1300.0 1000.0
+1350.0 1000.0
+1400.0 1000.0
+1450.0 1000.0
+1000.0 1050.0
+1050.0 1050.0
+1100.0 1050.0
+1150.0 1050.0
+1200.0 1050.0
+1250.0 1050.0
+1300.0 1050.0
+1350.0 1050.0
+1400.0 1050.0
+1450.0 1050.0
+1000.0 1100.0
+1050.0 1100.0
+1100.0 1100.0
+1150.0 1100.0
+1200.0 1100.0
+1250.0 1100.0
+1300.0 1100.0
+1350.0 1100.0
+1400.0 1100.0
+1450.0 1100.0
+1000.0 1150.0
+1050.0 1150.0
+1100.0 1150.0
+1150.0 1150.0
+1200.0 1150.0
+1250.0 1150.0
+1300.0 1150.0
+1350.0 1150.0
+1400.0 1150.0
+1450.0 1150.0
+1000.0 1200.0
+1050.0 1200.0
+1100.0 1200.0
+1150.0 1200.0
+1200.0 1200.0
+1250.0 1200.0
+1300.0 1200.0
+1350.0 1200.0
+1400.0 1200.0
+1450.0 1200.0
+1000.0 1250.0
+1050.0 1250.0
+1100.0 1250.0
+1150.0 1250.0
+1200.0 1250.0
+1250.0 1250.0
+1300.0 1250.0
+1350.0 1250.0
+1400.0 1250.0
+1450.0 1250.0
+1000.0 1300.0
+1050.0 1300.0
+1100.0 1300.0
+1150.0 1300.0
+1200.0 1300.0
+1250.0 1300.0
+1300.0 1300.0
+1350.0 1300.0
+1400.0 1300.0
+1450.0 1300.0
+1000.0 1350.0
+1050.0 1350.0
+1100.0 1350.0
+1150.0 1350.0
+1200.0 1350.0
+1250.0 1350.0
+1300.0 1350.0
+1350.0 1350.0
+1400.0 1350.0
+1450.0 1350.0
+1000.0 1400.0
+1050.0 1400.0
+1100.0 1400.0
+1150.0 1400.0
+1200.0 1400.0
+1250.0 1400.0
+1300.0 1400.0
+1350.0 1400.0
+1400.0 1400.0
+1450.0 1400.0
+1000.0 1450.0
+1050.0 1450.0
+1100.0 1450.0
+1150.0 1450.0
+1200.0 1450.0
+1250.0 1450.0
+1300.0 1450.0
+1350.0 1450.0
+1400.0 1450.0
+1450.0 1450.0
+END NODES
+
+===============================================================================
+			    Traffic parameters
+===============================================================================
+
+Minimum message length:		4	bytes
+Maximum message length:		48	bytes
+Mean interarrival time:		0.005	seconds
+
+End simulation after:		600	seconds (of virtual time)

@@ -1,2 +1,0 @@
-Ctrl-A in normal text, then F9
-Ctrl-A in a footnote, then F9
