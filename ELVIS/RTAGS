@@ -1,0 +1,138 @@
+PG110607A:
+
+	Initial archive. I am still not sure whether I will spend any time on
+	this, but it doesn't hurt to start.
+
+	The initial archive, to the best of my memory, is the original version
+	2.2 + a simple modification in ex.c (look for PGPGPG) disabling the
+	security check inhibiting split.
+
+PG110607B:
+
+	Changed FT_FILE (an enum item) in guix11 to FT_ZFILE (it collided with
+	some fonts-related includes).
+
+	Eliminated superfluous (and erroneous) attempts to internally expand
+	file names appearing as call arguments.
+
+	SA_INTERRUPT is not defined under Cygwin, which was causing compilation
+	errors.
+
+	Fixed configure to use curses (instead of termcap) with Cygwin.
+
+	Fixed Makefile.in to remove ctags on clean.
+
+	My version of elvis.x11 moved to data/ and made official. A couple of
+	other (suggested) files added there as well.
+
+PG110608A:
+
+	Added option -m which produces on standard output the trace of file
+	status in the following format:
+
+		BST: d [filename]
+
+	where d is 0 or 1 (for clean and modified, respectively) and filename.
+	This is intended for scenarios where elvis is called from a program
+	which wants to know the file status.
+
+PG110610A:
+
+	Configured in the FEATURE_RAM option which makes it possible to use RAM
+	buffers with -f ram. This is very useful when working with PIP as it
+	allows the script to just kill the editor without having to worry about
+	the leftover buffer file.
+
+	I have tried to make sure that when operating with -m (see above)
+	Elvis never writes anything to stderr (using stdout instead), as that
+	would be interpreted as an error by the Tcl pipe.
+
+	With -m the editor also reports its process ID, which allows PIP to
+	to easily kill the process.
+
+PG111014A:
+
+	The -m option extended to monitor the input end (stdin) of the pipe.
+	Whatever shows up there is interpreted as an ex command. The idea is
+	to allow PIP to reposition files in response to ctags clicks (to do:
+	ctags clicks with -m should be sent to stdout) and, possibly, some
+	other exotic events.
+
+	Note: for now, the ex command arriving this way is ignored if there's
+	no window in the session (there can be multiple windows) that is in the
+	straightforward "command" mode, e.g., as opposed to the "insert" mode
+	(where repositioning the window spontaneously would mess things up).
+
+	I have made sure (or so I think) that a session started with -m doesn't
+	set the server property for its windows, which means that no other
+	edit session will try to connect to it. In other words, a session
+	started with -m is truly stand-alone and independent.
+
+PG111018A:
+
+	I think I have improved a bit the way the window is raised after its
+	repositioning by an ex command from stdin (with -m). Now I am clearing
+	the override_redirect attribute of the frame window and raising the
+	frame window (as opposed to the window itself). It seems to work under
+	Linux (Ubuntu), but not under Cygwin.
+
+PG111018A:
+
+	Empty command over stdin just raises the window.
+	Added an option (--) to ctags to send the ctags file to standard output.
+
+PG111025A:
+
+	Fixed a bug in ctags.c causing incorrect parsing of sequences of
+	function announcements separated by commas. Added fsm as a special
+	keyword to facilitate tagging PicOS FSMs.
+
+	With -m, clicking in a window causes the ctag name to be sent over the
+	stdout pipe (TAG: tagname). PIP receives such requests and transforms
+	them into positioning (ex) commands addressed to the respective
+	windows.
+
+	Made sure to ignore \r in lines received over the stding pipe - to
+	account for Tcl's incompatibilities under Cygwin.
+
+PG111102A:
+
+	When a tag click occurs in a window that does not contain our buffer,
+	it is processed the standard way. For example, clicks within the HELP
+	document are processed sensibly without being interpreted as PIP's
+	requests for tags.
+
+	A few cleanups. For example, it is now checked whether -m occurs
+	together with -G X11, as it makes no sense otherwise.
+
+PG120605A:
+
+	GIT RTAG added to version number displayed with the :ver command. For
+	now, that RTAG must be entered by hand in version.h. We do not modify
+	elvis too often, so it is probably OK. Just remember to update it
+	every once in a while.
+
+PG170413A:
+
+	Fixed file modes + changed the control font to Fixed.
+
+PG200309A:
+
+	Fixed a minor (but occasionally annoying) problem when showing CTags,
+	in new windows. The cursor was stuck at the beginning (instead of
+	moving to the target line) until some kind of event was triggered in
+	the window, e.g., a mouse click. Now the window is unmapped and
+	remapped which does the trick (forcing an update causing the cursor to
+	move as needed) and additionally raises the window with some extra
+	commotion, so it is brought to the user's attention.
+
+	Modified elvis.clr and elvis.ini in data/ to allow spaces in filenames
+	which is the right way to go when a Unix-like system (Cygwin or Linux
+	on a VM) coexists with Windows. Changed the default fonts and theme
+	to what I am used to, so no .elvisrc file is needed to set the
+	preferred defaults.
+
+PG210630A:
+
+	Set Save to w! in data/elvis.x11 to override Windows's complaints about
+	file timestamp changes for files stored under OneDrive.
