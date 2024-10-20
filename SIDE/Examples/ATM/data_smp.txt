@@ -1,0 +1,53 @@
+This is a sample data set
+
+Experimenter time unit:                  1000000000.0
+**
+** Corresponds to one second, assuming that the ITU is equal to
+** one nanosecond
+**
+
+Clock tolerance:                          0.0001
+
+Grid side length:                         4 nodes
+**
+** The number of switches == 4x4, the number of end nodes == 4+4+4+4
+**
+
+Link length (the same for all links):     50000 nanoseconds
+**
+** Assuming c == 200,000 km/sec, this is equal to about 10 km
+**
+
+Transmission rate (same for all ports):   2
+**
+** Corresponds to 500,000,000 bits per second, i.e., one bit insertion
+** time == 2 ITUs (nanoseconds)
+**
+
+Connection timeout (same for all nodes):  0.005 seconds
+
+Bandwidth per switch port (same for all): 10 units
+**
+** Note: these are just abstract units, each connection takes some of them
+**
+
+Buffer capacity (same for all ports):      256 cells
+**
+** This is the capacity of an output buffer associated with one output port
+**
+
+File transfer interarrival time:       0.06 sec/station
+Mean file length:                      500000 bits
+Bandwith:                              5 units
+Acknowledgement timeout:               0.04 seconds
+Mean backoff time after a failure:     0.02 seconds
+
+Video source:                          0
+Video destination:                     8
+Start time (in seconds):               0.1 sec
+First frame length (in bits):          200000
+Minimum frame length:                  10000
+Maximum frame length:                  60000
+Frame spacing:                         0.0333333333 seconds
+Bandwidth:                             1
+Number of frames                       1800

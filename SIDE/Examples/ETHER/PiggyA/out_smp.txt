@@ -1,0 +1,217 @@
+SMURPH Version 3.00-OA      Piggyback Ethernet (A)    Sat Apr 12 16:35:56 2008
+Call arguments: data_smp.txt junko
+
+Network topology
+
+Stations:
+
+  NumId             Type  NPorts  NTrans  NBuffs            NName
+      0     PiggyStation       1       0       1            -----
+      1     PiggyStation       1       0       1            -----
+      2     PiggyStation       1       0       1            -----
+      3     PiggyStation       1       0       1            -----
+      4     PiggyStation       1       0       1            -----
+      5     PiggyStation       1       0       1            -----
+      6     PiggyStation       1       0       1            -----
+      7     PiggyStation       1       0       1            -----
+      8     PiggyStation       1       0       1            -----
+      9     PiggyStation       1       0       1            -----
+     10     PiggyStation       1       0       1            -----
+     11     PiggyStation       1       0       1            -----
+     12     PiggyStation       1       0       1            -----
+     13     PiggyStation       1       0       1            -----
+     14     PiggyStation       1       0       1            -----
+     15     PiggyStation       1       0       1            -----
+
+Links:
+
+  Link    0,    Type: Link
+
+    Distance matrix:
+
+     0:      --- 6.83e+04 1.37e+05 2.05e+05 2.73e+05 3.41e+05  4.1e+05 4.78e+05
+   ...: 5.46e+05 6.14e+05 6.83e+05 7.51e+05 8.19e+05 8.87e+05 9.56e+05 1.02e+06
+
+     1: 6.83e+04      --- 6.83e+04 1.37e+05 2.05e+05 2.73e+05 3.41e+05  4.1e+05
+   ...: 4.78e+05 5.46e+05 6.14e+05 6.83e+05 7.51e+05 8.19e+05 8.87e+05 9.56e+05
+
+     2: 1.37e+05 6.83e+04      --- 6.83e+04 1.37e+05 2.05e+05 2.73e+05 3.41e+05
+   ...:  4.1e+05 4.78e+05 5.46e+05 6.14e+05 6.83e+05 7.51e+05 8.19e+05 8.87e+05
+
+     3: 2.05e+05 1.37e+05 6.83e+04      --- 6.83e+04 1.37e+05 2.05e+05 2.73e+05
+   ...: 3.41e+05  4.1e+05 4.78e+05 5.46e+05 6.14e+05 6.83e+05 7.51e+05 8.19e+05
+
+     4: 2.73e+05 2.05e+05 1.37e+05 6.83e+04      --- 6.83e+04 1.37e+05 2.05e+05
+   ...: 2.73e+05 3.41e+05  4.1e+05 4.78e+05 5.46e+05 6.14e+05 6.83e+05 7.51e+05
+
+     5: 3.41e+05 2.73e+05 2.05e+05 1.37e+05 6.83e+04      --- 6.83e+04 1.37e+05
+   ...: 2.05e+05 2.73e+05 3.41e+05  4.1e+05 4.78e+05 5.46e+05 6.14e+05 6.83e+05
+
+     6:  4.1e+05 3.41e+05 2.73e+05 2.05e+05 1.37e+05 6.83e+04      --- 6.83e+04
+   ...: 1.37e+05 2.05e+05 2.73e+05 3.41e+05  4.1e+05 4.78e+05 5.46e+05 6.14e+05
+
+     7: 4.78e+05  4.1e+05 3.41e+05 2.73e+05 2.05e+05 1.37e+05 6.83e+04      ---
+   ...: 6.83e+04 1.37e+05 2.05e+05 2.73e+05 3.41e+05  4.1e+05 4.78e+05 5.46e+05
+
+     8: 5.46e+05 4.78e+05  4.1e+05 3.41e+05 2.73e+05 2.05e+05 1.37e+05 6.83e+04
+   ...:      --- 6.83e+04 1.37e+05 2.05e+05 2.73e+05 3.41e+05  4.1e+05 4.78e+05
+
+     9: 6.14e+05 5.46e+05 4.78e+05  4.1e+05 3.41e+05 2.73e+05 2.05e+05 1.37e+05
+   ...: 6.83e+04      --- 6.83e+04 1.37e+05 2.05e+05 2.73e+05 3.41e+05  4.1e+05
+
+    10: 6.83e+05 6.14e+05 5.46e+05 4.78e+05  4.1e+05 3.41e+05 2.73e+05 2.05e+05
+   ...: 1.37e+05 6.83e+04      --- 6.83e+04 1.37e+05 2.05e+05 2.73e+05 3.41e+05
+
+    11: 7.51e+05 6.83e+05 6.14e+05 5.46e+05 4.78e+05  4.1e+05 3.41e+05 2.73e+05
+   ...: 2.05e+05 1.37e+05 6.83e+04      --- 6.83e+04 1.37e+05 2.05e+05 2.73e+05
+
+    12: 8.19e+05 7.51e+05 6.83e+05 6.14e+05 5.46e+05 4.78e+05  4.1e+05 3.41e+05
+   ...: 2.73e+05 2.05e+05 1.37e+05 6.83e+04      --- 6.83e+04 1.37e+05 2.05e+05
+
+    13: 8.87e+05 8.19e+05 7.51e+05 6.83e+05 6.14e+05 5.46e+05 4.78e+05  4.1e+05
+   ...: 3.41e+05 2.73e+05 2.05e+05 1.37e+05 6.83e+04      --- 6.83e+04 1.37e+05
+
+    14: 9.56e+05 8.87e+05 8.19e+05 7.51e+05 6.83e+05 6.14e+05 5.46e+05 4.78e+05
+   ...:  4.1e+05 3.41e+05 2.73e+05 2.05e+05 1.37e+05 6.83e+04      --- 6.83e+04
+
+    15: 1.02e+06 9.56e+05 8.87e+05 8.19e+05 7.51e+05 6.83e+05 6.14e+05 5.46e+05
+   ...: 4.78e+05  4.1e+05 3.41e+05 2.73e+05 2.05e+05 1.37e+05 6.83e+04      ---
+
+    Ports:
+
+      LRId    Station    SRId        Rate
+         0          0       0        1000
+         1          1       0        1000
+         2          2       0        1000
+         3          3       0        1000
+         4          4       0        1000
+         5          5       0        1000
+         6          6       0        1000
+         7          7       0        1000
+         8          8       0        1000
+         9          9       0        1000
+        10         10       0        1000
+        11         11       0        1000
+        12         12       0        1000
+        13         13       0        1000
+        14         14       0        1000
+        15         15       0        1000
+
+
+RFChannels
+
+(System) End of list
+
+Traffic parameters
+
+Traffic 0:
+
+MIT distribution:      EXPONENTIAL (Mean =      256)
+MLE distribution:      EXPONENTIAL (Mean =       64)
+Standard Client is:    ON
+Standard measures are: ON
+
+Communication group #000 (density       16)
+
+Senders:   all stations
+
+(    0        1)   (    1        1)   (    2        1)   (    3        1)   
+(    4        1)   (    5        1)   (    6        1)   (    7        1)   
+(    8        1)   (    9        1)   (   10        1)   (   11        1)   
+(   12        1)   (   13        1)   (   14        1)   (   15        1)   
+
+Receivers: all stations
+
+(    0        1)   (    1        1)   (    2        1)   (    3        1)   
+(    4        1)   (    5        1)   (    6        1)   (    7        1)   
+(    8        1)   (    9        1)   (   10        1)   (   11        1)   
+(   12        1)   (   13        1)   (   14        1)   (   15        1)   
+
+(Traffic 0) End of list
+
+(Client) End of list
+
+Time: 717789123 [717789.123000] (Client) Global performance measures:
+
+AMD - Absolute message delay:
+
+      Number of samples:               2000
+      Minimum value:                209.143
+      Maximum value:             511141.748
+      Mean value:                56252.6795
+      Variance:             1.134542125e+10
+      Standard deviation:       106514.8875
+      Confidence int @95%:    0.08298663832
+      Confidence int @99%:     0.1090258131
+
+APD - Absolute packet delay:
+
+      Number of samples:               2000
+      Minimum value:                176.265
+      Maximum value:              38223.361
+      Mean value:               4851.403168
+      Variance:                 45526946.24
+      Standard deviation:       6747.365874
+      Confidence int @95%:    0.06095480781
+      Confidence int @99%:    0.08008093373
+
+WMD - Weighted message delay:
+
+      Number of samples:             126112
+      Minimum value:                209.143
+      Maximum value:             511141.748
+      Mean value:               53216.78106
+      Variance:                  9967773084
+      Standard deviation:       99838.73539
+      Confidence int @95%:    0.01035448097
+      Confidence int @99%:    0.01360346352
+
+MAT - Message access time:
+
+      Number of samples:               2003
+      Minimum value:                 111.22
+      Maximum value:             524753.067
+      Mean value:               56516.89691
+      Variance:             1.165133211e+10
+      Standard deviation:       107941.3364
+      Confidence int @95%:    0.08364212902
+      Confidence int @99%:     0.1098869807
+
+PAT - Packet access time:
+
+      Number of samples:               2003
+      Minimum value:                107.992
+      Maximum value:              37813.765
+      Mean value:               4450.681333
+      Variance:                 46122892.53
+      Standard deviation:       6791.383698
+      Confidence int @95%:    0.06682629207
+      Confidence int @99%:    0.08779474596
+
+MLS - Message length distribution:
+
+      Number of samples:               2813
+      Minimum value:                      8
+      Maximum value:                    432
+      Mean value:               63.30892286
+      Variance:                 3613.622661
+      Standard deviation:       60.11341499
+      Confidence int @95%:    0.03508954052
+      Confidence int @99%:    0.04609977899
+
+    Number of generated messages:              2813
+    Number of queued messages:                  810
+    Number of transmitted messages:            2003
+    Number of received messages:               2000
+    Number of transmitted packets:             2003
+    Number of received packets:                2000
+    Number of queued bits:                    51912
+    Number of transmitted bits:              126176
+    Number of received bits:                 126112
+    Measurement start time:                       0
+    Throughput:                        0.1756950558
+
+(Client) End of list
+
+
+@@@ End of output

@@ -1,0 +1,274 @@
+SMURPH Version 1.7      U-Net3    Mon May 31 01:48:19 1993
+
+Network topology
+
+Stations:
+
+  NumId             Type         NPorts       NBuffers                NName
+      0         UStation              2              1                -----
+      1         UStation              2              1                -----
+      2         UStation              2              1                -----
+      3         UStation              2              1                -----
+      4         UStation              2              1                -----
+      5         UStation              2              1                -----
+      6         UStation              2              1                -----
+      7         UStation              2              1                -----
+      8         UStation              2              1                -----
+
+Links:
+
+  Link    0,    Type: PLink
+
+    Distance matrix:
+
+     0:      ---    60000   120000   180000   240000   300000   360000   420000
+   ...:   480000   482000   542000   602000   662000   722000   782000   842000
+   ...:   902000   962000
+
+     1:      ***      ---    60000   120000   180000   240000   300000   360000
+   ...:   420000   422000   482000   542000   602000   662000   722000   782000
+   ...:   842000   902000
+
+     2:      ***      ***      ---    60000   120000   180000   240000   300000
+   ...:   360000   362000   422000   482000   542000   602000   662000   722000
+   ...:   782000   842000
+
+     3:      ***      ***      ***      ---    60000   120000   180000   240000
+   ...:   300000   302000   362000   422000   482000   542000   602000   662000
+   ...:   722000   782000
+
+     4:      ***      ***      ***      ***      ---    60000   120000   180000
+   ...:   240000   242000   302000   362000   422000   482000   542000   602000
+   ...:   662000   722000
+
+     5:      ***      ***      ***      ***      ***      ---    60000   120000
+   ...:   180000   182000   242000   302000   362000   422000   482000   542000
+   ...:   602000   662000
+
+     6:      ***      ***      ***      ***      ***      ***      ---    60000
+   ...:   120000   122000   182000   242000   302000   362000   422000   482000
+   ...:   542000   602000
+
+     7:      ***      ***      ***      ***      ***      ***      ***      ---
+   ...:    60000    62000   122000   182000   242000   302000   362000   422000
+   ...:   482000   542000
+
+     8:      ***      ***      ***      ***      ***      ***      ***      ***
+   ...:      ---     2000    62000   122000   182000   242000   302000   362000
+   ...:   422000   482000
+
+     9:      ***      ***      ***      ***      ***      ***      ***      ***
+   ...:      ***      ---    60000   120000   180000   240000   300000   360000
+   ...:   420000   480000
+
+    10:      ***      ***      ***      ***      ***      ***      ***      ***
+   ...:      ***      ***      ---    60000   120000   180000   240000   300000
+   ...:   360000   420000
+
+    11:      ***      ***      ***      ***      ***      ***      ***      ***
+   ...:      ***      ***      ***      ---    60000   120000   180000   240000
+   ...:   300000   360000
+
+    12:      ***      ***      ***      ***      ***      ***      ***      ***
+   ...:      ***      ***      ***      ***      ---    60000   120000   180000
+   ...:   240000   300000
+
+    13:      ***      ***      ***      ***      ***      ***      ***      ***
+   ...:      ***      ***      ***      ***      ***      ---    60000   120000
+   ...:   180000   240000
+
+    14:      ***      ***      ***      ***      ***      ***      ***      ***
+   ...:      ***      ***      ***      ***      ***      ***      ---    60000
+   ...:   120000   180000
+
+    15:      ***      ***      ***      ***      ***      ***      ***      ***
+   ...:      ***      ***      ***      ***      ***      ***      ***      ---
+   ...:    60000   120000
+
+    16:      ***      ***      ***      ***      ***      ***      ***      ***
+   ...:      ***      ***      ***      ***      ***      ***      ***      ***
+   ...:      ---    60000
+
+    17:      ***      ***      ***      ***      ***      ***      ***      ***
+   ...:      ***      ***      ***      ***      ***      ***      ***      ***
+   ...:      ***      ---
+
+    Ports:
+
+      LRId    Station    SRId        Rate
+         0          0       0        1000
+         1          1       0        1000
+         2          2       0        1000
+         3          3       0        1000
+         4          4       0        1000
+         5          5       0        1000
+         6          6       0        1000
+         7          7       0        1000
+         8          8       0        1000
+         9          8       1        1000
+        10          7       1        1000
+        11          6       1        1000
+        12          5       1        1000
+        13          4       1        1000
+        14          3       1        1000
+        15          2       1        1000
+        16          1       1        1000
+        17          0       1        1000
+
+(System) End of list
+
+Traffic parameters
+
+RQTraffic 0:
+
+MIT distribution:      EXPONENTIAL (Mean = 3.28e+04)
+MLE distribution:      UNDEFINED
+Standard Client is:    OFF
+Standard measures are: ON
+
+Communication group #000 (density        8)
+
+Senders:       8
+
+(    0        1)   (    1        1)   (    2        1)   (    3        1)   
+(    4        1)   (    5        1)   (    6        1)   (    7        1)   
+
+Receivers:     1
+
+(    8        1)   
+
+(RQTraffic 0) End of list
+
+RPTraffic 1:
+
+MIT distribution:      EXPONENTIAL (Mean = 1.02e+03)
+MLE distribution:      UNDEFINED
+Standard Client is:    OFF
+Standard measures are: ON
+
+(RPTraffic 1) End of list
+
+(Client) End of list
+
+Time:     24477689831     (Client) Global performance measures:
+
+AMD - Absolute message delay:
+
+      Number of samples:               4000
+      Minimum value:                    446
+      Maximum value:               1.33e+05
+      Mean value:                  3.22e+04
+      Variance:                    1.01e+09
+      Standard deviation:          3.18e+04
+      Confidence int @95%:           0.0306
+      Confidence int @99%:           0.0402
+
+APD - Absolute packet delay:
+
+      Number of samples:               4000
+      Minimum value:                    446
+      Maximum value:               6.68e+04
+      Mean value:                  8.29e+03
+      Variance:                    1.02e+08
+      Standard deviation:          1.01e+04
+      Confidence int @95%:           0.0377
+      Confidence int @99%:           0.0496
+
+WMD - Weighted message delay:
+
+      Number of samples:           16751744
+      Minimum value:                    446
+      Maximum value:               1.33e+05
+      Mean value:                  4.96e+04
+      Variance:                    8.22e+08
+      Standard deviation:          2.87e+04
+      Confidence int @95%:         0.000277
+      Confidence int @99%:         0.000364
+
+MAT - Message access time:
+
+      Number of samples:               4000
+      Minimum value:                    384
+      Maximum value:               1.33e+05
+      Mean value:                  3.19e+04
+      Variance:                    1.01e+09
+      Standard deviation:          3.18e+04
+      Confidence int @95%:           0.0309
+      Confidence int @99%:           0.0406
+
+PAT - Packet access time:
+
+      Number of samples:               4000
+      Minimum value:                    384
+      Maximum value:               6.66e+04
+      Mean value:                  8.02e+03
+      Variance:                    1.02e+08
+      Standard deviation:          1.01e+04
+      Confidence int @95%:           0.0391
+      Confidence int @99%:           0.0513
+
+MLS - Message length distribution:
+
+      Number of samples:               4005
+      Minimum value:                    128
+      Maximum value:               8.26e+03
+      Mean value:                  4.19e+03
+      Variance:                    1.65e+07
+      Standard deviation:          4.06e+03
+      Confidence int @95%:             0.03
+      Confidence int @99%:           0.0394
+
+    Number of generated messages:              4005
+    Number of queued messages:                    5
+    Number of transmitted messages:            4000
+    Number of received messages:               4000
+    Number of transmitted packets:             4000
+    Number of received packets:                4000
+    Number of queued bits:                    41280
+    Number of transmitted bits:            16751744
+    Number of received bits:               16751744
+    Measurement start time:                       0
+    Throughput:                               0.684
+
+(Client) End of list
+
+Local request waiting times
+
+       RVariable         Samples         Minimum         Maximum            Mean
+    RWT Sttn   0             258        1.83e+04        1.36e+05        6.36e+04
+    RWT Sttn   1             257        1.03e+04        1.15e+05        6.34e+04
+    RWT Sttn   2             265        1.23e+04        1.38e+05         6.3e+04
+    RWT Sttn   3             246        1.93e+04        1.13e+05        6.46e+04
+    RWT Sttn   4             248        9.79e+03        1.19e+05        6.53e+04
+    RWT Sttn   5             239        1.47e+04        1.13e+05         6.7e+04
+    RWT Sttn   6             247        1.88e+04        1.24e+05        6.85e+04
+    RWT Sttn   7             238        1.93e+04        1.28e+05        6.95e+04
+
+Global request waiting time
+
+      Number of samples:               1998
+      Minimum value:               9.79e+03
+      Maximum value:               1.38e+05
+      Mean value:                  6.55e+04
+      Variance:                    3.85e+08
+      Standard deviation:          1.96e+04
+      Confidence int @95%:           0.0131
+      Confidence int @99%:           0.0172
+
+Bus performance measures
+
+    Number of jamming signals:                    0
+    Number of transfer attempts:               5784
+    Number of transmitted packets:             4000
+    Number of transmitted bits:            16751744
+    Number of received packets:                4000
+    Number of received bits:               16751744
+    Number of transmitted messages:            4000
+    Number of received messages:               4000
+    Throughput (by received bits):            0.684
+    Throughput (by trnsmtd bits):             0.684
+
+(PLink 0) End of list
+
+
+@@@ End of output

@@ -1,0 +1,173 @@
+SMURPH Version 3.9-AG      Very Simple Wireless Network    Sun Sep 13 21:42:26 2020
+Call arguments: data.txt junk.txt
+
+RFChannel:
+
+  Number of nodes:                16
+  Background noise (dBm):       -110
+  Phys bits per byte:             16
+  Phys header length:             16
+
+   SIR(dB)           BER
+       inf         1e-07
+       inf         2e-07
+      1000         5e-07
+       100         1e-06
+        10         1e-05
+   3.16228        0.0001
+   1.58489          0.01
+         1           0.2
+  0.630957           0.5
+  0.316228          0.99
+
+      Rate         BPS  Boost(dB)
+         0       1e+07          0
+  Minimum preamble:                8
+  Activity threshold:            -96
+  Cutoff threshold:             -115
+  Fading formula:
+    RP(d)/XP = -10 x 4.0 x log(d/1.0m) + X(2.0) - 16.0dB
+
+Antenna gain table [transmit], 8 settings, GT size 12:
+
+  [0.000, 0.262] :   20.0dB
+  [0.262, 0.524] :   18.0dB
+  [0.524, 0.785] :   16.0dB
+  [0.785, 1.047] :   12.0dB
+  [1.047, 1.309] :    8.0dB
+  [1.309, 1.571] :    3.0dB
+  [1.571, 1.833] :    1.0dB
+  [1.833, 2.094] :    0.0dB
+  [2.094, 2.356] :   -2.0dB
+  [2.356, 2.618] :   -5.0dB
+  [2.618, 2.880] :  -10.0dB
+  [2.880, 3.142] :  -13.0dB
+
+Antenna gain table [receive], 8 settings, GT size 12:
+
+  [0.000, 0.262] :   16.0dB
+  [0.262, 0.524] :   15.0dB
+  [0.524, 0.785] :   14.0dB
+  [0.785, 1.047] :   12.0dB
+  [1.047, 1.309] :    8.0dB
+  [1.309, 1.571] :    3.0dB
+  [1.571, 1.833] :    1.0dB
+  [1.833, 2.094] :    0.0dB
+  [2.094, 2.356] :   -2.0dB
+  [2.356, 2.618] :   -3.0dB
+  [2.618, 2.880] :   -5.0dB
+  [2.880, 3.142] :   -7.0dB
+
+DCF parameters:
+
+  SIFS:                      2.8e-05
+  SLOT:                      6.4e-05
+  DIFS:                     0.000156
+  RTS ths:                         0
+  Max retr count (short):         12
+  Max retr count (long):          12
+  CW min:                          4
+  CW max:                         32
+
+Bit rate (same for all nodes): 10000000 bps
+
+  Preamble time:          6.4044e-06
+  RTS length:                    160
+  RTS time:               1.6011e-05
+  CTS length:                    112
+  CTS time:               1.1208e-05
+  ACK length:                    112
+  ACK time:               1.1208e-05
+  EIFS:                   0.00020161
+  NAV data:               4.5612e-05
+  NAV CTS:                8.0016e-05
+  NAV RTS:                0.00012563
+  NAV RTS (auto):         0.00020161
+  BOT timeout:             0.0001624
+  CTS timeout:            3.9207e-05
+  ACK timeout:            3.9207e-05
+
+Time: 21585063372886 [7200.002134] (Client) Global performance measures:
+
+AMD - Absolute message delay:
+
+      Number of samples:               1711
+      Minimum value:        0.0002485219291
+      Maximum value:          0.02133284587
+      Mean value:            0.003207655648
+      Variance:             7.841846781e-06
+      Standard deviation:    0.002800329763
+      Confidence int @95%:    0.04136685496
+      Confidence int @99%:    0.05434676098
+
+APD - Absolute packet delay:
+
+      Number of samples:               1711
+      Minimum value:        0.0002485219291
+      Maximum value:          0.02133284587
+      Mean value:            0.003207655648
+      Variance:             7.841846781e-06
+      Standard deviation:    0.002800329763
+      Confidence int @95%:    0.04136685496
+      Confidence int @99%:    0.05434676098
+
+WMD - Weighted message delay:
+
+      Number of samples:           14385128
+      Minimum value:        0.0002485219291
+      Maximum value:          0.02133284587
+      Mean value:            0.004130682918
+      Variance:             9.414226456e-06
+      Standard deviation:    0.003068261145
+      Confidence int @95%:  0.0003838571794
+      Confidence int @99%:  0.0005043021618
+
+MAT - Message access time:
+
+      Number of samples:               1711
+      Minimum value:                      0
+      Maximum value:                      0
+      Mean value:                         0
+      Variance:                           0
+      Standard deviation:                 0
+      Confidence int @95%:             -nan
+      Confidence int @99%:             -nan
+
+PAT - Packet access time:
+
+      Number of samples:               1711
+      Minimum value:                      0
+      Maximum value:                      0
+      Mean value:                         0
+      Variance:                           0
+      Standard deviation:                 0
+      Confidence int @95%:             -nan
+      Confidence int @99%:             -nan
+
+MLS - Message length distribution:
+
+      Number of samples:               1711
+      Minimum value:                    264
+      Maximum value:                  16384
+      Mean value:               8407.438925
+      Variance:                 20428669.22
+      Standard deviation:       4519.808538
+      Confidence int @95%:    0.02547342748
+      Confidence int @99%:    0.03346636518
+
+    Number of generated messages:              1711
+    Number of queued messages:                    0
+    Number of transmitted messages:            1711
+    Number of received messages:               1711
+    Number of transmitted packets:             1711
+    Number of received packets:                1711
+    Number of queued bits:                        0
+    Number of transmitted bits:            14385128
+    Number of received bits:               14385128
+    Measurement start time:                       0
+    Throughput:                         1997.933852
+
+(Client) End of list
+
+
+@@@ End of output

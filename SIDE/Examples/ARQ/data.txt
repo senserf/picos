@@ -1,0 +1,16 @@
+Transmission rate:                      100000000       bps
+Channel length:                         500000          meters
+Channel error rate:                     0.00001         per bit
+Minimum frame length:                   8               bits
+Maximum frame length:                   32768           bits
+Acknowledgement length:                 256             bits
+Window size:                            7
+Sender timeout:                         0.006           seconds
+Receiver timeout:                       0.01            seconds
+
+Minimum message length:                 2048            bits
+Maximum message length:                 6144            bits
+Mean message interarrival time:         0.01            seconds
+
+Message number limit:                   100000
+Time limit:                             1000            seconds

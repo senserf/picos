@@ -1,0 +1,355 @@
+SMURPH Version 2.50L      Pretzel    Sun Jul 30 14:16:48 2006
+Call arguments: data_smp.txt junk
+
+Network topology
+
+Stations:
+
+  NumId             Type  NPorts  NTrans  NBuffs            NName
+      0         PStation       4       0       1            -----
+      1         PStation       4       0       1            -----
+      2         PStation       4       0       1            -----
+      3         PStation       4       0       1            -----
+      4         PStation       4       0       1            -----
+      5         PStation       4       0       1            -----
+      6         PStation       4       0       1            -----
+      7         PStation       4       0       1            -----
+      8         PMonitor       2       0       0            -----
+
+Links:
+
+  Link    0,    Type: PLink
+
+    Distance matrix:
+
+     0:      --- 1.25e+06
+     1:      ***      ---
+
+    Ports:
+
+      LRId    Station    SRId        Rate
+         0          0       1        1000
+         1          1       0           0
+
+  Link    1,    Type: PLink
+
+    Distance matrix:
+
+     0:      --- 1.25e+06
+     1:      ***      ---
+
+    Ports:
+
+      LRId    Station    SRId        Rate
+         0          1       1        1000
+         1          2       0           0
+
+  Link    2,    Type: PLink
+
+    Distance matrix:
+
+     0:      --- 1.25e+06
+     1:      ***      ---
+
+    Ports:
+
+      LRId    Station    SRId        Rate
+         0          2       1        1000
+         1          3       0           0
+
+  Link    3,    Type: PLink
+
+    Distance matrix:
+
+     0:      --- 1.25e+06
+     1:      ***      ---
+
+    Ports:
+
+      LRId    Station    SRId        Rate
+         0          3       1        1000
+         1          4       0           0
+
+  Link    4,    Type: PLink
+
+    Distance matrix:
+
+     0:      --- 1.25e+06
+     1:      ***      ---
+
+    Ports:
+
+      LRId    Station    SRId        Rate
+         0          4       1        1000
+         1          5       0           0
+
+  Link    5,    Type: PLink
+
+    Distance matrix:
+
+     0:      --- 1.25e+06
+     1:      ***      ---
+
+    Ports:
+
+      LRId    Station    SRId        Rate
+         0          5       1        1000
+         1          6       0           0
+
+  Link    6,    Type: PLink
+
+    Distance matrix:
+
+     0:      --- 1.25e+06
+     1:      ***      ---
+
+    Ports:
+
+      LRId    Station    SRId        Rate
+         0          6       1        1000
+         1          7       0           0
+
+  Link    7,    Type: PLink
+
+    Distance matrix:
+
+     0:      --- 1.25e+06
+     1:      ***      ---
+
+    Ports:
+
+      LRId    Station    SRId        Rate
+         0          7       1        1000
+         1          0       2           0
+
+  Link    8,    Type: PLink
+
+    Distance matrix:
+
+     0:      --- 1.25e+06
+     1:      ***      ---
+
+    Ports:
+
+      LRId    Station    SRId        Rate
+         0          0       3        1000
+         1          1       2           0
+
+  Link    9,    Type: PLink
+
+    Distance matrix:
+
+     0:      --- 1.25e+06
+     1:      ***      ---
+
+    Ports:
+
+      LRId    Station    SRId        Rate
+         0          1       3        1000
+         1          2       2           0
+
+  Link   10,    Type: PLink
+
+    Distance matrix:
+
+     0:      --- 1.25e+06
+     1:      ***      ---
+
+    Ports:
+
+      LRId    Station    SRId        Rate
+         0          2       3        1000
+         1          3       2           0
+
+  Link   11,    Type: PLink
+
+    Distance matrix:
+
+     0:      --- 1.25e+06
+     1:      ***      ---
+
+    Ports:
+
+      LRId    Station    SRId        Rate
+         0          3       3        1000
+         1          4       2           0
+
+  Link   12,    Type: PLink
+
+    Distance matrix:
+
+     0:      --- 1.25e+06
+     1:      ***      ---
+
+    Ports:
+
+      LRId    Station    SRId        Rate
+         0          4       3        1000
+         1          5       2           0
+
+  Link   13,    Type: PLink
+
+    Distance matrix:
+
+     0:      --- 1.25e+06
+     1:      ***      ---
+
+    Ports:
+
+      LRId    Station    SRId        Rate
+         0          5       3        1000
+         1          6       2           0
+
+  Link   14,    Type: PLink
+
+    Distance matrix:
+
+     0:      --- 1.25e+06
+     1:      ***      ---
+
+    Ports:
+
+      LRId    Station    SRId        Rate
+         0          6       3        1000
+         1          7       2           0
+
+  Link   15,    Type: PLink
+
+    Distance matrix:
+
+     0:      --- 6.25e+05
+     1:      ***      ---
+
+    Ports:
+
+      LRId    Station    SRId        Rate
+         0          7       3        1000
+         1          8       0           0
+
+  Link   16,    Type: PLink
+
+    Distance matrix:
+
+     0:      --- 6.25e+05
+     1:      ***      ---
+
+    Ports:
+
+      LRId    Station    SRId        Rate
+         0          8       1        1000
+         1          0       0           0
+
+
+RFChannels
+
+(System) End of list
+
+Traffic parameters
+
+Traffic 0:
+
+MIT distribution:      EXPONENTIAL (Mean =      800)
+MLE distribution:      EXPONENTIAL (Mean =      900)
+Standard Client is:    ON
+Standard measures are: ON
+
+Communication group #000 (density        8)
+
+Senders:       8
+
+(    0        1)   (    1        1)   (    2        1)   (    3        1)   
+(    4        1)   (    5        1)   (    6        1)   (    7        1)   
+
+Receivers:     8
+
+(    0        1)   (    1        1)   (    2        1)   (    3        1)   
+(    4        1)   (    5        1)   (    6        1)   (    7        1)   
+
+(Traffic 0) End of list
+
+(Client) End of list
+
+Time:      6760437530     (Client) Global performance measures:
+
+AMD - Absolute message delay:
+
+      Number of samples:               8192
+      Minimum value:               1804.814
+      Maximum value:             143184.761
+      Mean value:               33082.58311
+      Variance:                 646387044.9
+      Standard deviation:       25424.14295
+      Confidence int @95%:    0.01664209547
+      Confidence int @99%:    0.02186397747
+
+APD - Absolute packet delay:
+
+      Number of samples:              21953
+      Minimum value:               1787.368
+      Maximum value:             143184.761
+      Mean value:               33059.01718
+      Variance:                 650246498.5
+      Standard deviation:       25499.93134
+      Confidence int @95%:    0.01020371232
+      Confidence int @99%:    0.01340538736
+
+WMD - Weighted message delay:
+
+      Number of samples:            7318168
+      Minimum value:               1787.368
+      Maximum value:             143184.761
+      Mean value:               33042.17746
+      Variance:                 649760106.9
+      Standard deviation:       25490.39244
+      Confidence int @95%:  0.0005589368542
+      Confidence int @99%:  0.0007343175507
+
+MAT - Message access time:
+
+      Number of samples:               8201
+      Minimum value:                528.268
+      Maximum value:             136934.761
+      Mean value:                 28082.459
+      Variance:                   639861355
+      Standard deviation:       25295.48092
+      Confidence int @95%:    0.01949532469
+      Confidence int @99%:    0.02561248014
+
+PAT - Packet access time:
+
+      Number of samples:              21967
+      Minimum value:                528.268
+      Maximum value:             136934.761
+      Mean value:                28090.3578
+      Variance:                 644852240.1
+      Standard deviation:       25393.94101
+      Confidence int @95%:    0.01195483349
+      Confidence int @99%:    0.01570596747
+
+MLS - Message length distribution:
+
+      Number of samples:               8248
+      Minimum value:                      8
+      Maximum value:                   8528
+      Mean value:               891.7342386
+      Variance:                 746834.8469
+      Standard deviation:       864.1960697
+      Confidence int @95%:    0.02091503473
+      Confidence int @99%:    0.02747766043
+
+    Number of generated messages:              8248
+    Number of queued messages:                   47
+    Number of transmitted messages:            8201
+    Number of received messages:               8192
+    Number of transmitted packets:            21967
+    Number of received packets:               21953
+    Number of queued bits:                    33192
+    Number of transmitted bits:             7321832
+    Number of received bits:                7318168
+    Measurement start time:                       0
+    Throughput:                         1.082499168
+
+(Client) End of list
+
+
+@@@ End of output

@@ -1,0 +1,16 @@
+Transmission rate               1000 ITUs per bit
+
+Number of stations               16
+Bus length in bits               1024 bits
+
+Delay quantum                    4 bits
+
+Minimum inflated packet length   2048  (header and trailer excluded)
+Minimum uninflated packet length 8
+Maximum packet length            12000
+Header and trailer               96 bits
+
+Mean message inter-arrival time  256
+Mean message length              64
+
+Message number limit             2000

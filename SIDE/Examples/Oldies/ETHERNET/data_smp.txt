@@ -1,0 +1,6 @@
+Number of stations                 24
+Bus length in bits		  128
+
+
+Mean message inter-arrival time	 2048
+Mean message length		 1024

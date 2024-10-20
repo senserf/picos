@@ -1,0 +1,447 @@
+\documentstyle [amssymbols,11pt] {article}
+\input {../../../MANUAL/rm_en}
+
+\begin{document}
+
+\begin{titlepage}
+
+\vspace*{3.5in}
+\begin{center}
+\Huge\bf HUBNET \vspace{0.25in}
+\end{center}
+\end{titlepage}
+
+\section{The protocol}
+
+{\em Hubnet\/} consists of a number
+of regular stations connected to a central
+switching device---the so-called {\em Hub}.
+Each regular station is connected to the {\em Hub} via
+two channels: the broadcast channel and the selection channel.
+All the broadcast channels are connected
+together and form a uniform broadcast medium (a single link).
+The selection channels are
+not connected: each selection channel is a separate link attaching one
+regular station to the {\em Hub}.
+
+The broadcast channel can be in one of two states which are recognized and
+toggled by the {\em Hub}.
+These states are: {\em busy\/}, meaning that a packet is being transmitted
+on the broadcast medium, and {\em idle\/}, when, according to the {\em Hub}'s
+perception, the broadcast channel is inactive.
+
+A station willing to
+transmit a packet sends it on the selection channel.
+When the packet arrives at the {\em Hub},
+the {\em Hub} determines the state of the broadcast link.
+If the broadcast link
+is {\em idle}, the {\em Hub} connects the selection channel
+to the broadcast link and marks the broadcast link as {\em busy}.
+Thus, the packet is relayed on the
+broadcast channel and it will be heard by all stations in due time.
+As soon as the transmission is complete, i.e., 
+the {\em Hub} detects silence on the selection channel,
+the channel is disconnected from the broadcast link and
+the broadcast link status is changed to {\em idle}.
+
+If a packet arrives on a selection link while the broadcast channel is
+{\em busy}, the packet is simply ignored.
+The transmitting
+station listens for the echo of its packet on the broadcast channel.
+If the echo does not arrive after some time (depending on the distance
+of the station from the {\em Hub}), the station assumes that its transmission
+has been blocked and tries again.
+
+\section{Startup and termination}
+
+The {\tt Root} process is responsible for building the network model,
+creating the protocol processes, and detecting the end of simulation.
+The process has two states.
+The first state ({\tt Start}) is triggered automatically when the process is
+created.
+At this state, the process sets up the relation between the {\em ETU\/} and
+{\em ITU} (in this case one {\em ETU\/} is declared to be equal to $1000$
+{\em ITU\/}s), defines the simulation exit condition (the simulation will stop
+as soon as $200$ messages are completely received at their destinations or
+the simulated time reaches $1,000,000,000$ {\em ITU}s, whichever happens first),
+and calls three user-defined functions.
+
+The first of these functions ({\tt initTopology})
+builds the network, the second ({\tt initTraffic}) defines
+the traffic conditions, and the third ({\tt initProtocol})
+creates the protocol processes.
+Then, {\tt Root} awaits for the {\tt DEATH} of the internal process
+{\tt Kernel}.
+This event marks the end of the simulation run and when it happens
+the {\tt Root} process is restarted at state {\tt Exit}.
+
+By invoking the {\tt printPfm} method of the only traffic
+pattern created by {\tt initTraffic}, the {\tt Root} process prints out
+the standard set of performance measures associated with the traffic pattern.
+Then, the process terminates itself and the simulation run is actually
+finished.
+
+\section{Stations and processes}
+
+The network consists of two different types of stations: homogeneous
+regular stations represented by type {\tt User},
+and the {\em Hub} (type {\tt Hub}) acting as a switching device.
+Each regular station has two ports: one to the broadcast link ({\tt BPort}),
+the other to the selection link ({\tt SPort}).
+Moreover, three mailboxes are defined to be used for synchronization
+of the protocol processes run at the station.
+The ports and mailboxes are created by the station's {\tt setup} method,
+immediately after the station itself has been created.
+
+One more attribute of a regular station is a packet buffer ({\tt Buffer})
+used to store packets acquired from the client for transmission.
+As this attribute is declared statically (as a structure, not a pointer)
+within the
+station class, it doesn't have to be created explicitly.
+Note that the ports and mailboxes could also be declared statically.
+Similarly, the packet buffer could be declared as a pointer and then created
+dynamically in the {\tt User} setup method.
+
+The {\tt Hub} has one port to the broadcast link ({\tt BPort}) and
+{\tt NUsers} ports to the selection links (array {\tt SPorts}),
+where {\tt NUsers} is the number of regular stations.
+
+Similarly as for a regular station, the {\tt Hub} ports
+are created upon the {\tt setup} of the {\tt Hub}.
+Note that the transmission rate of a {\tt Hub}'s selection port is
+irrelevant (no {\tt create} argument is given when the selection ports are
+created);
+so is the transmission rate of a regular station's broadcast port.
+One additional attribute off type
+{\tt Hub} is the status flag ({\tt Status}) which can
+assume one of two values: {\tt Idle} and {\tt Busy}.
+
+Each regular station runs three ``permanent" processes and occasionally
+spawns one additional process which disappears after a while.
+
+The {\tt Xmitter} process transmits packets on the station's selection port
+and determines whether the transmission has been successful.
+The two local attributes of the process, {\tt SPort} and {\tt Buffer}, are set
+by the {\tt setup} function to reference directly
+the station's selection port and the only packet buffer, respectively.
+Alternatively, these items could be referenced as {\tt S->SPort} and
+{\tt S->Buffer}.
+
+The {\tt Receiver} process takes care of the station's broadcast port.
+It awaits on that port packets addressed to the station owning the process.
+
+The {\tt Monitor} process communicates with {\tt Xmitter} and notifies it
+about the success or failure of its last transfer attempt.
+The process monitors the broadcast port at its station and detects packets
+transmitted by the station.
+
+{\tt Trumpet} is a ``sidekick" process for the {\tt Monitor}.
+It models an independent alarm clock which goes off after {\tt EchoTimeout}
+time units---to notify the {\tt Monitor} that the echo waiting time has
+elapsed.
+
+The {\tt Hub} station runs {\tt NUsers} identical copies of the same process,
+each copy servicing one selection port.
+Each of the {\tt Hub} processes has access to one selection port
+and the broadcast port.
+The index of the selection port serviced by the process is specified
+as the {\tt setup} parameter when the process is created.
+Note that this index is equal to the {\tt Id} of the station connected
+to the other side of the selection link plus one (see below).
+
+\section{Topology definition}
+
+The network topology definition
+starts with reading in the number of regular stations ({\tt NUsers})
+the length of link segment connecting a regular station with the {\tt Hub}
+(we assume that all these segments are of the same length), and the
+transmission rate (common for all ports).
+
+Then the broadcast link (with {\tt NUsers}$+1$ ports)
+and the {\tt Hub} station are created.
+Note that the {\tt Hub} is the first created station and its {\tt Id} is
+$0$.
+Thus, the regular stations are numbered from $1$ to {\tt NUsers}.
+The broadcast port of the {\tt Hub} is connected to the broadcast link.
+
+The first {\tt for} loop creates the {\tt NUser} selection links and
+regular stations.
+Each selection link has two ports.
+In this loop we also connect the two station ports to the appropriate links
+and connect the other end of the selection link to the {\tt Hub}.
+
+The next two loops assign distances between all pairs of ports of each
+link.
+The outer loop executes for all regular stations: it defines the distance
+between a regular station and the {\tt Hub}.
+The inner loop defines the distance between a pair of selection ports
+of different regular stations.
+In the symmetric
+star topology, this distance is equal twice the distance of a regular
+station from the {\tt Hub}.
+
+\section{Traffic definition}
+
+The simple traffic in our network is described in function {\tt initTraffic}
+by one traffic pattern.
+At the beginning, the function reads traffic-related protocol parameters from
+the data file.
+{\tt MinPL} and {\tt MaxPL} are the minimum and the maximum packet length,
+respectively.
+{\tt FrameL} stands for the length of the frame information, i.e., the
+packet header and trailer.
+These parameters are used by {\tt getPacket} to build packets from messages.
+The next two values read from the input data file represent the mean
+message inter-arrival time and the mean message length.
+
+{\tt EchoTimeout} gives the amount of time that elapses until the
+transmitter of a packet assumes that the packet has not made it through the
+{\tt Hub}, if the packet echo does not appear in the meantime on the broadcast
+port (see above).
+
+{\tt HdrRecTime} denotes the time needed to recognize the packet's sender.
+A station awaiting the echo of its packet must wait for {\tt HdrRecTime}
+since the moment it detects the beginning of a packet, until it can definitely
+tell whether the packet was transmitted by the station.
+
+All regular stations (numbered from $1$ to {\tt NUsers}) are defined as
+legitimate senders and receivers for the only traffic pattern created in
+{\tt initTraffic}.
+Their weights are identical and the traffic is uniform with respect to the
+regular stations.
+
+\section{The protocol code}
+
+The last element of the startup action performed by {\tt Root} is the creation
+of the protocol processes.
+
+With the first loop, three processes are created for each regular station.
+The argument in parentheses directly following the {\tt create} keyword
+tells the {\tt Id} of the station which is to own the created process.
+Note that regular stations are numbered from $1$ to {\tt NUsers}.
+
+The {\tt Hub} runs {\tt NUsers} versions of the same {\tt HubProcess}.
+The {\tt create} argument following the process type keyword is a character
+string representing the process' ``nickname".
+This nickname includes the numerical identifier of the station whose selection
+link is serviced by the process.
+This identifier is by one greater than the corresponding number of the
+{\tt Hub}'s selection port (specified as the setup argument in the last pair
+of parentheses).
+
+\subsection{The {\tt Hub} process}
+
+The goal of a {\tt Hub} process is to monitor its dedicated selection
+link for incoming packets.
+
+When started, the {\tt Hub} process awaits a packet arrival on its
+selection port (event {\tt BOT}).
+If the packet arrives while the broadcast medium is busy (the {\tt Hub} is
+already relaying a packet from another selection port), the packet
+is ignored (the {\tt BOT} event is {\em skipped\/}) and the process
+awaits another packet arrival.
+If the broadcast channel is idle, it is immediately marked as busy and the
+packet is re-transmitted on the {\tt Hub}'s broadcast port.
+When the transfer is complete, the {\tt Hub} status is reset to idle and the
+process resumes waiting for another packet to relay.
+
+\subsection{The transmitter}
+
+The transmitter ({\tt Xmitter}) of a regular station cooperates with the
+{\tt Monitor}.
+Having acquired a packet from the client, the process sends a signal to the
+{\tt Monitor} (by putting a dummy item into the {\tt StartEW} mailbox)
+and starts to transmit the packet on the station's selection port.
+At the same time, the process issues a wait request to the {\tt NACK}
+mailbox for a possible ``negative acknowledgement" message coming from the
+{\tt Monitor}.
+If the packet is sufficiently long, it may happen that the
+{\tt Monitor} decides to send the {\tt NACK} message before the
+packet is entirely transmitted.
+In such case, there is no point in continuing the transmission and the
+process aborts the packet.
+Note that nothing will be lost if the ``positive acknowledgement"
+signal arrives from the {\tt Monitor} before the transfer is complete.
+The signal will simply remain pending at the station
+and it will be immediately accepted when the
+transmitter issues a wait request
+for it at state {\tt Done}.
+All mailboxes (in particular {\tt ACK}) have been created with capacity
+$1$ (see the {\tt User setup} method) which makes them capable of storing
+(at most) one pending item.
+
+\subsection{The monitor}
+
+The {\tt Monitor} is implemented with the help of an auxiliary process which
+is created and killed by the {\tt Monitor} dynamically.
+To understand the rationale of such a solution let us discuss the
+expected behavior of the {\tt Monitor}.
+
+The process has nothing to do until it is awakened by the
+{\tt StartEW} signal from the transmitter.
+Then, it has to set up an alarm clock for {\tt EchoTimeout} time units.
+While waiting for the timer to go off, the {\tt Monitor} is supposed to
+listen to the broadcast port.
+Whenever a packet arrives there, the process must wake up, examine
+the packet header to identify the sender, and, if the sender happens to
+be different from the process' station, the waiting must continue until
+either the right packet arrives or the alarm clock goes off.
+One natural way to implement the alarm clock is to issue a
+simple timer request.
+Let us note, however, that whenever the {\tt Monitor} is interrupted by a
+packet
+on the broadcast port and finds out that the packet has been sent
+by some other station, it
+will have to set the alarm clock again for an appropriately updated time
+interval.
+Thus, the process will have to keep track for how much time it has been
+waiting so far and how much time still remains to wait.
+
+It seems to be a somewhat simpler approach to create a special process to
+implement an independent alarm clock that can wait for the requested amount
+of time without unsolicited interruptions.
+This is the role of the {\tt Trumpet} process.
+
+When the {\tt Trumpet} process is created
+it issues a wait request to the timer for {\tt Delay} (initialized to
+{\tt EchoTimeout} by its {\tt setup} function) time units.
+When that delay elapses, the process is restarted at {\tt Play}
+where it sends a signal to its father and terminates.
+
+Upon reception of the starting signal from the transmitter (via the
+{\tt StartEW} mailbox),
+the {\tt Monitor} creates an instance
+of {\tt Trumpet} (pointed to by {\tt AClock}).
+From now on, it will be examining
+all packets appearing on the station's broadcast port
+until it either gets a signal from {\tt Trumpet} (indicating that the
+echo waiting timeout has elapsed)
+or finds a packet sent by the current station.
+Note that the {\tt Monitor} simulates the operation of recognizing the
+packet's sender.
+We assume that the sender can be determined {\tt HdrRecTime} time
+units since the moment when the beginning of the packet was heard.
+Intentionally, this delay corresponds to receiving (a part of) the
+packet header.
+
+If the awaited packet echo arrives before the alarm clock goes off,
+the {\tt Trumpet} process pointed to by
+{\tt AClock} is killed, but only if the timeout signal
+is not already pending at the station.
+The pending signal means that {\tt Trumpet} has already killed
+itself: the two events have occurred at the same {\em ITU}.
+
+\subsection{The receiver}
+
+The {\tt Receiver} process (run by a regular station)
+is completely independent of the other processes:
+its sole purpose is to listen to the broadcast port and detect packets
+addressed to its owner.
+
+When started for the first time, the process
+issues a {\tt wait} request to the broadcast port specifying that it wants
+to be restarted by the earliest {\tt EMP} event---the end of a packet
+addressed to its station.
+This corresponds to the complete reception of a packet and is the only
+interesting event from the viewpoint of the {\tt Receiver}.
+Upon reception of a packet, the process calls the {\tt Client}'s method
+{\tt receive} that updates some performance measures.
+
+Having accepted the packet, the process is ready to await the arrival of the
+next one.
+However, before branching back to {\tt Wait}, the {\tt Receiver}
+has to make sure
+that the last {\tt EMP} event disappears from the port.
+This is the reason for using {\tt skipto} instead of {\tt proceed}.
+Otherwise, the process would loop infinitely on the same event:
+the modeled time does not flow automatically
+while a process is running.
+
+\section{Comments on the mailbox semantics}
+
+There are some subtleties associated with the semantics of mailbox
+operations which can be briefly discussed in the context of this example.
+All the mailboxes used in our {\em Hubnet\/} implementation are created
+with the {\tt setup} argument $1$ which means that each of them can store
+one pending item.
+This seems natural in the case of {\tt ACK}.
+Note that the {\tt Monitor} can send the {\tt ACK} message to the {\tt Xmitter}
+before the latter issues the wait request to the {\tt ACK} mailbox.
+This happens when the transmitted packet is longer than the round-trip
+propagation delay between the {\tt Hub} and the transmitting station.
+Such pending {\tt ACK} message cannot be lost, but is must remain
+stored to restart the {\tt Xmitter} immediately when it issues the wait
+request to {\tt ACK} at state {\tt Done}.
+
+The situation is less clear in the case of the remaining mailboxes.
+For instance, it seems at first sight that {\tt StartEW} can be a
+capacity $0$ mailbox, i.e., it can be assumed that the {\tt Monitor} is
+always waiting for {\tt NEWITEM} on this mailbox when the
+{\tt Xmitter} executes the {\tt put} operation st state {\tt Retransmit}.
+Unfortunately, it need not be the case.
+Having sent one of the two signals ({\tt ACK}, {\tt NACK}) awaited by the
+{\tt Xmitter}, the {\tt Monitor} executes {\tt proceed} to return to
+state {\tt WaitSignal} where it will issue a wait request to
+{\tt StartEW}.
+The {\tt proceed} operation guarantees that the {\tt Monitor} will get
+to {\tt WaitSignal} within a single {\em ITU}.
+However, several other things can happen within the same {\em ITU\/} before
+the {\tt Monitor} actually resumes its operation at {\tt StartEW}.
+For example, the {\tt Xmitter} can be awakened (due to the signal sent by
+the {\tt Monitor}), get to {\tt NewPacket}, acquire a new
+packet for transmission, move to {\tt Retransmit} and execute the {\tt put}
+operation for {\tt StartEW}.
+All these actions will be performed within a single {\em ITU}, if only
+there is a packet already waiting at the station.
+In particular, it is possible that the {\tt put} operation at state
+{\tt Retransmit} will be performed before the {\tt Monitor} has issued
+a wait request for {\tt StartEW}.
+Thus, if {\tt StartEW} is a capacity $0$ mailbox, the signal sent by the
+{\tt Xmitter} will be lost.
+Similar scenarios can be thought of for the remaining mailbox, i.e.,
+{\tt NACK}.
+
+Note that the event awaited on the mailboxes is {\tt RECEIVE}.
+The semantics of this event is as follows:
+\begin{itemize}
+\item
+If the mailbox is nonempty, the event occurs immediately, i.e., within the
+current {\em ITU}.
+\item
+If the mailbox is empty, the event will occur at the first {\em ITU} when
+the mailbox becomes nonempty.
+\end{itemize}
+
+Moreover, when the event is actually triggered and wakes up a process, the
+item triggering the event is removed ({\tt RECEIVE}d) from the mailbox.
+Thus, in our case of a capacity $1$ mailbox, the mailbox will appear empty
+for a subsequent wait operation, until something is put into it.
+
+There are some other events that can be awaited on a mailbox.
+In particular, the semantics of {\tt NONEMPTY} is similar to the semantics
+of {\tt RECEIVE}, except that the item triggering the event remains in
+the mailbox and must be removed from there explicitly (by {\tt get} or
+{\tt erase}).
+Moreover, if multiple processes await the {\tt NONEMPTY} event on the same
+mailbox and one item is put into the mailbox, all the waiting processes will
+be restarted.
+Thus, a {\tt get} operation issued after a restart due to the
+{\tt NONEMPTY} event need not be successful, i.e., the mailbox may actually
+appear empty.
+This is impossible for {\tt RECEIVE}, i.e., in the above scenario only one
+of the processes waiting for {\tt RECEIVE} will be awakened and will actually
+get the queued item.
+
+Yet another event that can be awaited on a mailbox is {\tt NEWITEM}.
+This event is only triggered when something is actually
+put into the mailbox.
+For example, by issuing a wait request for {\tt NEWITEM} on a nonempty
+mailbox the process will block itself until a {\bf new item} is put into
+the mailbox.
+No {\tt NONEMPTY} or {\tt RECEIVE}
+event ever occurs on a capacity $0$ mailbox (which, by
+definition, is always empty and nothing tangible
+can be received from it), whereas
+{\tt NEWITEM} is triggered for such a mailbox with each put operation.
+
+\end{document}

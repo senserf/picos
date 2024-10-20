@@ -1,0 +1,44 @@
+#!/bin/sh
+#
+#	Copyright 1995-2020 Pawel Gburzynski
+#
+#	This file is part of SMURPH/SIDE.
+#
+#	SMURPH/SIDE is free software: you can redistribute it and/or modify
+#	it under the terms of the GNU General Public License as published by
+#	the Free Software Foundation, either version 3 of the License, or
+#	(at your option) any later version.
+#	SMURPH/SIDE is distributed in the hope that it will be useful,
+#	but WITHOUT ANY WARRANTY; without even the implied warranty of
+#	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#	GNU General Public License for more details.
+#
+#	You should have received a copy of the GNU General Public License
+#	along with SMURPH/SIDE. If not, see <https://www.gnu.org/licenses/>.
+#
+
+#
+# Strips the sources for a library-only deployment of VUEE/SMURPH
+# (not for normal use)
+#
+./cleanup
+rm -rf .git
+cd Examples
+rm -rf A* B* E* O* R* S* T* W*
+cd IncLib
+rm -rf a* c* d* e* f* h* l* m* p* rf* rp* s* t* u*
+cd ../..
+##################################################
+rm -rf MANUAL
+cd SOURCES
+rm -rf STANDALONE DSD MONITOR NWEB
+cd KERNEL
+mv depend_precomp.txt depend.txt
+rm -rf *.cc
+cd ../LIB
+rm -rf Makefile *.cc *.c ifranlib
+cd ../..
+##########################################################
+rm -rf INSTALL.txt README.txt scopy* strip*
+mv deploy_nosource deploy
+##########################################################

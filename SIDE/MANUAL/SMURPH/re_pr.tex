@@ -1,0 +1,1150 @@
+\section{Programming Protocols in \smurph}
+
+We assume that the user is well acquainted with C++ and with the terminology
+used in object-oriented programming.
+
+The user-supplied type and data definitions together with the code of the
+protocol processes are contained in a C++ file (or a number of C++ files).
+They look like a regular program in C++ which has access to the \smurph\
+libraries of types, data structures, functions, and macro-operations.
+A special support program ({\tt mks}) is provided whose purpose is to
+merge the user protocol files with the \smurph\ libraries and create
+a stand-alone version of the simulator.
+
+\subsection{Time}
+
+Time in \smurph\ is discrete which means that there is an
+{\em indivisible time unit\/} ({\em ITU\/}) and two events occurring during
+the same {\em ITU\/} are not ordered deterministically with respect to their
+actual succession.
+The indivisible time unit may correspond to an
+arbitrary time interval in the modeled physical system.
+Time intervals are represented as objects of type {\tt TIME}.
+The precision of {\tt TIME} is selected by the user.
+There is no explicit limit on this precision;
+thus, the {\em ITU\/} can correspond to a very small unit of real
+time\footnote{Theoretically, one could even get down to the Planck time (about
+$10^{-45}$s). Thus, the discrete nature of protocol modeling in {\em Smurph\/}
+ is not really a limitation.}.
+The only penalty for using a very high resolution of {\tt TIME} is the
+reduced (real) execution speed.
+Standard arithmetic operations on objects of type {\tt TIME} and combinations
+of these objects with other numeric entities are available.
+They are implemented by overloading the usual arithmetic operators:
+the user does not have to handle {\tt TIME} objects differently from other
+numbers.
+
+Besides the {\em ITU}, \smurph\ defines another unit of time, the so-called
+{\em ETU\/} which stands for the {\em experimenter time unit}.
+This unit is used for presenting the simulation results.
+
+\subsection{Hierarchy of compound types}
+
+All user-visible compound types\footnote{From now on, the words
+{\em type\/} and {\em class\/} will be used interchangeably---to denote the
+same thing.} (we conveniently assume that
+{\tt TIME} is a simple type) are organized into a hierarchy presented on
+\fig{hot}.
+This hierarchy reflects the inclusion of types in terms of the C++ subclass
+concept.
+
+\begin{figure}[htbp]
+	\begin{center}
+		\input{../FIGURES/hot}
+		\usebox{\graph}
+		\vspace{0.75cm}
+\caption{ The hierarchy of user-visible compound types.  \label{fig.hot}}
+	\end{center}
+\end{figure}
+
+All compound objects in \smurph\ are instances of some classes.
+This fact is represented by the root of the tree on \fig{hot}.
+All objects exhibiting dynamic behavior belong to type {\tt Object}.
+This type declares a number of standard attributes and methods
+that each {\tt Object} must have.
+Among them are: numeric and textual identifiers
+(used for printing and displaying information about objects), 
+the object qualification which determines the actual type of the object,
+and a virtual function describing the way the object is to be {\em exposed}.
+By {\em exposing\/} an object, we mean printing some information related
+to the object or displaying this information in a
+terminal window\footnote{This part is done by a separate program called
+{\em DSD}.}.
+
+Most of the standard subtypes of type {\tt Object} can (and sometimes must)
+be extended by the user.
+For example, the type {\tt Station} defines a skeleton for creating
+{\em stations\/}---the network processing units (nodes) that run the protocol.
+Typically, this skeleton has to be augmented by some protocol-specific
+elements before it can be used to create actual stations.
+
+There is a special category of dynamic objects called
+{\em activity interpreters}, or {\em AI\/}s, for short.
+These objects provide the protocol's interface with the outer world.
+An {\em AI\/} can be viewed as a {\em daemon\/} that absorbs the protocol
+{\em activities\/} and turns them into future events.
+
+Type {\tt EObject} is the base class for defining non-standard
+exposable object types.
+
+Types of objects that do not act on their own,
+but instead are subjects of activities of other objects,
+are straightforward classes.
+An example of such a type is {\tt Packet} describing a packet skeleton.
+No packet ever performs any operation: packets are passive
+objects which are handled by active objects.
+
+\subsection{Type declaration}
+
+The standard declaration apparatus of C++ (which can be naturally used in the
+user-supplied protocol program) is extended in \smurph\ by a collection of
+operations that are used to define extensions of certain
+standard types from \fig{hot}.
+All these operations obey a common philosophy:
+the declaration of a \smurph\ type extension has the following form:
+{\small
+\begin{verbatim}
+        keyword typename : suptypename {
+            . . . .
+            . . . .
+        };
+\end{verbatim} }
+\noindent
+where {\tt keyword} identifies a category of types
+describing a common superclass of objects, e.g.:
+processes, stations, traffic patterns;
+{\tt typename} is the name of the defined type (class); and {\tt suptypename} is
+the identifier of the immediate supertype (superclass) in which the new
+type is contained.
+This last part need not occur if the defined type is derived directly from
+the corresponding base type (\fig{hot}).
+The opening brace ({\tt \{}) is sometimes preceded by additional arguments
+encapsulated in parentheses.
+It is also possible to define new types as combinations of already
+defined types, taking advantage of the {\em multiple inheritance\/}
+apparatus of C++ (in such case {\tt suptypename} is a list of type names).
+
+The declaration body (the text between the braces)
+contains declarations of new attributes and methods.
+From the formal point of view, the effect of a type extension operation is
+equivalent to the following construct of C++:
+{\small
+\begin{tabbing}
+{\tt 12345678} \= {\tt 1234} \= {\tt 1234} \kill
+\> {\tt class typename : public suptypename \{ }\\
+\> \> \ldots {\em standard prelude inserted by the macro-operation} \ldots \\
+\> \> {\tt public:} \\
+\> \> \ldots {\em user-defined attributes and methods} \ldots \\
+\> {\tt \};}
+\end{tabbing} }
+
+If the type extension declares a method called {\tt setup},
+this method will be automatically called when an object of the extended type is
+created.
+The {\tt setup} method plays the role of the object
+{\em constructor\/}\footnote{Standard argument-less
+constructors of C++ can also be used:
+the effect of the standard constructor is combined with the effect of
+{\tt setup}.}.
+
+Class types declared by means of the standard type extension macro-operations
+can be used to generate objects belonging to these types.
+Again, \smurph\ provides its private tool for generating such objects.
+The following operation:
+{\small
+\begin{verbatim}
+        create typename ( ... )
+\end{verbatim} }
+\noindent
+creates an object of type {\tt typename}.
+Operation {\tt create} can be viewed as
+a function returning the pointer to the created object.
+The contents of the second pair of parentheses are passed as arguments to
+the object's {\tt setup} method (the parentheses can be skipped if the method
+is undefined or if it takes no arguments).
+Deallocation of objects is performed by the standard C++ operation {\tt delete}.
+
+\subsection{Describing network topology}
+
+The topology of the modeled network is defined as interconnection of
+{\em stations}, {\em ports}, and {\em links}.
+Stations are objects belonging to type {\tt Station}; subtypes of this type
+can be defined by the user to describe stations with specific characteristics.
+Stations represent dynamic elements of the network.
+The protocol is described as a collection of processes (objects of type
+{\tt Process}) which are executed by stations.
+
+A station is typically attached to a link (or a number of links) via ports.
+A port (an object of type {\tt Port}) represents a connection of one
+station to one link.
+A link (an object of type {\tt Link}) models a simple
+communication medium, e.g.:
+a (possibly unidirectional) fiber optic carrier, a coaxial cable,
+or a radio channel.
+
+For each pair of ports connecting some station(s) to the same link, the
+distance between the ports is specified as the number of {\em ITU\/}s
+needed to propagate a signal from one port to the other\footnote{For a
+bidirectional link, the distance is the same in both directions, whereas for
+a unidirectional link, only one-way distance is defined.}.
+Thus, time is used to express distances in the network; the model
+abstracts from the actual length and propagation speed of the media.
+
+One attribute of a port is its {\em transmission rate\/} which says how
+fast information can be inserted into the port.
+This parameter is expressed as the amount of time (in {\em ITU\/}s)
+required to ``pump" a single bit into the port.
+Transmission rates of different ports
+(even if they are connected to the same link) need not be the same.
+
+Stations, ports, and links are assigned numeric identifiers which generally
+correspond to the order in which the particular objects have been created.
+Besides the numeric identifiers (which are always assigned), optional
+textual names can be associated with
+these objects---to be used for printing and/or displaying.
+
+\subsubsection{Stations}
+
+A network modeled in \smurph\ may include stations of several types.
+For example, in a star-shaped network, the central node plays the
+role of a switching device whose structure and behavior may be completely
+different from those of a regular station.
+The basic type for building stations is {\tt Station}.
+A specific station type is declared in the following way:
+{\small
+\begin{tabbing}
+{\tt 12345678} \= {\tt 1234} \= {\tt 1234} \kill
+\> {\tt station stype : supstype \{} \\
+\> \> \ldots {\em attributes and methods} \ldots \\
+\> {\tt \};}
+\end{tabbing} }
+\noindent
+where {\tt stype} is the declared type name and {\tt supstype} is a previously
+declared station type ({\tt supstype}, together with the preceding colon,
+can be skipped, if it is {\tt Station}---see \fig{hot}).
+
+The attributes and methods of the new station type are combined with the
+attributes and methods of the supertype---in the regular way determined by the
+semantics of the C++ class declaration.
+In particular, the new {\tt setup} method (if defined) subsumes the {\tt setup}
+method defined in the supertype.
+
+A station owns a number of standard attributes inherited from
+{\tt Station} and {\tt Object}.
+The attributes coming from {\tt Object} are mostly protected and hidden by
+a number of standard methods and macro-operations.
+The user-visible standard part of a station type consists of two arrays of
+pointers:
+{\small
+\begin{verbatim}
+        Message         **MQHead,
+                        **MQTail;
+\end{verbatim} }
+\noindent
+pointing to message queues, each message
+queue holding messages belonging to a specific {\em traffic pattern}.
+These queues are filled (in most cases automatically) by the programmable
+traffic generator called the {\tt Client}.
+
+An actual station object is created by invoking {\tt create} with the station
+type name as the parameter, i.e.:
+{\small
+\begin{tabbing}
+{\tt 12345678} \= {\tt 1234} \= {\tt 1234} \kill
+\> {\tt st = create stype (} {\em setup arguments\/} {\tt );} \\
+\end{tabbing} }
+The second pair of parentheses contains arguments of the station's {\tt setup}
+function.
+Stations are assigned numeric identifiers (these identifiers are
+attributes of {\tt Object}) in the order of their creation.
+The first created stations is numbered $0$.
+The station identifier is not directly visible to the user and it cannot be
+changed.
+Two standard operations:
+{\small
+\begin{verbatim}
+        Station         *idToStation (int Id);
+\end{verbatim} }
+\noindent
+and
+{\small
+\begin{verbatim}
+        int             ident (Station *st);
+\end{verbatim} }
+\noindent
+convert station identifiers to object pointers and vice versa.
+
+\subsubsection{Links}
+
+The predefined link types offered by \smurph\ are seldom extended in the
+protocol program.
+The only reasonable situation when such an extension could be warranted is
+the
+modification of the standard functions for calculating link-related
+performance measures.
+These functions, as well as other built-in performance calculating functions
+of \smurph, are virtual, which makes them easily exchangeable by a simple type
+extension.
+\smurph\ provides the user with four standard link types which are in fact
+two different implementations of two basic link concepts: the broadcast
+bidirectional link (types {\tt BLink} and {\tt CLink}) and the unidirectional
+link ({\tt ULink} and {\tt PLink}).
+A specific link instance is generated by calling {\tt create} in the following
+way:
+{\small
+\begin{verbatim}
+        lk = create ltype (np, at, sp);
+\end{verbatim} }
+\noindent
+where {\tt ltype} is one of the above-mentioned four link types.
+The three arguments are passed to the standard link {\tt setup} function
+and they have the following meaning:
+\begin{llist}{{\tt nppp}}
+\litem{{\tt np}}
+The number of ports connected to the link.
+\litem{{\tt at}}
+The archival time limit.
+Activities leaving a link are kept for some time in the so-called
+link {\em archive}.
+The link archive can be used by the protocol program to inquire the link
+about its past status, down to the limit determined by the value of {\tt at}.
+\litem{{\tt sp}}
+A boolean ({\tt int}-type) flag that tells whether the link-related standard
+performance measures are to be calculated.
+This flag can assume one of two values: {\tt ON} or {\tt OFF}.
+\end{llist}
+
+Only the first argument in the second pair of parentheses is required.
+The default values for the remaining two arguments are: {\tt 0} (archive
+not maintained) and {\tt ON} (standard performance measures to be
+calculated), respectively.
+
+Similarly to stations, links are also numbered in the order of their
+creation.
+A link can be referenced either via a pointer to the link object or by its
+numeric identifier.
+One situation when the user may want to reference a link explicitly is
+the definition of a port (see below) which must be assigned to a specific
+link.
+
+\subsubsection{Ports}
+
+Type {\tt Port} is never extended by the user.
+A port is created in the following way:
+{\small
+\begin{verbatim}
+        pt = create Port (rate);
+\end{verbatim} }
+\noindent
+where the argument (passed to the port's {\tt setup} method) gives
+the port transmission rate---the number of {\em ITU\/}s required to insert a
+single bit into the port.
+
+To describe a network topology, ports, links, and stations must be organized
+into a single interconnected structure.
+A port is usually created in the context of a specific station, typically
+within the station's {\tt setup} method.
+Such a port belongs to the given station and
+its purpose is to connect the station to a link.
+The following operation connects the port pointed to by
+{\tt pt} to the link pointed to by {\tt lk}:
+{\small
+\begin{verbatim}
+        pt->connect (lk);
+\end{verbatim} }
+
+The geometry of a link is described by a {\em distance matrix\/} that specifies
+distances between all pairs of ports connected to the link.
+There are a number of ways to specify a link distance matrix; the most
+natural way is to explicitly assign a distance to each combination of
+two ports connected to the link.
+The distance between a pair of ports can be assigned by calling:
+{\small
+\begin{verbatim}
+        p1->setDTo (p2, d);
+\end{verbatim} }
+\noindent
+where {\tt p1} and {\tt p2} are port pointers and {\tt d} is the distance
+between the two ports.
+
+\subsection{Defining traffic conditions}
+
+The traffic in the network consists of {\em messages\/} which arrive from
+``outside" to be processed by stations.
+By processing a message, we mean splitting it into one or more packets
+and transmitting it over the network to the destination (a specific station).
+The traffic distribution is described by a collection of the so-called
+{\em traffic patterns} which are objects of type {\tt Traffic}.
+Each traffic pattern is associated with specific message and packet types.
+Messages and packets belonging to different traffic patterns may have different,
+protocol-dependent structures.
+
+\subsubsection{Messages and packets}
+
+A traffic pattern consists of a message inter-arrival process and two
+types representing messages and packets to be
+generated according to the pattern.
+These types are defined on the basis of two standard classes {\tt Message} and
+{\tt Packet}.
+The built-in part of the message structure (inherited from {\tt Message})
+has the following contents:
+{\small
+\begin{verbatim}
+        int             Receiver,
+                        TP;
+        TIME            QTime;
+        long            Length;
+\end{verbatim} }
+\noindent
+where {\tt Receiver} is the identifier of the station that is to receive
+the message (a special value is used to represent a broadcast message addressed
+to a set of stations), {\tt TP} identifies the traffic pattern that was used to
+generate the message, {\tt QTime} tells the time when the message was generated
+and queued at the station (this attribute is used for measuring the
+message delay),
+and {\tt Length} gives the message length in bits.
+
+The user-visible standard contents of a packet have the following layout:
+{\small
+\begin{verbatim}
+        int             Sender,
+                        Receiver,
+                        TP;
+        TIME            QTime,
+                        TTime;
+        long            ILength,
+                        TLength,
+                        Flags;
+        int             isMy ();
+\end{verbatim} }
+
+Arguments {\tt Receiver}, {\tt TP}, and {\tt QTime} are direct copies of the
+corresponding arguments from {\tt Message}.
+{\tt Sender} identifies the packet's original
+transmitter---the station at which the message was queued for
+transmission.
+{\tt TTime} (the so-called {\em top time\/}) contains the time when the packet
+became ready for transmission (this attribute is used for calculating the
+packet delay).
+{\tt ILength} and {\tt TLength} specify the length of the information part
+of the packet (the part acquired from the message) and the total packet length
+(including the possible header and trailer), respectively.
+{\tt Flags} is a collection of binary attributes of the packet; usually
+they are not referenced directly.
+
+The method {\tt isMy} can be used by a station to determine whether
+the station
+is the receiver of the packet (or one of the receivers, if the packet is
+a broadcast one).
+
+A message type is declared in the following way:
+{\small
+\begin{tabbing}
+{\tt 12345678} \= {\tt 1234} \= {\tt 1234} \kill
+\> {\tt message mtype : supmtype \{} \\
+\> \> \ldots {\em non-standard attributes} \ldots \\
+\> {\tt \};}
+\end{tabbing} }
+\noindent
+where {\tt supmtype} is an already defined message type (it can be omitted
+if the new type is derived directly from {\tt Message}).
+An argument-less {\tt setup} method can be defined for a message type: it
+will be called
+whenever a new message is generated and queued at its sender station.
+Note that messages are seldom generated directly by the protocol program.
+
+Similarly, a packet type can be defined as:
+{\small
+\begin{tabbing}
+{\tt 12345678} \= {\tt 1234} \= {\tt 1234} \kill
+\> {\tt packet ptype : supptype \{} \\
+\> \> \ldots {\em non-standard attributes} \ldots \\
+\> {\tt \};}
+\end{tabbing} }
+
+The {\tt setup} function, if defined, is called whenever a packet of the
+declared type is acquired from a message.
+Its purpose is to set up the non-standard packet attributes.
+
+A {\tt setup} function must be declared for a packet type, if this
+type is non-trivially extended, i.e.,
+it actually defines some non-standard attributes.
+The function should expect one argument which should be a message
+object pointer.
+This argument points to the message from which the packet is being
+acquired.
+
+Typically, a station defines a number of packet buffers that are used to
+store packets acquired for transmission, packets relayed to other
+stations, etc.
+A packet buffer is just an object of a packet type defined statically
+within the scope of the station type definition.
+A packet buffer can be either {\em full\/} (if it contains a packet) or
+{\em empty\/} (if no packet is currently stored in the buffer).
+Type {\tt Packet} defines a collection of
+methods for determining the status of a packet buffer.
+
+\subsubsection{Message arrival process}
+
+The traffic in the modeled network is described as a set of independent
+patterns, each pattern characterized by a specific distribution parameters
+of the message arrival process.
+\smurph\ offers standard tools for defining traffic patterns---objects
+of type {\tt Traffic}.
+Should these tools prove inadequate, the user can program his private
+traffic patterns as extensions of type {\tt Traffic}.
+
+A standard traffic pattern is described by the following parameters:
+\begin{itemize}
+\item
+The distribution of senders and receivers.
+This part determines how often particular stations are selected as senders
+and receivers for messages generated according to the given pattern.
+\item
+Message inter-arrival time distribution.
+These parameters determine how much time elapses between two consecutive
+message arrival events.
+\item
+Message length distribution.
+One attribute of a message is its length in bits.
+For a given traffic pattern, this length can be either fixed or generated as
+a random number according to the message length distribution.
+\end{itemize}
+
+The distribution of senders and receivers is given as the set of the so-called
+{\em communication groups}.
+A single communication group (an object of type {\tt CGroup}) defines two
+sets of stations: the set of senders and the set of receivers.
+Every station within each of the two sets is assigned a weight which can be
+viewed as the relative probability that this station will be chosen.
+The entire {\tt CGroup} has also a weight which determines the probability of
+the group being used to generate the sender and the receiver.
+The group weight is relevant when the traffic pattern is described by
+more than one {\tt CGroup}.
+With this two-level selection mechanism, it is possible to build refined
+traffic patterns.
+\smurph\ provides shortcuts for defining simple patterns: in many cases the
+notion of a communication group need not be used.
+
+A communication group is defined in terms of simpler objects called
+{\em station groups} which belong to type {\tt SGroup}.
+An {\tt SGroup} is simply a subset of stations.
+In particular,
+the set of receivers for a broadcast traffic pattern is specified as a
+station group.
+
+The procedure of generating a new message and queuing it at the sending
+station consists of a number of steps, e.g.,
+selection of a communication group, generation of the sender and the
+receiver, generation of the message length.
+Each of these steps is performed by a virtual method defined within type
+{\tt Traffic}.
+By extending this type, the user can substitute his own functions for
+the standard methods.
+Similarly, an extension of {\tt Traffic} may define private methods for
+calculating various traffic pattern-related performance measures.
+
+A traffic pattern type is declared in the following way:
+{\small
+\begin{tabbing}
+{\tt 12345678} \= {\tt 1234} \= {\tt 1234} \kill
+\> {\tt traffic ttype : supttype (mtype, ptype) \{} \\
+\> \> \ldots {\em non-standard attributes and methods} \ldots \\
+\> {\tt \};}
+\end{tabbing} }
+\noindent
+where {\tt supttype} is an already defined pattern type (this part can be
+omitted if the new traffic type is derived directly from {\tt Traffic}),
+{\tt mtype} and {\tt ptype} stand
+for the types of messages and packets to be generated according to
+the pattern.
+If these types are {\tt Message} {\tt Packet}, respectively, they (and
+the parentheses enclosing them) can be skipped.
+The base traffic pattern type {\tt Traffic} can be used directly for
+traffic generation.
+It generates messages of type {\tt Message} and packets of type
+{\tt Packet}.
+
+A traffic pattern type can be used to create specific traffic patterns.
+The most general format of {\tt create} that serves this end is:
+{\small
+\begin{verbatim}
+        create ttype (cgl, ncgl, flags, ...)
+\end{verbatim} }
+\noindent
+where {\tt cgl} points to an array of pointers to communication groups,
+{\tt ncgl} gives the number of communication groups pointed to by {\tt cgl},
+and {\tt flags} is a collection of binary flags specifying distribution
+modes for the message inter-arrival time and message length.
+The remaining arguments (their number depends on the contents of {\tt flags})
+give the numeric parameters of these distributions.
+
+Very often a traffic pattern is described by a single communication group.
+In such case, {\tt cgl} can be a direct pointer to the only
+communication group and {\tt ncgl} should be omitted.
+It is also possible to define a traffic pattern without specifying any
+communication group and later build the sets of senders and
+receivers dynamically.
+This last method is recommended for simple traffic patterns.
+
+\subsection{Processes}
+
+The protocol behavior is described by a set of processes (objects of type
+{\tt Process}) run at stations.
+A process consists of its private data area, and code which can be shared
+by a number of processes belonging to the same process type.
+A process is always associated with some station: we say that the station
+owns (or runs) the process.
+
+Besides accessing its private data area, a process can reference the
+attributes of the station owning the process and some global variables
+constituting the so-called {\em process environment}.
+Processes can communicate in several ways, even if they do not belong to
+the same station.
+
+A process type consists of a number of attributes (they can be viewed as
+local variables of the process), an optional {\tt setup} method (which is
+typically used to initialize local variables when a process instance is
+created), and another method defining the process code.
+The syntax of a process type declaration is:
+{\small
+\begin{tabbing}
+{\tt 12345678} \= {\tt 1234} \= {\tt 1234} \= {\tt 1234} \kill
+\> {\tt process ptype : supptype (fptype, stype) \{} \\
+\> \> \ldots {\em attributes and methods} \ldots \\
+\> \> {\tt setup (} ... {\tt ) \{} \\
+\> \> \> \ldots \\
+\> \> {\tt \};} \\
+\> {\tt ~} \\
+\> \> {\tt states \{s0, s1, } ... {\tt , sk\};} \\
+\> {\tt ~} \\
+\> \> {\tt perform \{} \\
+\> \> \> \ldots \\
+\> \> {\tt \};} \\
+\> {\tt \};}
+\end{tabbing} }
+\noindent
+where {\tt ptype} is the name of the declared process type,
+{\tt supptype} is an already defined process type,
+{\tt fptype} is the type of the process' {\em father}, and
+{\tt stype} is the type of the station owning the process.
+Similarly as for the other \smurph\ types, {\tt supptype} can be omitted
+if the new process type is derived directly from {\tt Process}.
+The two arguments in parentheses are also optional: they can be skipped
+if they are irrelevant from the viewpoint of the new type.
+
+A process is always created by another process which is considered its
+father.
+Initially, before any user-defined process is created, there exists a
+system process called {\tt Kernel} (of type {\tt Process}) which is the
+father of the first user process.
+
+A process is created similarly as other dynamic objects, by the command:
+{\small
+\begin{tabbing}
+{\tt 12345678} \= {\tt 1234} \= {\tt 1234} \kill
+\> {\tt prcs = create ptype (} ... {\tt );}
+\end{tabbing} }
+
+As usual, the arguments enclosed in the second pair of parentheses are passed
+to the process' {\tt setup} method.
+
+A process can be terminated either by itself (by executing {\tt terminate~()})
+or by another process (which executes {\tt prc->terminate~()}, where {\tt prc}
+is the pointer to the process to be killed).
+
+The keyword {\tt perform}\footnote{The resemblance to COBOL is
+accidental.} begins the declaration of the process code method.
+This method can be defined directly within the process type declaration or
+it can be just announced there (if {\tt perform} is immediately followed
+by a semicolon) and defined later in the following way:
+{\small
+\begin{tabbing}
+{\tt 12345678} \= {\tt 1234} \= {\tt 1234} \kill
+\> {\tt ptype::perform \{} \\
+\> \> \ldots \\
+\> {\tt \};}
+\end{tabbing} }
+
+The process code method resembles the description of a finite
+state machine.
+The {\tt states} declaration assigns symbolic names to the states of this
+machine.
+The first state on the list is the initial state: the process gets into this
+state automatically after it is created.
+
+The operation of a process consists in responding to various events triggered
+by its environment.
+The occurrence of an event awaited by a process wakes the process up and
+forces it to a specific state.
+Then the process (its code method) performs some operations and suspends
+itself.
+Typically, among these operations are indications of future
+events that the process wants to perceive.
+Thus, the process code method can be viewed as the transition function of
+a finite state machine.
+Most often, this method has the following structure:
+{\small
+\begin{tabbing}
+{\tt 12345678} \= {\tt 1234} \= {\tt 1234} \= {\tt 1234} \= {\tt 1234} \kill
+\> {\tt perform \{ } \\
+\> \> {\tt state s0:} \\
+\> \> \> \ldots \\
+\> \> {\tt state s1:} \\
+\> \> \> \ldots \\
+\> \> \ldots \\
+\> \> {\tt state sk:} \\
+\> \> \> \ldots \\
+\> {\tt \};}
+\end{tabbing} }
+
+Process code methods are not inherited from supertypes, i.e.,
+each process type declares its code method from scratch.
+
+Two standard pointers (whose declarations are invisible) are available to
+a code method.
+They are: {\tt F} (of type {\tt fptype}) pointing to the process' father
+and {\tt S} (of type {\tt stype}) pointing to the station owning the
+process.
+This way, besides having natural access to its private objects, a process can
+reference public attributes of its father and its station.
+
+\subsection{Activity interpreters}
+
+Operations of protocol processes are driven by events.
+These events are generated by objects called {\em activity interpreters}.
+Before suspending itself, a process declares events that will wake it
+up in the future.
+The occurrence of the earliest of these events restarts the
+process.
+If two or more of the awaited events occur at the same time
+(within the same {\em ITU\/}),
+one of them is selected at random.
+Thus, a process is always awakened by exactly one event.
+
+Activity interpreters model the time flow.
+An {\em AI\/} is responsible for determining how much time a specific
+physical phenomenon would take in the real system and advances the
+clock of the system model by the corresponding number of {\em ITU\/}s.
+The input to the {\em AI\/}s is provided by the protocol processes.
+We say that the protocol processes exhibit activities which are absorbed
+by {\em AI\/}s.
+Based on these activities, the {\em AI\/}s predict future events and their
+timing.
+
+The interface between an {\em AI\/} and the protocol program depends on the
+{\em AI}.
+One element of this interface
+is common for all {\em AI\/}s; it is the method:
+{\small
+\begin{verbatim}
+        wait (ev, st)
+\end{verbatim} }
+\noindent
+which a process can invoke to request to be awakened by a specific future event.
+The first argument of {\tt wait} identifies the event; its type and range are
+{\em AI\/}-specific.
+The second argument is a state identifier: it says that upon the occurrence of
+the indicated event the process wants to be awakened at the given state.
+
+A restarted process usually performs a sequence of operations (possibly
+exhibiting activities addressed to some {\em AI\/}s) and then it
+issues a number of {\tt wait} requests describing its future waking
+conditions.
+Eventually, the process suspends itself---either by exhausting the list
+of statements associated with its current state or by executing {\tt sleep}.
+A process that puts itself to sleep without specifying at least one waking
+condition becomes terminated.
+All the {\tt wait} requests issued by a process at one state are combined into
+an {\em alternative\/} of waking conditions.
+It means that as soon as one of
+these conditions is fulfilled, the process is restarted at the state previously
+indicated by the corresponding {\tt wait} request.
+The other conditions are then erased; thus,
+if the process decides later to wait for the same (or a similar)
+configuration of
+events, all the {\tt wait} requests must be issued from the beginning.
+
+While a process is running, i.e.,
+from the moment the process was restarted until it suspends itself,
+the simulated time does not flow.
+This way multiple processes can be active {\em simultaneously\/}---within the
+same {\em ITU}.
+One of the basic principles of \smurph\ is that the modeled time only flows
+when it is advanced by one of the {\em AI\/}s.
+
+\subsubsection{The {\tt Timer} {\em AI}}
+
+There is exactly one timer {\em AI\/} pointed to by the global variable
+{\tt Timer}.
+By issuing a
+{\tt wait} request to the timer, e.g.:
+{\small
+\begin{verbatim}
+        Timer->wait (interval, ready);
+\end{verbatim} }
+\noindent
+a process declares that it
+wants to be restarted at state {\tt ready}, {\tt interval}
+{\em ITU\/}s after the current moment.
+Another part of the timer interface is the global variable {\tt Time} which
+tells the current virtual time as the number of {\em ITU\/}s elapsed since
+the beginning of simulation.
+
+The {\tt Timer} wait request is implicitly used to implement two operations
+for unconditional branching to another process state.
+Namely, the following two operations:
+{\small
+\begin{tabbing}
+{\tt 12345678} \= {\tt 1234} \= {\tt 1234} \= {\tt 1234} \= {\tt 1234} \kill
+\> {\tt proceed stt;} $\;\;\;\;\;\;$ and $\;\;\;\;\;$ {\tt skipto stt;}
+\end{tabbing} }
+\noindent
+are equivalent to:
+{\small
+\begin{verbatim}
+        Timer->wait (0, stt);
+        sleep;
+\end{verbatim} }
+\noindent
+and
+{\small
+\begin{verbatim}
+        Timer->wait (1, stt);
+        sleep;
+\end{verbatim} }
+\noindent
+respectively.
+The first operation is used to branch unconditionally to the indicated state
+within the same {\em ITU}.
+The second operation delays the branching by one {\em ITU} and is useful
+for skipping certain events that remain pending until the time is advanced.
+
+It is possible to request that all time intervals be determined with a
+certain station-dependent tolerance---to simulate the limited accuracy of
+real independent clocks.
+
+\subsubsection{{\tt Traffic} {\em AI\/}s and the {\tt Client} {\em AI}}
+
+Each object belonging to type {\tt Traffic} can be viewed as an independent
+{\em AI\/} providing stations with messages to transmit.
+Moreover, there is one {\tt Client}
+{\em AI} which can be viewed as a combination
+of all individual {\tt Traffic} {\em AI\/}s.
+A process may poll these {\em AI\/}s for a packet to be transmitted.
+If no packet is available, the process may decide to suspend itself until
+a message arrives at the station.
+Let us assume that {\tt tp} points to an object of type {\tt Traffic}.
+The following operation:
+{\small
+\begin{verbatim}
+        gotit = tp->getPacket (buf, min, max, frm);
+\end{verbatim} }
+\noindent
+attempts to acquire a packet from the first-arrived
+message belonging to the traffic pattern {\tt tp}.
+If the attempt is successful, the function returns {\tt YES}; otherwise,
+if no message of pattern {\tt tp} is queued at the station, {\tt NO} is
+returned.
+In case of success, the packet is put into the buffer pointed to by
+{\tt buf}.
+The length of the packet's information part is never less than {\tt min}
+(dummy bits are added if the message is too short to fill the
+packet) nor is it greater than {\tt max} (only a part of the message is used
+if the message is longer that {\tt max}; the remaining part remains queued).
+The last argument of {\tt getPacket} gives the length of the frame part, i.e.,
+the number of additional bits to be added to the packet to furnish it with
+the pertinent header and trailer.
+
+In the case when the traffic pattern of the packet to be acquired is
+irrelevant, the {\tt Client} {\em AI\/} can be used.
+For example, by calling:
+{\small
+\begin{verbatim}
+        gotit = Client->getPacket (buf, min, max, frm);
+\end{verbatim} }
+\noindent
+a process polls the {\tt Client}
+for a packet belonging to any traffic pattern.
+In this case, the first-arrived of all messages queued at the station
+is used, irrespective of its pattern.
+Thus, this call only fails, if all message queues at the station are empty.
+
+Should an attempt to acquire a packet fail, a {\tt wait} request addressed
+either to a specific object of type {\tt Traffic} or to the {\tt Client}
+can be issued to awake the process when a message is generated and queued
+at the station.
+In particular, with the following request:
+{\small
+\begin{verbatim}
+        Client->wait (ARRIVAL, tryagain);
+\end{verbatim} }
+\noindent
+a process declares that it
+wants to be awakened at state {\tt tryagain} as soon as a message
+(of any pattern) arrives at the station.
+
+\subsubsection{{\tt Port} and {\tt Link} {\em AI\/}s}
+
+Functionally, {\tt Link} objects are distributed and
+represented by collections of ports, each port being visible to the
+protocol program as a separate {\em AI}.
+Internally,
+each link can be viewed as a single {\em AI\/} with centralized
+processing.
+Protocol processes seldom reference links directly, with exception of the
+topology initialization phase.
+A protocol process may access a port {\em AI\/} for one of the following
+three reasons:
+\begin{itemize}
+\item
+to change the port status, e.g.,
+to start or terminate a packet transmission or a jamming signal;
+\item
+to inquire the port about its present or past status;
+\item
+to issue a {\tt wait} request to the port, i.e.,
+to await a moment when the port gets into a specific state.
+\end{itemize}
+
+There are two types of activities that can be inserted into ports:
+{\em packet transmissions\/} and {\em jamming signals}.
+The latter are used in protocols based on {\em collision detection\/} to
+enforce the so-called {\em collision consensus} (cf.\ 
+\cite{meb76}).
+Jamming signals are in some sense redundant: they can be simulated by special
+packets; however, their presence makes it easier to program an important class
+of MAC-level protocols.
+
+An activity, be it a packet transmission or a jamming signal, must be explicitly
+started and explicitly terminated.
+Assuming that {\tt pt} represents an object of type {\tt Port}, the following
+operation:
+{\small
+\begin{verbatim}
+        pt->transmit (buf, done);
+\end{verbatim} }
+\noindent
+initializes a packet transmission on port {\tt pt}.
+The packet is taken from the buffer pointed to by {\tt buf}.
+After the packet has been completely transmitted, the process will be
+awakened at state {\tt done}.
+The fact that the packet has been completely transmitted does not imply that
+its transmission has stopped.
+The process is restarted at state {\tt done} after the amount of time
+equal to the total length of the packet
+multiplied by the port transmission rate.
+Then, the process is supposed to stop the transmission by calling:
+{\small
+\begin{verbatim}
+        pt->stop ();
+\end{verbatim} }
+\noindent
+usually followed by:
+{\small
+\begin{verbatim}
+        buf->release ();
+\end{verbatim} }
+\noindent
+which empties the packet buffer and updates certain performance measures.
+
+Typical port inquiries are functions returning the time when the port was
+last found in some specific state.
+For example:
+{\small
+\begin{verbatim}
+        t0 = pt->lastBOT ();
+\end{verbatim} }
+\noindent
+assigns to {\tt t0} the time when the last beginning of packet was heard on
+port {\tt pt}.
+
+A port {\tt wait} request may identify one of the following future events:
+\begin{llist}{{\tt COLLISIONN}}
+\litem{{\tt SILENCE}}
+the earliest beginning of a silence period (the event occurs in the current
+{\em ITU} if the port is already silent);
+\litem{{\tt ACTIVITY}}
+the earliest beginning of an activity period;
+\litem{{\tt COLLISION}}
+interference of two or more packet transmissions or the beginning of a jamming
+signal;
+\litem{{\tt BOT}}
+the beginning of a packet;
+\litem{{\tt EOT}}
+the end of a packet;
+\litem{{\tt BMP}}
+the beginning of {\em my\/} packet, i.e.,
+a packet addressed to the station whose process issues the {\tt wait} request;
+\litem{{\tt EMP}}
+the end of {\em my\/} packet;
+\end{llist}
+and a few others.
+
+If a process is awakened by an event that has been triggered by a packet
+transmission, the variable {\tt ThePacket} (of type {\tt Packet}) points to
+packet object and another variable, {\tt ThePort}, points to the
+port on which the packet is heard.
+These two global variables (as well as a few other variables settable by
+various events) belong to the {\em process environment}.
+Their purpose is to pass to the awakened process some information related to
+the restarting event.
+
+\subsubsection{{\tt Mailbox} {\em AI\/}s}
+
+{\tt Mailbox} {\em AI\/}s provide means for inter-process communication.
+A mailbox, which is always owned by some specific station, can be viewed as
+a depository for messages passed among the processes running at the station.
+The capacity of a mailbox is limited and
+determined at its creation.
+Depending how a mailbox is defined and created
+(the standard type {\tt Mailbox} can be extended by the user), its functionality
+may resemble a simple signal (interrupt) passing mechanism or a FIFO-type
+storage for compound objects.
+The standard type {\tt Mailbox} (without extension)
+can be used to pass simple signals with no information content.
+
+A mailbox can be declared statically, as part of a station type definition,
+or created dynamically within the context of the station to which it is
+supposed to belong.
+One {\tt setup} argument that can be specified upon mailbox creation is
+the capacity.
+If no capacity is specified when the mailbox is created, default capacity
+$0$ is assumed.
+This means that no items will ever be
+stored in the mailbox: if no process is waiting for an item and one arrives,
+it is ignored.
+
+Besides the {\tt wait} method, the {\tt Mailbox} {\em AI\/} offers two
+operations: {\tt put}---to send a new item to the mailbox and {\tt get}---to
+retrieve the front element from the mailbox queue.
+
+By issuing the following mailbox {\tt wait} request:
+\begin{verbatim}
+        mb->wait (NEWITEM, gotit)
+\end{verbatim}
+a process awaits the moment when a new item is put into the mailbox.
+By using {\tt RECEIVE} instead of {\tt NEWITEM}, the process can request to
+automatically accept the item when it arrives.
+In such case, the value of the item will be returned to the process via
+the environment variable {\tt TheItem}.
+
+Another example of an event that can be specified as the first argument of
+the {\tt wait} method is a nonnegative number $n$.
+The event is triggered when the number of elements stored in the mailbox reaches
+$n$.
+
+\subsubsection{{\tt Process} {\em AI\/}s}
+
+One more way of communicating processes is to take advantage of the fact
+that each protocol process is an independent {\em AI\/}.
+Assume that {\tt prc} is a pointer to a process object.
+By issuing the following request:
+{\small
+\begin{verbatim}
+        prc->wait (prcstate, mystate);
+\end{verbatim} }
+\noindent
+a process requests to be awakened at {\tt mystate} as soon as the
+process pointed to by {\tt prc} reaches {\tt prcstate}.
+One special event that can be specified as the first argument of the
+{\tt Process} {\tt wait} method is {\tt DEATH} which represent the termination
+of the process in question.
+For example, by executing the following sequence:
+{\small
+\begin{tabbing}
+{\tt 12345678} \= {\tt 1234} \= {\tt 1234} \= {\tt 1234} \= {\tt 1234} \kill
+\> {\tt prc = create mychild (} ... {\tt );} \\
+\> {\tt prc->wait (DEATH, done); } \\
+\> {\tt sleep; }
+\end{tabbing} }
+\noindent
+a process creates a child process and blocks itself until the child is
+terminated.
+Thus, the child process can be viewed as a {\em subroutine\/} called by its
+creator, as opposed to the situation when the child and its father operate
+concurrently.
+
+\subsection{User interface}
+
+Typically, the protocol program reads some input data, although one can
+imagine a situation in which no input data is required, i.e.,
+all parameters are hard-coded into the program.
+\smurph\ offers private operations for reading numbers from input
+(the standard C++ tools can be used as well) which ignore all non-numeric
+contents of the input file and provide shortcuts for reading sequences of
+related numbers.
+It is easy to insert textual comments into the data file: they are
+just bypassed and ignored.
+
+A similar collection of basic output tools is provided.
+In most cases, however, the output results are produced by exposing, i.e.,
+calling high-level
+output methods associated with particular objects.
+For example, assuming that {\tt tpt} points to a traffic pattern,
+the call:
+{\small
+\begin{verbatim}
+        tpt->printPfm ();
+\end{verbatim} }
+\noindent
+writes to the output file the set of performance measures associated with
+the pattern {\tt tpt}.
+
+Usually, a single object defines a number of {\em exposing\/} methods;
+some of them can be used for debugging.
+In most cases, these methods can be subsumed or augmented by user-defined
+methods in type extensions.
+
+Another part of the \smurph\ user interface is the
+{\em dynamic status display\/}
+which allows the user to monitor the protocol behavior on-line.
+The display is handled by a separate, in principle exchangeable, program
+which communicates
+with \smurph\ using a well-defined and reasonably simple protocol.
+In particular, it is possible to run the simulator on one machine, e.g.\ 
+a CPU server, and monitor its execution on another computer, e.g.\ 
+a graphic workstation.
+
+\subsection{Performance measures}
+
+The global performance of a network is usually expressed as the correlation
+of {\em throughput} and {\em delay}.
+By default,
+the performance statistics collected by \smurph\ during simulation
+include three different measures of delay for each traffic pattern; they are:
+the packet delay (excluding the message queuing time),
+the absolute message delay which includes the message queuing time, and
+the weighted message delay which includes the message queuing
+time and reflects the fact that long messages may be split into multiple
+packets reaching their destination at different times.
+Each measure is presented in the form of a random variable (an object of
+type {\tt RVariable}) with a number of
+parameters including the minimum, maximum, mean, and the standard
+deviation.
+The throughput is measured separately for each link and globally for the
+entire network.
+
+\smurph\ offers tools for collecting non-standard statistics.
+Objects of type {\tt RVariable} can be created by the user and processed by
+a collection of standard methods implementing typical operations
+on random variables, e.g., adding a new sample,
+combining two random variables into one, and printing out or displaying the
+parameters of a random variable.
+
+\subsection{Observers}
+
+Besides conventional tools for program debugging, as local
+assertions and protocol tracing functions, \smurph\ offers means for
+verifying compound dynamic conditions that can be viewed as an alternative,
+static specification of the protocol.
+
+Observers are process-like objects that can be used for expressing global
+assertions that involve the combined behavior of more than one regular process.
+An observer may specify that it is to be awakened whenever a
+process is restarted at a specific state.
+A similar approach to implementing self-checking distributed programs
+was proposed earlier (\cite{aad79}) and recently refined (\cite{gro86}).
+Observers can be seen as a tool for writing non-executable protocol
+specifications in terms of dynamic formulas describing possible successions
+of protocol states.

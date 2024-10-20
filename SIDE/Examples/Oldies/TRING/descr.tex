@@ -1,0 +1,194 @@
+\documentstyle [amssymbols,11pt] {article}
+\input {../../../MANUAL/rm_en}
+
+\begin{document}
+
+\begin{titlepage}
+
+\vspace*{3.5in}
+\begin{center}
+\Huge\bf TOKEN RING \vspace{0.25in}
+\end{center}
+\end{titlepage}
+
+\section{The protocol}
+
+In a ring-type network, stations are connected into a circular structure
+in such a way that each station is directly attached to its two immediate
+neighbors via two separate ports.
+With our simple version of the {\em Token Ring\/} protocol,
+information is passed along
+the ring in one direction, e.g.\ 
+clockwise.
+Thus, each station receives information on one
+(input) port and transmits on the other (output) port.
+A special packet (token) is circulated among the stations.
+If the station receiving the token has
+no data packet awaiting transmission, it immediately relays the
+token by copying it to the output port.
+Otherwise, the station stops the token and transmits the
+data packet instead.
+Having completed the transmission of the data packet,
+the station passes the token.
+
+A
+station may only transmit one data packet per each acquisition of the token:
+the station is supposed to pass the token after transmitting at most one data
+packet.
+If a data packet arrives that is addressed to the current station,
+it is received and removed from the ring.
+Other data packets are passed around until eventually they
+reach their proper destinations.
+
+\section{Topology definition}
+
+The network topology is defined by function {\tt genTopology} called from the
+{\tt Root} process.
+The function reads three parameters from the data file:
+the number of links which is
+equal to the number of stations (variables {\tt NChannels} and
+{\tt NNodes}), the length of a link in {\em ITU\/}s
+(we assume that all links are of the same length), and the transmission
+rate of the ring.
+The transmission rate tells the number of {\em ITU\/}s needed to insert a
+single bit into the network.
+
+Next, in a loop executed for all links, the function creates the links and the
+stations.
+A ring station is represented by an object of type {\tt Node}.
+This station type declares two port pointers ({\tt IPort} and {\tt OPort}),
+two packet buffers ({\tt RBuffer} and {\tt PBuffer}), and two
+mailbox pointers ({\tt Xmit} and {\tt Pass}).
+The two ports and the mailboxes
+are created by the {\tt Node}'s {\tt setup} method.
+{\tt IPort} is the receiving (input)
+port and the other port is the transmitting (output) port.
+The transmission rate of both ports is
+set to {\tt TRate} which is read from the input file.
+{\tt RBuffer} is used to store packets that arrive on the input port.
+Such a packet has to be either
+received (if it is a regular packet addressed to this
+station) or relayed to the next station in the ring.
+The other packet buffer stores packets that originate at the station (are
+acquired by the station from the {\tt Client}).
+The two mailboxes are used to synchronize two processes run at each station.
+
+The second loop of function {\tt genTopology} goes through all links, connects
+them to the stations, and assigns lengths to them.
+A link number {\tt i} (by the link number we mean the contents of its {\tt Id}
+attribute) connects stations number {\tt i} and
+{\tt i}$+$1{\tt ~mod~NNodes},
+or, more specifically, {\tt OPort} of station {\tt i} to {\tt IPort} of
+station
+{\tt i}$+$1{\tt ~mod~NNodes}.
+
+\section{Traffic}
+
+The traffic in the ring consists of two types of packets: regular packets
+and the token.
+Client messages and regular packets built from them are represented by the
+standard types {\tt Message} and {\tt Packet};
+the token is a special packet of type {\tt Token}.
+The (total) length of the token is determined by the
+input parameter ({\tt TokL})
+read by the function {\tt genTraffic} which takes care of initializing the
+client operation.
+It creates a single traffic pattern describing the message arrival
+process (exponentially distributed message length and inter-arrival time with
+the mean values read from the data file).
+
+Five more input values determine the packet framing.
+{\tt MinPL}, {\tt MaxPL}, and {\tt FrmL} stand for the minimum packet length,
+the maximum packet length, and the combined length of the packet header
+and trailer.
+These parameters apply to regular packets that will be acquired for transmission
+from the {\tt Client}.
+{\tt HdrL} is the length of an initial part of the packet header that must
+be read by a station
+in order to recognize the packet type and its destination
+(see the next section).
+Finally, {\tt TokL} is the already mentioned total length of the token packet.
+All these values are in bits.
+
+\section{Protocol implementation}
+
+A natural way of implementing the protocol is to have two
+processes at each station, one process (of type {\tt IProcess})
+servicing the input port ({\tt IPort}) and processing
+packets arriving at the station, the other process (of type {\tt OProcess})
+handling the output port ({\tt OPort})
+and passing packets to the next station on the ring.
+The two processes communicate via signals passed through mailboxes
+{\tt Xmit} and {\tt Pass}.
+
+The {\tt Root}'s method {\tt genProtocol} creates the two processes for each
+station.
+Note the special syntax of {\tt create}.
+The value of {\tt i} (in parentheses) identifies the station in the context
+of which the process is to be created.
+
+\subsection{The input process}
+
+Upon setup, the input process creates its private pointers to the station's
+input port ({\tt IPort}) and the relay buffer ({\tt RBuffer}).
+Then, if the station {\tt Id} is $0$, the process creates the token packet
+and stores it in the relay buffer.
+Thus station $0$ is responsible for the protocol initialization.
+A signal is sent to the output process (by storing a
+dummy item in the {\tt Xmit} mailbox) to notify it that
+station $0$ is in possession of the token (see the next subsection).
+A similar action is performed by {\tt IProcess} whenever the token is received
+on the input port.
+
+The ``main loop" of {\tt IProcess} code starts at state
+{\tt WaitPacket} where the process awaits a packet arrival on the
+input port.
+As soon as the beginning of a packet is detected, the packet is put into
+{\tt RBuffer} and then the process simulates the operation of
+recognizing (an initial part of) the packet's header.
+Before some part of the header
+is received, the input process cannot know what to do with the packet.
+Thus the further processing of the packet is delayed by the time
+interval corresponding to receiving {\tt HdrL} bits from {\tt IPort}.
+Note that although {\tt IPort} is never used for transmitting packets,
+its transmission rate is relevant: it is used to determine the delay
+needed to recognize the interesting part of the packet header.
+Of course, in this particular case, as transmission rates of all ports are
+identical, {\tt OPort} could be used to determine this delay.
+
+At state {\tt Recognized} the process determines the type of the
+packet.
+If it is the token, the processing continues at state {\tt GotToken} where
+a signal is sent to the output process to notify it that now the station
+is allowed to transmit its own packet.
+Then the input process resumes waiting for a packet on {\tt IPort}.
+
+If the arriving packet is a data packet addressed to the
+station, the process waits until the packet's end appears on the port and then
+it {\tt receives} the packet.
+A data packet addressed to some other station must be relayed by the
+output process (essentially, in the same way as the token).
+Thus, upon arrival of such a packet, the input process sends a special
+signal (mailbox {\tt Pass}) to the output process.
+
+\subsection{The output process}
+
+The output process ({\tt OProcess}) sleeps until it receives
+one of two signals from the input process.
+A signal arriving on the {\tt Xmit} mailbox
+indicates that the station has just
+received the token and it is allowed to transmit its own data packet.
+The output process attempts to acquire a packet from the {\tt Client}.
+If this operation is successful,
+the acquired packet (the contents of {\tt PBuffer}) is sent on the output port.
+Then the process gets to state {\tt OwnDone} where it
+{\tt releases} the client packet and
+transmits the token to the station's successor on the ring.
+
+If there is no client packet awaiting transmission, the token (from
+{\tt RBuffer}) is immediately relayed to the next station on the ring.
+The same happens to a data packet addressed to another station (after
+receiving a signal on the {\tt Pass} mailbox): the processing of such a packet
+is identical to passing the token.
+
+\end{document}

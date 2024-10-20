@@ -1,0 +1,16 @@
+Header length			256	bits
+ACK length			64	bits
+Min packet length		32	bits
+Max packet length		8192	bits
+
+Transmission rate		1	(ITU per bit)
+Sender timeout			512	(ITU; how much is this in seconds?)
+Recipient timeout		1024	(let's make it larger)
+Distance			24	(how much is this in meters?)
+
+Message length			1024	(fixed message length)
+Mean message interarrival time	4096	(what does it mean?)
+
+Fault rate			0.0001	(one bit per ten thousand)
+
+Message number limit		200000

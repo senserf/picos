@@ -1,0 +1,16 @@
+Time granularity            1000 ITUs/bit
+Clock tolerance           0.0001
+
+Number of columns              4
+Number of rows                 4
+Link length                 1000 bits
+
+Slot marker length                 8 bits
+Segment payload length           512 bits 
+Segment frame information         64 bits
+Segment window              512+64+2 bits
+
+Mean message interarrival time   2048 bits
+Mean message length              8192 bits
+
+Mesage number limit             16384

@@ -1,0 +1,16 @@
+      16  Regular stations
+
+      Link segment length = 20000 itus
+      Transmission rate   = 1000  itus/bit
+
+      Minimum packet length =   64 bits
+      Maximum packet length = 8192 bits
+      Header+trailer        =   96 bits
+
+
+      Mean message interarrival time  = 2500 etus (= bits)
+      Mean message length             = 1024 bits
+
+
+      Echo timeout                    = 20000+20000+96000+12000
+      Header recognition time         = 64000 (** 64 bits)

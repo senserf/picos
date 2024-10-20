@@ -1,0 +1,20 @@
+Number of stations           12
+Ring length in bits      100000
+
+Minimum payload length        8 bits
+Maximum payload length     4096 bits
+Frame                        96 bits
+Header                       64
+
+Sat packet length             8 bits
+Sat timeout            10000000 bits  (practically infinity)
+
+K                             2
+L                             2
+
+Buffer length              8384 bits
+
+Mean message interarrival time   4096 bits
+Mean message length              8192 bits
+
+Number of messages         8192

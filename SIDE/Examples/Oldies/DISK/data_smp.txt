@@ -1,0 +1,19 @@
+Total number of sectors  =       79200  ** (600 cyl * 11 tracks * 12 sectors)
+Sectors per track        =          12
+Sectors per cylinder     =         132  ** (12 * 11)
+Sector length            =        4096  ** (512 bytes * 8)
+Sector advance time      =    33554432  ** (picoseconds)
+Seek startup time        = 10000000000  ** (picoseconds = 0.01 sec)
+Seek brake time          = 10000000000  ** (picoseconds = 0.01 sec)
+Seek per cylinder        =    50000000
+
+Request description length   = 64 bits
+Response length              = 64 bits
+
+Channel length           =       30000  ** (picoseconds = 5m)
+
+
+Mean read interarrival time  = 0.05 sec
+Mean write interarrival time = 0.08 sec
+
+Simulated time limit         = 2000000000000 ** (ps = 2 sec)

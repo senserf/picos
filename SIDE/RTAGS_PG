@@ -1,0 +1,906 @@
+
+R060329B:  Interfrence thresholds: INTLOW/INTHIGH added for Transceivers.
+
+R060430A:  Lots of changes. Now we have something close to a decent version.
+           DSD tested with the new templates. So far, so good. Manual updated.
+
+R060430B:  Final fix of a few irrelevancies in REALTIME examples.
+
+R060709A:  Radio example redone and cleaned up a bit.
+
+R060803A:  Changed zz_wait to wait in all AIs, such that it is now legal to
+           invoke wait from methods (not only directly from the process code)
+           TheSignal and TheSender switched to be compatible with TheItem and
+           TheMailbox for mailboxes.
+           Barrier mailboxes introduced. The mailbox AI is getting messy a bit,
+           so I had to significantly redo the corresponding sections from the
+           manual to improve their legibility.
+           TheBarrier points to Info01 (as an int).
+
+R060806A:  Symbols __SIDE__ and __SMUPRH__ are now defined for every program
+           compiled and set to the version number (a string).
+	   Added pfmPDE/pfmMDE to detect packet/message deallocation.
+	   Destructing link activities made subtler to account for the fact that
+	   some activities are jams and, as such, should not have their "packet"
+	   destructors invoked upon deallocation.
+
+R060809A:  Introduced a variant of sleep (automatically selected by smpp) to be
+	   used in functions called from processes. This one uses longjmp
+	   instead of straighforward 'return'.
+	   Visualization mode added whereby the simulator tries to fit the
+	   advancement of virtual time to real time. Hey, we are beginning to
+	   arrive at something decent, aren't we?
+
+R060811A:  Added a virtual destructor to Process to make it possible to have
+	   subtype destructors - to clean up when processes are deallocated.
+	   Added a new AI: Monitor implementing simple global numerical
+	   signals a la PicOS.
+	   
+R060830B:  Added void delay (double etus, int state) to Timer. This is a
+	   shortcut for wait (etuToItu (etus), state).
+	   Added a 'touch' to mks to eliminate Cygwin's make complaints about
+	   clock skew.
+	   Added an XML parser implementing an alternative interface for
+	   reading input data (and possibly writing output results).
+	   Exception/assert functions redone to accept variable number of
+	   arguments, i.e., format + output items.
+	   Added parseNumbers to numio.cc.
+	   Constants SOL_VACUUM, SOL_COAX, SOL_COPPER, SOL_FIBER
+	   MemoryUsed finally eliminated. It was a relic from the days when
+	   SMURPH had its own memory allocator.
+	   Added setTolerance for Station, getTolerance (global + method)
+	   RFPing example working.
+
+ ==============================================================================
+
+R061014A:  First VUEE tree. At this point we discontinue the previous SIDE CVS
+	   repository (on sheerness) and start a new one on the Olsonet server.
+	   I am archiving the sheerness repository, and the older versions of
+	   SIDE will no longer be retrievable directly.
+
+R061021A:  When a process is killed, and its descendants list is nonempty, the
+	   descendants are moved to its parent process. Previously, it was
+	   illegal to kill a process with a non-empty list of decendants.
+	   A new event added to the Process AI: CHILD. This event is triggered
+	   whenever a child of the process terminates. Info01 and Info02 are
+	   then set to their values in the children, as for DEATH.
+
+	   There are no more zombies, i.e., processes that have been killed
+	   while somebody is waiting for them. Wait request that used to be
+	   queued at such processes are now moved to a special list.
+
+           Added terminate () as a Station method, which terminates all
+	   processes run (owned) by the station. This is intended as a prereq
+	   for reset.
+
+	   Added Boolean transmitting () to Port and Transceiver. The method
+	   returns YES, if the Port/Transmitter is currently emitting an
+	   activity.
+
+	   Note: manual still has to be updated.
+
+R061022A:  Improved deallocation of killed processes. Previously if a process
+	   wanted to take advantage of its destructor to deallocate its
+	   descendants, the outcome was different depending on whether the
+	   process was terminated "normally" (by regular terminate) or by
+	   reset (Station::terminate). In the latter case, the non-process
+	   descendants were deallocated by the system before the process's
+	   desctructor was able to run, which might cause errors. Now, the
+	   forced deallocation of descendants takes place after the process
+	   subtype desctructor has run, which should be always safe.
+
+R061030A:  Fixed lots of nonsense to make this thing compile (and hopefully
+	   run) under Linux, including x86_64. 
+
+R061121A:  Fixed a bug in double IHist::max (double, double) detected by Nick.
+
+R061122A:  Two more bugs found by Nick. Good work!!
+
+R061125A:  Corrections to the manual by Nick.
+
+R061216A:  A transient state declaration is now legal for the first state (and
+	   produces the same code as state). Macro 'trace' previously expanded
+	   by SMPP is now a function.
+
+R070119A:  Several changes and extensions inspired by VUEE:
+
+	   Mailboxes can now be destroyed (deleted) with processes waiting on
+	   them. Such processes are awakened regardless of the event. They can
+	   tell that the mailbox has been destroyed by looking at TheMailbox,
+	   which is then NULL. This is primarily useful for killing Internet
+	   mailboxes and closing their connections in a way that lets everybody
+	   perceive their correct status (with a bit of extra effort). While
+	   that was also possible previously (with disconnect (CLEAR)), the
+	   actual consistent deallocation of mailboxes did pose a bit of
+	   problem and was messy.
+
+	   Method outputPending added to (bound) Mailbox.
+
+	   Method resize added to (bound) Mailbox.
+
+	   readToSentinel sets info01 to YES if sentinel found.
+
+	   parseNumbers now reads ints and hexs (TYPE_int, TYPE_hex) + IVal.
+
+	   Operations on pools (doubly-linked lists of related objects) made
+	   generally available as pool_in, pool_out. This will not be
+	   documented.
+
+	   Operation create pushes TheStation on the stack. Previously
+	   create (S) T (...) was confusing as it would reset TheStation as
+	   a side effect.
+
+R070217A:  Version 2.90.
+
+	   Documentation and cleanups. Tested on 32-bit and 64-bit Linux
+	   systems, as well as (32-bit) Cygwin.
+
+R070325A:  Method queued added to Mailbox. Fixed a deallocation problem for
+	   queueing (typed) mailbox.
+
+R070331A:  Multiple include libraries are now possible (change to maker/mks).
+	   Models of radio channels and mobility (RWPMM) moved from VUEE/PICOS
+	   to Example/IncLib, as they are of more general use.
+	   Fixed a bug in radio.c causing corruption of neighborhood lists when
+	   transmitter power was increased.
+	   Operation trim_pool added. 
+	   Fixed a bug in numio.c causing incorrect conversion of HEX numbers
+	   by parseNumbers.
+	   Simplified syntax of pool_in (type argument removed).
+	   Fixed numio (readIn) to accept floating point numbers in the full
+	   notation.
+	   RFC_xmt added as an honorary assessment method. It determines the
+	   amount of time needed to transmit at packet. This way we avoid
+	   clumsy and confusing tricks with TLength (packet attributes), which
+	   is best left to mean what it is supposed to mean.
+
+R070402B:  Process method getOwner () documented (it was missing from the
+           manual). Added operation getproclist. A special sequence (!!), i.e.
+	   two consecutive exclamation marks, is detected by SMPP and removed
+	   from the source wherever it occurs. This is a way of adding some
+	   power to the concatenation mechanism of cpp macros - to allow
+	   concatenation of arbitrary token fragments. Quite handy.
+
+R070704A:  Operations 'transmit' and 'sendJam' converted from SMPP macros to
+	   regular methods to make it possible to use them from outside of 
+	   the process code method.
+	   Fixed a small bug in radio.cc: ACTIVITY/SILENCE was not rescheduled
+	   after start/end of own transmission.
+	   Options added to trace (global function settrace). It is also
+	   possible to diable trace from the program (manual updated).
+	   DCF module (rfmod_dcf.cc/rfmod_dcf.h) added to Examples/IncLib.
+
+R070718A:  Methods reassess an getPreambleTime added to Transceiver.
+	   Those assessment method for which it makes sense can now reference
+	   TheTransceiver and ThePacket to get hold of potentially useful
+	   "context" information.
+	   Template file name option changed to 'M'. Parameters of tracing
+	   redone: -t now controls exclusively the "user" trace operation,
+	   while -T applies to the state dumping available with -g. Also,
+	   settrace expanded to cover the timing parameters. Manual updated
+	   accordingly.
+
+R070825A:  Tracing redone again, well, not completely. Now, all -t, -T
+	   setting are always applied after the network has been built (which,
+	   arguably, removes some of the confusion). Flag 'q'/'s' added at the
+	   end of the tracing argument to indicate that simulation should stop
+	   at the end of tracing.
+	   Operation 'sameas state' added to process code method to work as
+	   a goto. In an observer, it behaves exactly as proceed. The handling
+	   of proceed in observers has been simplified (retaining all the
+	   original semantics).
+	   The settrace set completely redone. Multiple stations can now be
+	   traced.
+	   Fixed a bug in radio.cc: missing one initialization in TRansceiver,
+	   which was normally fine as malloc starts from zeroed out storage,
+	   but occasionally, with some memory deallocation at initialization,
+	   it would cause problems (permanent activity at the transceiver).
+	   The version is now 3.0 !!!!!
+
+R070828A:  To do: when station numbers are specified for trace, traces occurring
+	   in SYSTEM context are never listed. Is it a bug or a feature? OK,
+	   let us ignore this for a while. Note that some callbacks (possibly
+	   traced by the user), e.g., channel assessment methods may run in
+	   the context of System (station -1). If they are traced, the trace
+	   will not show up unless ALL stations are traced.
+	   Directional example redone, new example: GreedyDir created in
+	   Examples/WIRELESS.
+	   Function dist (inline) added to global.h, angles.h added to IncLib.
+	
+R070830B:  Option -G added to mks. It acts exactly as -g, but the signal
+	   handlers for SIGSEGV and so on are disabled. Under Cygwin (at least),
+	   this helps to properly catch and diagnose those errors with GDB.
+	   A few fixes for time precision > 2 (for some strange reason, a few
+	   functions in mparithm caused compilation errors. Not that time
+	   precision > 2 is extremely important these days (I don't recall
+	   when it was last tested).
+	   Fixed a nasty memory allocation bug in nei_xtd (radio.cc) showing
+	   up when the xmit power was increased and new nodes were thereby
+	   included in the neighborhood.
+
+R070904A:  Ethernet example slightly modfified for the purpose of CMPUT 642.
+
+R070927A:  -G now forces excptn to abort with SIGSEGV - to make sure that all
+	   errors (including violations of internal assertions) are caught by
+	   gdb (so you can see from there where exactly the problem occured).
+	   Packet cleaners added to Link and RFChannel.
+	   Macro MONITOR_LOCAL_EVENT added as a tool to declare station-
+	   differentiated Monitor events.
+	   Method getXTime method added to Transceiver.
+	   Global function unwait cancels the wait requests issued so far from
+	   the current process.
+	   Two new Station methods: getMQBits and getMQSize.
+	   Manual updated.
+
+R071001A:  Added a new example (WIRELESS/SimpleRoaming) to be used in a
+	   CMPUT642 project. A minor clarification in the manual
+
+R071005A:  Yet another example (WIRELES/Easy) for CMPUT642. Incorporated Nick's
+           fix of a cast in mailbox.c, which was frowned upon by gcc 4.1.0 on
+	   his MAC.
+
+R071028A:  Added "abstract" as a type qualifier (alternative to "virtual"). An
+	   "abstract" type may specify abstract methods and cannot be create'd.
+	   Fixed a bug in Examples/IncLib/rfmod_dcf.h: the CP attribute of
+	   Xmitter was not initialized.
+
+R071211A:  Method throughput () added to Traffic and Client. It returns ... well
+	   ... the current throughput.
+	   Fixed a bug in IncLib/rfmod_raw.h.
+	   Fixed a (more serious) bug in mailbox.c causing occasional
+	   initialization problems when the malloc'ed area for a mailbox was
+	   not zeroed out.
+
+R080229A:  Cosmetics needed to eliminate compilation problems with gcc 4.1.2.
+	   Apparently "friend" declaration doesn't count as announcement any
+	   more.
+
+R080412A:  The type of genSND changed to Long, as it should be.
+	   Fixed a minor (-t) confusion in bad_arguments message.
+	   Fixed a few memory allocation glitches, mostly harmless, diagnosed
+	   by valgrind.
+	   Fixed a bug causing references to a deallocated AI (mostly harmless)
+	   when the process responsible for triggering a signal or DEATH event
+	   was terminated before the event was presented. Now, in such cases,
+	   the triggerring AI is assumed to be Kernel.
+
+R080415B:  Fixed a memory leak in radio.cc caused by wrong deallocation of
+	   RF_ACTIVITY objects. Any more memory leaks?
+
+R080501A:  Ignored SIGPIPE signals causing occasional problems on UNIX systems.
+
+R080714B:  Reduced SOCKCHKINT to speed up socket (Mailbox) processing under
+	   Cygwin (where select doesn't work).
+	   When compiled with ZZ_REA or ZZ_RSY (like in VUEE), proceed makes
+	   sure that no other events are awaited. This is consistent with PicOS.
+	   Assessment methods for RFChannel have been redone. The idea is to
+	   extend the role of Tags and make it easier to program tricky things
+	   like multiple channels (with nonzero crosstalk) and different
+	   transmission rates (with different propagation properties).
+	   The type of Tags is now moved to a separate file (rftagtype.h) in
+	   SOURCES/KERNEL, so it can be easily changed if desired.
+	   SIDE now compiles without warnings with g++ 4.2.3.
+	   Version changed to 3.2, manual updated.
+
+R080904A:  Fixed a bug in zz_print_debug_info (process.cc) introduced with
+	   R080714B causing compilation errors with -g/-G.
+	   
+	   Zipf random number generator included (see the manual).
+
+R081110A:  Cosmetics required to appease the new compiler under Linux, which
+	   these days complains about ridiculous things.
+
+R090317A:  Fixed a minor bug in process.cc causing compilation errors in with
+	   -p.
+	   Added examples to Examples/REALTIME illustrating how to drive UARTs
+	   asynchronously via mailboxes.
+
+R090517A:  Fixed a bug in Examples/WIRELESS/Easy.
+
+R090601A:  Function parseNumbers improved to recognize and properly handle hex
+	   prefixes (0x or 0X) in all integer numbers.
+
+R090809A:  Fixed a minor bug in the RSY mode causing that the wall clock was
+	   not set properly on startup.
+
+	   Added the file include capability (a trivial subset of xi:include)
+	   to sxml_parse_input in numio.c.
+
+R090825A:  Added a few lines on the iHist (Transceiver) method to the manual
+	   (which turned out to be unintentionally undocumented).
+
+R091212A:  Added getTypeId () to Process (needed for the new version of VUEE).
+	   The type of first argument to Mailbox->wait changed to IPointer
+	   (from Long); this way we can wait on barrier mailboxes for pointers,
+	   which will make a difference on 64-bit machines. There is new
+	   Process method: nwait returns the number of events the process is
+	   waiting for (was needed for VUEE and may be generally useful).
+
+R100123A:  The special name of mks (to select VUEE options) changed to anything
+	   starting from "vue". Previously, that name had to be either vuee or
+	   vue2 (exactly).
+
+	   Cosmetics in LIB/sxml.c and MONITOR/monpol.cc to shut up the
+	   compiler, which becomes more and more obsessive (and annoying) with
+	   every new version.
+
+	   Added station methods setLocation and getLocation.
+
+	   The Transceiver variant of startTransfer returns the transceiver
+	   pointer in Info2. This is different from the Port variant and may
+	   be useful for RFC_xmt.
+
+	   RFC_att simplified by removing the last argument (dst) which is
+	   available via TheTransceiver. For RFC_xmt, TheTransceiver points
+	   to the sending transceiver.
+
+	   Version bumped to 3.2
+
+R100226A:  Fixed a minor problem in Examples/IncLib/wchan.cc diagnosed by
+	   valgrind; not really an error.
+
+	   Fixed a typo in the manual.
+
+R100609A:  Modified mks to allow for (possibly multiple) arguments of the form:
+	   '-I path' specifying extra include directories (libraries), in
+	   addition to those declared with maker. Also, when mks is invoked as
+	   vue..., it checks the environment variable VUEEPATH and, if defined,
+	   uses its value as the first extra include library (searched after
+	   the ones specified with maker and before those specified with -I).
+
+	   mks/vuee with -Q returns version number + endianness (for picomp)
+	   and quits.
+
+	   The vuee part of mks is not documented in the manual, should it be?
+
+R100627A:  Created (test) git repo:
+		[remote "unfuddle"]
+			url = git@pawel.unfuddle.com:pawel/side.git
+			fetch = +refs/heads/*:refs/remotes/unfuddle/*
+
+
+R100627B:  Another git test (after clone from the central repo).
+
+R100629A:  Fixed file permissions (using permissions from PICOS/Scripts).
+
+PG100705A:
+
+	   Introduced a new internal type U_Long to be the unsigned counterpart
+	   of Long, as with LONG and U_LONG.
+
+PG100706A:
+
+	   RTAGS file introduced, added scripts deploy and cleanup. Read PICOS
+	   RTAGS (PG100706A).
+
+PG100719A:
+
+	   Fixed a nasty bug in setXPower causing occasional heap screwups
+	   when the transmitter power was reduced.
+
+PG110919A:
+
+	   A semantically irrelevant correction in SOURCES/LIB/sxml.c needed
+	   to appease the new version (4.5.3) of gcc. SIDE didn't want to
+	   "deploy" after I upgraded my Cygwin setup.
+
+PG111106A:
+
+	   If you use "+" for the output file when invoking the simulator, the
+	   output data will go to standard error. This is a more foolproof way
+	   to enforce flush on every write than when writing to standard output
+	   (at least on Cygwin).
+
+	   This fix is required for PIP.
+
+PG120413A:
+
+	   Added a new execution option, -e, to make it illegal to terminate a
+	   process by failing to issue at least one wait request in a state.
+	   This is useful for VUEE.
+
+	   In my attempt to revive DSD under Windows 7, I installed a JDK (from
+	   Oracle) on my laptop, but when I tried to start the DSD applet, it
+	   complained about the inadequate permissions to connect to a local
+	   socket. The security/stupidity histeria about Java has forced me to
+	   spend two hours figuring out how to connect from a locally executed
+	   applet to a localhost socket. For that, you need to modify socket
+	   permissions in some obscure file (in my case it was
+	   "Program Files/Java/jdk.../jre/lib/security/java.policy). I have
+	   added a note in README.txt in the DSD directory, as well as a copy
+	   of my java.policy file, in case somebody ever wants to do it again.
+
+PG120605A:	PICOS >= PG120605B, PIP >= PG120605A, VUEE >= PG12060A
+
+	   PICOS deploy now passes the RTAG number (like PG120605A) to maker,
+	   which puts it into version.h. When called with -V, mks/vuee prints
+	   the version number and exits.
+
+PG120626A:
+
+	   Nick's fix of a couple of typos: Nicholas Boers <boersn@macewan.ca>.
+
+PG120814A:
+
+	   Function sxml_parse_input now accepts an (optional) second argument
+	   which can be used to return (and store) the pre-parsed XML data set
+	   as a NULL-terminated string with all the includes resolved. This is
+	   going to be useful for VUEE: the simulator will be able to save the
+	   data set and later convey it to an agent (e.g., udaemon).
+
+PG120917A:	PIP >= PG120917A, VUEE >= PG120917A
+
+	   Fixed the handling of zero resync interval in the RSY mode (the
+	   problem was signaled by Nick). Now, with this kind of setting, the
+	   model should execute correctly, at full simulation speed, without
+	   re-synchronizing itself to real time.
+
+	   It is now possible to pass program call arguments to the model. Any
+	   call arguments following -- are made available to the model via:
+
+		int PCArgc;
+		const char **PCArgv;
+
+	   in the same way as the standard arguments of main.
+	   
+PG121113A:
+
+	   A small adjustment to sxml_parse_input which is now a bit safer and
+	   more general.
+	   
+PG130122A:	VUEE >= PG130122A
+
+           A few rather painful modifications constituting a prerequisite for
+	   the sample-driven RF channel model. While the modifications were not
+	   absolutely necessary, they do help a bit to structure the model and
+	   make its components more independent.
+	   
+	   The primary reason for the pain was the need to introduce similar
+	   modifications to the Link-Port interface, for consistency and
+	   overall neatness. Then I had to update the document.
+	   
+	   The essence of the modifications is to provide defaults for some of
+	   the essential attributes of Transceivers (and Ports) in RFChannels
+	   (and Links). That allows us to set those parameters conveniently in
+	   the RFChannel/Link setup method, thus absolving the caller from the
+	   need to fix them outside the setup method in a way that would have
+	   to assume a specific RFChannel/Link type. Don't worry if you don't
+	   get it. I barely get it myself.
+	   
+	   Version number bumped a bit.
+
+PG130123A:
+
+	   One more change intended to facilitate the new channel model (or
+	   rather VUEE in general). Each of the types DISTANCE, RATE, BITCOUNT
+	   can now be additionally equivalenced to Long, i.e., a simple int.
+	   Especially DISTANCE in VUEE tends to be small enough to fit into
+	   Long, which will simplify gridding for the new channel model. The
+	   vuee variant of mks now selects the Long option for DISTANCE, which
+	   is "-d l". This will also speed up a few things a tiny bit, but you
+	   probably won't notice.
+
+PG130211A:	PICOS >= PG130211A, VUEE >= PG130211A
+
+	   A new "sampled" RF channel model added to the library:
+
+	   - wchansd.h and wchansd.cc added to IncLib
+	   - cleanups and reorganization of the generic channel model
+	   - data library directories (for included XML snippets)
+	   - documentation update
+
+PG130214A:	PICOS >= PG130214A, VUEE >= PG130214A
+
+	   For the "sampled" channel model, you can now define sigma on a
+	   per-distance basis. This is described in the VUEE doc.
+
+PG130222A:
+
+	   Wlodek discovered that the compiler couldn't find the declaration
+	   of function getline on an older version of Cygwin. This should fix
+	   it.
+
+PG130319A:
+
+	   Fixed a bug in the sampled channel model which caused incorrect
+	   averaging of "perfect hits".
+
+	   The exponential weights have been made scale-invariant by being
+	   based on distance ratio to average distance, rather than on absolute
+	   distance expressed in DU (as before). This changes the
+	   interpretation of the averaging factor (in a nutshell, larger values
+	   are now recommended, something of order 1 or bigger).
+
+PG130725A:
+
+	   Fixed a bug in the simulation mode detected by Nick. The bypass in
+	   advance_real_time wouldn't check if the next event had finite time,
+	   so it didn't account for external events. I am not quite sure what
+	   to do in such cases (some models may want to treat them as errors).
+	   For now, we loop with usleep until something shows up.
+
+	   While at it, I have also improved getEffectiveTimeOfDay to make
+	   sure that long deltas will be handled properly. In the simulation
+	   mode, the time of day is calculated as the (virtual) simulated time
+	   in seconds + the real start time of the simulation.
+
+PG131015A:
+
+	   The header file <unistd.h> is now included (in LIB/lib.h) to appease
+	   the newest gcc compiler.
+
+PG131030A:
+
+	   Added the neutrino channel model (wchannt.cc, wchannt.h) to IncLib.
+
+PG131031A:
+
+	   Admitting preamble length zero (may be useful in combination with
+	   the neutrino channel model). Previously, preamble length had to be
+	   at least 1. I see no reason why it cannot be zero (as long as the
+	   assessment methods can live with it).
+
+PG131205A:
+
+	   Pretty much irrelevant cosmetics:
+
+	   1. Provided for rate separation for neutrino channel model.
+
+	   2. Removed the monitor connection attempt for VUEE, which is
+	      pretty much useless (at least has been so so far).
+
+PG140118A:	VUEE >= PG140121A
+
+	   Added "no linger" (SO_LINGER 1 0) option to all mailbox sockets to
+	   make sure that sockets closed abnormally ... well ... do not linger.
+
+	   I noticed (a bit later) that the no linger setting for a DATA
+	   connection to VUEE would make it impossible to retrieve the data
+	   set by udaemon, if the connection was non-local. To fix that, I
+	   first tried to relax the no linger option to a short linger, but it
+	   didn't seem to work, i.e., no matter how short the linger delay I
+	   specified, it always turned out as long as before (a minute or so).
+	   So instead I decided to emulate a short linger in the application
+	   (i.e., VUEE) leaving the no linger option on in SIDE. The problem
+	   concerned that one request only (DATA) where VUEE would write the
+	   data set to the socket and immediately close it. In all remaining
+	   requests, the idea to close the connection (explicit or implicit)
+	   always originates in the client, which makes it compatible with no
+	   linger on the server's side.
+
+PG140119A:
+
+	   Added a new simulator call argument. With -b, the simulator is run
+	   in the background in a detached state (as a daemon). When -b is
+	   followed by 0, e.g.,
+
+		side -b 0 datafile outfile
+
+	   all three standard streams are additionally directed to /dev/null.
+	   Thus, in particular, if the output file is not specified, as in:
+
+		side -b 0 datafile
+
+	   the program's output will be disabled and lost.
+
+PG140121A:
+
+	   I have thrown in SO_KEEPALIVE to the socket options, in addition to
+	   SO_LINGER (see PG140118A). For a UART connection to VUEE, the option
+	   will make sure to eventually kill a hung socket resulting from a
+	   disappeared client (e.g., after reboot, unplugging, broken Internet
+	   connection).
+
+PG140323A:
+
+	   Added a couple of exotic signals (defined in Cygwin, like SIGABRT and
+	   SIGEMT) to catch all (or at least more) cases of "segmentation
+	   violation", i.e., illegal memory references.
+
+PG141128A:
+
+	   A few cosmetics inspired by the need to prepare SMURPH for my course
+	   at AFiB.
+
+PG150325A:
+
+	   Fixed sxml_name to never return NULL to appease the newest version
+	   of g++.
+
+PG160124A:
+
+	   Modifications to the channel models to accommodate the 3d option of
+	   VUEE.
+
+PG160128A:
+
+	   Added an option to deploy a partially precompiled version of SIDE,
+	   with the KERNEL sources excluded, to be used solely for VUEE. This
+	   may be useful for creating giveaway packages.
+
+PG160323A:
+
+	   After updating the gcc/g++ suite under my Cygwin, the SMUPRH compiler
+	   started to generate weird compilation errors which, on closer
+	   scrutiny, turned out to result from new preprocessor directives that
+	   would split some SMURPH constructs. I think I have fixed this.
+
+	   Plus a few irrelevant cosmetics.
+
+PG160704A:	PICOS >= PG160704A, SIDE >= PG160704A
+
+	   The sampled channel model simplified and redone (as per VUEE doc).
+
+PG161001A:
+
+	   I have added -fno-strict-aliasing to the options of g++ when
+	   compiling the simulator. This is to make sure that enforcing strict
+	   aliasing by default in the newer versions of the compiler will not
+	   affect the correctness of code.
+
+PG161002A:
+
+	   This corrects the fix from PG160323A. Some compilation errors were
+	   tagged with incorrect line numbers and file names. I hope I've got
+	   it right this time.
+
+	   A few cosmetics in smpp.
+
+PG170131A:
+
+	   This basically relates to the upgrade of the Aloha model for my
+	   course at Vistula, but there have been a few cosmetics as well,
+	   including changes in the manual.
+
+PG171029A:	VUEE >= PG171029A
+
+	   I have resucitated the DSD applet (and the other applets in
+	   Examples/REALTIME. Not sure why. Probably to show it to my students
+	   at Vistula ;-). To make sense out if it, I would have to rewrite the
+	   applet in Tcl/Tk. These days Java is way less attractive for this
+	   kind of interface than it seemed to me 24 years ago.
+
+	   A few cosmetic changes introduced along the way. For example, I have
+	   overloaded signal (for Process and Monitor) to accept integer
+	   arguments (properly casting them to void*). The problem was that
+	   on 64-bit machines (practically all of them these days), a simple
+	   cast, as in: signal ((void*)a), and the other way: (int)b [where b
+	   is void*] triggers errors, because precision is lost. Not sure if it
+	   is much better now, because, e.g., signal (NULL) triggers copmiler
+  	   complaints about ambiguities [but signal (0) is fine].
+
+PG171231A:
+
+	   A few more cosmetics and irrelevancies:
+
+		- the Alternating Bit example rewritten to make more sense
+		- removed the completely defunct Bulb example from REALTIME
+		- added a PID (as in PID controller) example to REALTIME
+		- added a CarWash example
+
+PG180207A:
+
+	   Added a second Tag attribute for Transceiver, so now we have XTag
+	   (the transmit tag) and RTag (the receive tag). This has been done
+	   in a backward-compatible way, so the old channel models work fine.
+
+	   The Aloha model (Examples/WIRELESS/Aloha) completely redone.
+
+	   A few cosmetics here and there.
+
+PG180314A:
+
+	   Renamed startTransfer to startTransmit, which seems to make somewhat
+	   better sense.
+
+	   A few irrelevant cleanups. Brought the manual up to date.
+
+PG180325A:
+
+	   Fixed a bug in radio.cc (in Transceiver::dead). Apparently, the
+	   method has not been used until today, because the bug was rather
+	   painfully obvious.
+
+PG180401A:
+
+	   Added a small feature whereby it is possible to extend the linger
+	   time for an activity leaving an RFChannel from 1 ITU to any
+	   specified amount. This is accomplished by one extra optional
+	   argument of the RFChannel setup method. Added a similar attribute
+	   (plus setup argument) to (wired) Link for symmetry. The way the
+	   feature is occasionally useful in a wireless link, it may also be
+	   useful in a wired one.
+
+	   I haven't documented this feature yet in the manual, because:
+
+	   1. I am not 100% sure if it will stay in its present form
+
+	   2. I am planning to scrap the manual and replace it with the new
+	      (hopefully friendlier) version, which I am working on in the
+	      background
+
+PG180421A:
+
+	   On second thought I removed the linger feature from wired links
+	   (added in the previous commit), because it was basically covered by
+	   the so-called link archive. I have settled for rearranging the setup
+	   arguments for wired links a bit, so, from that angle, it looks like
+	   the same thing as the linger feature for a wireless channel.
+
+	   A few more cosmetics partially inspired by our little project with
+	   Niels, and partially by the new document that I've been working on
+	   (which, every once in a while, forces me to re-think this or that). 
+
+	   Fixed (or so I hope) a bug in calculating integrated interference
+	   over a received packet fragment.
+
+	   I am not updating the old manual, because it will be replaced
+	   (hopefully soon).
+
+PG180426A:
+
+	   I have replaced the old manual with a new version that I wrote
+	   recently (and still keep working on in my spare time). While the
+	   new manual (aka the book) is not complete yet (and hasn't even been
+	   proofread), it looks decent enough to me to do as a replacement for
+	   the old manual, especially that the latter has not been updated for
+	   a while (and, generally, has not been considered very friendly).
+
+PG180504A:	VUEE >= PG180504A
+
+	   Fixed a bug causing that quick wireless channel switching (as at
+	   slot boundaries in Niels's DECT model) would not trigger the proper
+	   reassessment of interfering signals from other channels falling into
+	   the same slot. In simple words, interference was not calculated
+	   correctly. Well, SMURPH has never before been exposed to the kind of
+	   channel switching dynamics that we exercise in the DECT model.
+
+	   SIR values in the sir-to-ber array in the generic wchan.h/wchan.cc
+	   model are now specified in dB, rather than linearly. This is for
+	   consistency: I want to make sure that all "user" data related to
+	   signals is specified in the logarithmic domain. Note that this
+	   requires an update in VUEE, so the new version of SMURPH is not
+	   compatible with old VUEE. BTW: this also means that new SMURPH is
+	   not compatible with the previous DECT model. The new DECT model is
+	   coming up. Stay tuned, Niels!
+
+	   Added the getOwner method to Transceiver, so the identity of the
+	   owning station of a Transceiver can be made public.
+
+	   A few cosmetics here and there.
+
+PG180519A:
+
+	   A few (probably irrelevant) cleanups + partially proofread manual.
+
+PG180601A:
+
+	   I have changed the signature of RFC_xmt, one of the so-called
+	   assessment methods, to base its operation of the (full) packet,
+	   rather than just the length. This makes more sense, because, in
+	   some advanced models, different components of the same packet can
+	   be sent using different encodings (rates).
+
+	   A new version of the manual (aka the book). Enjoy the index!
+
+PG180611A:
+
+	   I have extended the concept of clock tolerance, so far aimed at
+	   merely "randomizing" the indications of independent clocks, by an
+	   explicit drift parameter (introducing a pronounced, one-way drift).
+	   Thus, the drift mechanism is now built into the SMURPH Timer.
+
+	   Updated the manual (aka the book).
+
+PG181104A:
+
+	   Removed the binary lib for Cygwin (the "binaries-only" setup) which
+	   was obsolete and rather obviously useless.
+
+	   Slightly extended the random way point mobility model by including
+	   the options to move around a rectangle and through its diagonals.
+	   This way the distance/range covered by the movement can be made
+	   deterministic.
+
+PG181227A:
+
+	   SMURPH has gone GNU PL V3. This is in preparation for the print of
+	   my new book on SMURPH (by Springer).
+
+	   - I have added the standard GNU PL V3 copyright notice to all
+	     relevant files. Needless to say, this has been done by a script.
+
+	   - Updated the book files. Note: those files will be removed when
+	     SMURPH is turned into a version to be put on Springer servers.
+	     In other words, the present version is not official.
+
+	   No other changes.
+
+PG190112A:
+
+	   Cosmetics: renamed TRate to XRate for compatibility with stuff like
+	   XPower, XTag, etc. Brought the old manual up to date and renamed
+	   some directories. I want to keep the manual up to date, even though
+	   it sucks, because the book will be removed from the package at some
+	   point, and it makes sense to have some authoritative documentation
+	   included.
+
+PG190129A:
+
+	   Just a few cosmetics.
+
+PG190301A:	PICOS >= PG190301A
+
+	   Improved mks.cc to correctly recognize dependencies on included
+	   header files. Removed the old (now unnecessary) hack helping
+	   picomp to recognize machine endianness.
+
+	   A few cleanups related to the book.
+
+PG200109A:
+
+	   A few irrelevant cosmetics + the book, just bringing it up to date.
+
+PG200509A:
+
+	   Added the noreturn attribute to abort functions, so new gcc doesn't
+	   complain about no-value returns.
+
+PG200913A:
+
+	   A few more cosmetics to appease the compiler (which becomes smarter
+	   every day ;-). Fixed a bug in Examples/IncLib/wchanshs.cc (missing
+	   RFC_add which cannot default anymore).
+
+PG200926A:
+
+	   Added a function to set the priority of system events when the
+	   model is compiled with -p. Added a tweak to force the propagation
+	   time to be zero (regardless of the formal distance). Added an option
+	   to mks to pass arguments directly to gcc/g++.
+
+PG201004A:
+
+	   Fixed smpp to allow proceed and skipto in functions, and to allow
+	   expressions as state identifiers. Added a generic "plant" model to
+	   the library for builiding plant models illustrating PID controllers.
+	   Updates to the (big) manual (aka the book). Updated the copyright
+	   notice.
+
+PG210804A:
+
+	   I had to remove a few "register" specifications for variables from
+	   those ancient times when they would make a difference. Modern
+	   compilers do not seem to appreciate them.
+
+PG220324A:
+
+	   Fixed a compilation glitch in mparithm.cc involving btoa. The new
+	   compiler doesn't like multiple default assignments of function
+	   arguments.
+
+PG231121A:
+
+	   Fixed sxml_handle_includes to search for files with relative paths
+	   (also) relative to the directory of the including file.
+
+PG231213A:
+
+	   Put back polling for socket I/O, instead of relying on select, in
+	   the Cygwin version. This eliminates spinning on the event loop in
+	   the real-time mode. It seems that select still doesn't work properly
+	   under Cygwin (or maybe there is something I don't know).
+
+	   Fixed a nasty bug in wchansd.cc causing that incorrect value of the
+	   y coordinate was used when calculating distance-based attenuation in
+	   the 3-d variant.
+
+PG240421A:
+
+	   Cooked option for samples in the sampled channel model (wchansd.cc).
+
+PG240621A:
+
+	setBN added to RadioChannel to set/modify the background noise level.
+	-s added to mks to compile statically-linked executable of the siulator.
+

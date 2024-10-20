@@ -1,0 +1,96 @@
+#!/bin/sh
+#
+#	Copyright 1995-2020 Pawel Gburzynski
+#
+#	This file is part of SMURPH/SIDE.
+#
+#	SMURPH/SIDE is free software: you can redistribute it and/or modify
+#	it under the terms of the GNU General Public License as published by
+#	the Free Software Foundation, either version 3 of the License, or
+#	(at your option) any later version.
+#	SMURPH/SIDE is distributed in the hope that it will be useful,
+#	but WITHOUT ANY WARRANTY; without even the implied warranty of
+#	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#	GNU General Public License for more details.
+#
+#	You should have received a copy of the GNU General Public License
+#	along with SMURPH/SIDE. If not, see <https://www.gnu.org/licenses/>.
+#
+###################\
+exec tclsh "$0" "$@"
+
+#
+# This script is invoked by the upper-level PICOS deploy script to install
+# SMURPH/SIDE as part of the PICOS platform
+#
+# You can also use it to install SMURPH with default parameters (if you have
+# Tcl installed) by simply executing:
+#
+#	./deploy
+#
+#
+
+if [catch { exec uname } Stat(S)] {
+	set Stat(S) "W"
+} elseif [regexp -nocase "linux" $Stat(S)] {
+	set Stat(S) "L"
+} elseif [regexp -nocase "cygwin" $Stat(S)] {
+	set Stat(S) "C"
+} else {
+	set Stat(S) "W"
+}
+
+# arguments: private bin directory + path to container directory + rtag
+set bin [lindex $argv 0]
+set vpa [lindex $argv 1]
+set rta [lindex $argv 2]
+
+proc abt { msg } {
+	puts stderr $msg
+	exit 1
+}
+
+if { $bin == "" } {
+	# determine one that is actually present
+	if ![info exists env(HOME)] {
+		abt "cannot locate home directory!"
+	}
+	if [file exists [file join $env(HOME) "bin"]] {
+		set bin "bin"
+	} elseif [file exists [file join $env(HOME) "BIN"]] {
+		set bin "BIN"
+	} else {
+		abt "neither 'bin' not 'BIN' exists in HOME"
+	}
+}
+
+if { $rta == "" } {
+	set rta "0"
+}
+
+puts "Compiling maker, bin=$bin, container=$vpa, rtag=$rta ..."
+
+cd SOURCES
+
+exec g++ -o maker maker.cc
+
+if { $Stat(S) != "L" } {
+	# Cygwin/Windows
+	set exf "maker.exe"
+} else {
+	set exf "maker"
+}
+
+exec strip $exf
+
+puts "Running maker for mks ..."
+set out [exec [auto_execok ./maker] -b -r $rta << \
+	"none\n\n\n25\n\n\nlocalhost\n4442\nmks\n$bin\ny\nn\n\n\n"]
+puts $out
+
+if { $vpa != "" } {
+	# use this as a flag that we are invoked for PICOS/VUEE
+	puts "Running maker for vuee ..."
+	set out [exec [auto_execok ./maker] -b -r $rta << "none\n\n\n25\n$vpa/VUEE/PICOS\n\n$vpa/PICOS/Apps/DataLib\n\nlocalhost\n4442\nvuee\n$bin\ny\nn\n\n\n"]
+	puts $out
+}

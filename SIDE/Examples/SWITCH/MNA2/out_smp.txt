@@ -1,0 +1,116 @@
+SMURPH Version 3.3-AA      MNA: Manhattan-street    Sun Apr  1 23:00:45 2018
+Call arguments: data_smp.txt junk.txt
+
+Traffic parameters
+
+UTraffic 0:
+
+MIT distribution:      EXPONENTIAL (Mean = 2.05e+03)
+MLE distribution:      EXPONENTIAL (Mean = 8.19e+03)
+Standard Client is:    ON
+Standard measures are: ON
+
+Communication group #000 (density       16)
+
+Senders:      16
+
+(    0        1)   (    2        1)   (    4        1)   (    6        1)   
+(   16        1)   (   18        1)   (   20        1)   (   22        1)   
+(   32        1)   (   34        1)   (   36        1)   (   38        1)   
+(   48        1)   (   50        1)   (   52        1)   (   54        1)   
+
+Receivers:    16
+
+(    0        1)   (    2        1)   (    4        1)   (    6        1)   
+(   16        1)   (   18        1)   (   20        1)   (   22        1)   
+(   32        1)   (   34        1)   (   36        1)   (   38        1)   
+(   48        1)   (   50        1)   (   52        1)   (   54        1)   
+
+(UTraffic 0) End of list
+
+(Client) End of list
+
+Time: 34086172581 [34086172.581000] (Client) Global performance measures:
+
+AMD - Absolute message delay:
+
+      Number of samples:              16384
+      Minimum value:               2800.965
+      Maximum value:             507437.278
+      Mean value:               35841.98739
+      Variance:                  1545716487
+      Standard deviation:       39315.60107
+      Confidence int @95%:    0.01679650558
+      Confidence int @99%:    0.02206683769
+
+APD - Absolute packet delay:
+
+      Number of samples:             339429
+      Minimum value:                2800.96
+      Maximum value:             230967.038
+      Mean value:               14333.71972
+      Variance:                 142008134.7
+      Standard deviation:       11916.71661
+      Confidence int @95%:   0.002796915222
+      Confidence int @99%:   0.003674518722
+
+WMD - Weighted message delay:
+
+      Number of samples:          132530160
+      Minimum value:               2800.964
+      Maximum value:             541931.514
+      Mean value:                36610.5738
+      Variance:                  1506193539
+      Standard deviation:       38809.70934
+      Confidence int @95%:  0.0001804814472
+      Confidence int @99%:  0.0002371121054
+
+MAT - Message access time:
+
+      Number of samples:              16393
+      Minimum value:                399.962
+      Maximum value:             496234.278
+      Mean value:               23709.81847
+      Variance:                  1333456878
+      Standard deviation:       36516.52883
+      Confidence int @95%:    0.02357697651
+      Confidence int @99%:    0.03097485435
+
+PAT - Packet access time:
+
+      Number of samples:             339585
+      Minimum value:                 399.96
+      Maximum value:              58409.173
+      Mean value:               1162.892807
+      Variance:                 2313350.116
+      Standard deviation:       1520.970123
+      Confidence int @95%:   0.004399089736
+      Confidence int @99%:   0.005779416362
+
+MLS - Message length distribution:
+
+      Number of samples:              16403
+      Minimum value:                      8
+      Maximum value:                  79560
+      Mean value:               8085.780406
+      Variance:                 64353043.71
+      Standard deviation:       8022.034886
+      Confidence int @95%:    0.01518298044
+      Confidence int @99%:    0.01994702788
+
+    Number of generated messages:             16403
+    Number of queued messages:                   10
+    Number of transmitted messages:           16393
+    Number of received messages:              16384
+    Number of transmitted packets:           339585
+    Number of received packets:              339429
+    Number of queued bits:                    40528
+    Number of transmitted bits:           132590528
+    Number of received bits:              132530160
+    Measurement start time:                       0
+    Throughput:                         3.888091562
+
+(Client) End of list
+
+
+@@@ End of output

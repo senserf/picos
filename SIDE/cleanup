@@ -1,0 +1,57 @@
+#!/bin/sh
+#
+#	Copyright 1995-2020 Pawel Gburzynski
+#
+#	This file is part of SMURPH/SIDE.
+#
+#	SMURPH/SIDE is free software: you can redistribute it and/or modify
+#	it under the terms of the GNU General Public License as published by
+#	the Free Software Foundation, either version 3 of the License, or
+#	(at your option) any later version.
+#	SMURPH/SIDE is distributed in the hope that it will be useful,
+#	but WITHOUT ANY WARRANTY; without even the implied warranty of
+#	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#	GNU General Public License for more details.
+#
+#	You should have received a copy of the GNU General Public License
+#	along with SMURPH/SIDE. If not, see <https://www.gnu.org/licenses/>.
+#
+
+cd Examples
+find . -regex ".*\.o" -exec rm -f '{}' \;
+find . -name "side" -exec rm -f '{}' \;
+find . -name "side.exe" -exec rm -f '{}' \;
+find . -name "side.sgn" -exec rm -f '{}' \;
+find . -regex ".*junk.*" -exec rm -f '{}' \;
+find . -regex ".*stackdump.*" -exec rm -f '{}' \;
+cd ..
+
+rm -rf LIB/L* LIB/l*
+touch LIB/liblock
+
+cd MANUAL
+rm -rf *.aux *.dvi *.log *.ps *.toc
+cd SIDE
+rm -rf *.aux *.dvi *.log *.ps *.toc
+cd ..
+cd SMURPH
+rm -rf *.aux *.dvi *.log *.ps *.toc
+cd ..
+cd ..
+
+cd SOURCES
+find . -regex ".*\.o" -exec rm -f '{}' \;
+cd LIB
+rm -rf libtcpip.a libsxml.a
+cd ..
+cd SMPP
+rm -rf smpp smpp.exe
+cd ..
+cd MONITOR
+rm -rf monitor monitor.exe
+cd ..
+cd NWEB
+rm -rf nweb24 nweb24.exe
+cd ..
+rm -rf maker maker.exe
+cd ..

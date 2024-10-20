@@ -1,0 +1,11 @@
+Time granularity             1000   ITUs/bit
+
+Number of stations           12
+Ring length in bits          10000
+
+TTRT                         10000+65536
+
+Mean message interarrival time   8192 bits
+Mean message length              4096 bits
+
+Number of messages         8192

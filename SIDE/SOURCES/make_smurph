@@ -1,0 +1,49 @@
+#!/bin/sh
+#
+#	Copyright 1995-2020 Pawel Gburzynski
+#
+#	This file is part of SMURPH/SIDE.
+#
+#	SMURPH/SIDE is free software: you can redistribute it and/or modify
+#	it under the terms of the GNU General Public License as published by
+#	the Free Software Foundation, either version 3 of the License, or
+#	(at your option) any later version.
+#	SMURPH/SIDE is distributed in the hope that it will be useful,
+#	but WITHOUT ANY WARRANTY; without even the implied warranty of
+#	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#	GNU General Public License for more details.
+#
+#	You should have received a copy of the GNU General Public License
+#	along with SMURPH/SIDE. If not, see <https://www.gnu.org/licenses/>.
+#
+g++ -o maker maker.cc
+strip maker
+if [ -d "$HOME/bin" ]
+then
+	bindir="bin"
+else
+if [ -d "$HOME/BIN" ]
+then
+	bindir="BIN"
+else
+	echo "Your need a subdirectory named bin or BIN in your home directory!"
+	echo "That directory should be present in your PATH."
+	exit 1
+fi
+fi
+./maker <<ENDINPUT
+none
+
+
+25
+
+
+localhost
+4442
+mks
+$bindir
+y
+n
+
+
+ENDINPUT

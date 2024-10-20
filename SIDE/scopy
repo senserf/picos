@@ -1,0 +1,67 @@
+#!/bin/sh
+#
+#	Copyright 1995-2020 Pawel Gburzynski
+#
+#	This file is part of SMURPH/SIDE.
+#
+#	SMURPH/SIDE is free software: you can redistribute it and/or modify
+#	it under the terms of the GNU General Public License as published by
+#	the Free Software Foundation, either version 3 of the License, or
+#	(at your option) any later version.
+#	SMURPH/SIDE is distributed in the hope that it will be useful,
+#	but WITHOUT ANY WARRANTY; without even the implied warranty of
+#	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#	GNU General Public License for more details.
+#
+#	You should have received a copy of the GNU General Public License
+#	along with SMURPH/SIDE. If not, see <https://www.gnu.org/licenses/>.
+#
+
+#
+# Create a copy of the source tree with links to fixed fragments (for
+# sharing the same installation, e.g., in a student lab)
+#
+#	mkdir SMURPHCOPY
+#	cd SMURPHCOPY
+#	~/.../SIDE/scopy ~/.../SIDE
+#
+ed=`echo $0 | sed -e 's,/[^/][^/]*$,,'`
+mkdir LIB SOURCES SOURCES/KERNEL
+touch LIB/liblock
+mkdir SOURCES/MONITOR SOURCES/DSD SOURCES/SMPP SOURCES/NWEB SOURCES/LIB
+ln -s $ed/README* .
+ln -s $ed/RTAGS* .
+ln -s $ed/INSTALL* .
+ln -s $ed/deploy .
+cp $ed/SOURCES/version.h SOURCES
+ln -s $ed/SOURCES/defaults.h SOURCES
+ln -s $ed/SOURCES/*.c* SOURCES
+ln -s $ed/SOURCES/make_* SOURCES
+ln -s $ed/MANUAL MANUAL
+ln -s $ed/SOURCES/KERNEL/*.c* SOURCES/KERNEL
+ln -s $ed/SOURCES/KERNEL/*.h SOURCES/KERNEL
+ln -s $ed/SOURCES/KERNEL/depend* SOURCES/KERNEL
+ln -s $ed/SOURCES/DSD/README* SOURCES/DSD
+ln -s $ed/SOURCES/DSD/*.jav* SOURCES/DSD
+ln -s $ed/SOURCES/DSD/java.policy SOURCES/DSD
+cp $ed/SOURCES/DSD/*.cla* SOURCES/DSD
+cp $ed/SOURCES/DSD/*.gif* SOURCES/DSD
+ln -s $ed/SOURCES/DSD/*.src* SOURCES/DSD
+ln -s $ed/SOURCES/DSD/Mak* SOURCES/DSD
+cp $ed/SOURCES/DSD/index.htm* SOURCES/DSD
+cp $ed/SOURCES/DSD/index.pat SOURCES/DSD
+ln -s $ed/SOURCES/SMPP/*.c* SOURCES/SMPP
+ln -s $ed/SOURCES/SMPP/*.h SOURCES/SMPP
+ln -s $ed/SOURCES/SMPP/Mak* SOURCES/SMPP
+ln -s $ed/SOURCES/MONITOR/README* SOURCES/MONITOR
+ln -s $ed/SOURCES/MONITOR/standard.t SOURCES/MONITOR
+ln -s $ed/SOURCES/MONITOR/*.c* SOURCES/MONITOR
+ln -s $ed/SOURCES/MONITOR/*.h SOURCES/MONITOR
+ln -s $ed/SOURCES/MONITOR/Mak* SOURCES/MONITOR
+ln -s $ed/SOURCES/NWEB/Mak* SOURCES/NWEB
+ln -s $ed/SOURCES/NWEB/*.c SOURCES/NWEB
+ln -s $ed/SOURCES/LIB/*.c* SOURCES/LIB
+ln -s $ed/SOURCES/LIB/*.h SOURCES/LIB
+ln -s $ed/SOURCES/LIB/ifranlib SOURCES/LIB
+ln -s $ed/SOURCES/LIB/Mak* SOURCES/LIB
+cp -r $ed/Examples Examples

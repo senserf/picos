@@ -1,0 +1,15 @@
+Plant port:		3798
+Operator port:		3799
+
+============================
+
+VMin			250
+VMax			5000		in deci-degrees
+Staring setpoint	250		room temp
+
+SMin			0
+SMax			1024
+
+Kp			2.0
+Ki			0.05
+Kd			0.5

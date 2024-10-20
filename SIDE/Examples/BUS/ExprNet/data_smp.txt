@@ -1,0 +1,19 @@
+Transmission rate               1000 ITUs per bit
+Clock tolerance               0.0002
+
+Number of stations                 8 
+Bus length in bits               220 bits
+Turning segment length           220 bits
+
+Minimum payload length             8 bits (no limit)
+Maximum payload length         32768 bits 
+Frame information                256 bits
+
+Preamble length                   32 bits
+
+End of train delay                 8 bits
+
+Mean message inter-arrival time  2048
+Mean message length              1024
+
+Message number limit             4000

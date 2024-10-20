@@ -1,0 +1,17 @@
+Time granularity            1000 ITUs/bit
+Clock tolerance           0.0001
+
+Number of columns              8
+Number of rows                 8
+Link length                 1000 bits
+
+Minimum packet length        400 bits
+Maximum packet length        400 bits
+Packet header length           0 bits
+
+Delay line length          400+1 bits
+
+Mean message interarrival time   2048 bits
+Mean message length              8192 bits
+
+Mesage number limit             16384

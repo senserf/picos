@@ -1,0 +1,76 @@
+||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
+===============
+The system part
+===============
+
+  Number of segments:            1
+  Number of diverters:           0
+  Number of mergers:             0
+
+  For each segment
+  ================
+
+     Motor:                address: [0, 1, 1],  inertia:  0.1 sec
+     Entrance sensor:      address: [0, 1, 2],  inertia: 0.05 sec
+     Exit sensor:          address: [0, 1, 3],  inertia: 0.05 sec
+     E-E time bound:       10 sec
+
+||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
+====================
+The board model part
+====================
+
+  For each segment
+  ================
+
+     Coordinates:  M=[0, 1, 1], E=[0, 1, 2], X=[0, 1, 3]
+     Length:       5m
+     Speed:        1m/s
+
+  Number of connections: 0
+
+||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
+======================
+The traffic model part
+======================
+
+  Number of sources:   1 
+  Number of sinks:     1
+
+  For each source
+  ===============
+
+      Plug into entrance to segment   0
+      Minimum box spacing is          0.5 sec
+
+  For each sink
+  =============
+
+      Plug into exit from segment     0
+
+  Number of box types:  1
+
+  For each box type
+  =================
+
+      Arrival process descriptor is 2+16 (uniform arrival, uniform length)
+      Interarrival time is bounded by 2.0 and 3.0 seconds
+      Box length is bounded by 0.5 and 0.8 metres
+      The number of senders is 1 and the sender is source 0
+
+
+||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
+=================
+The operator part
+=================
+
+Port number is 3346
+
+Note: this number must match the port number in index.html of the operator
+      applet.
+
+=============
+The root part
+=============
+
+Time to die is 20 seconds

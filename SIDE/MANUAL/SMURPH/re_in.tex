@@ -1,0 +1,99 @@
+\section{Introduction}
+
+The design of a low-level communication protocol must deal with very
+specific physical phenomena occurring in the communication channels and
+the hardware used to interconnect them.
+Problems like race conditions, signal propagation time, the limited
+accuracy of independent clocks, etc., are typical examples of issues
+that must be accounted for by the protocol designer.
+These issues become even more critical with the advancing technology:
+high-speed networks call for protocols that can explore to the maximum
+possible extent the advantageous physical properties of the underlying hardware
+components.
+
+On the other hand, there seems to be a substantial gap in the assortment of
+the specification tools available for aiding the protocol design process.
+Most researchers in this area focus their attention on higher protocol
+layers which are removed from the hardware far enough to allow for a
+reasonable degree of abstraction.
+In particular, the known protocol specification and verification
+tools as {\em ESTELLE\/}
+(\cite{bud87,est87}), {\em LOTOS\/} (\cite{bob87,lob88}), or
+{\em PROMELA/SPIN\/} (\cite{hol91}), although
+useful for describing high-level logical aspects of communication,
+fail to capture some very important low-level aspects of distributed systems,
+e.g., the accurate timing of events.
+
+As far as performance evaluation is concerned, the situation is not much better.
+Approximate analytical methods have exhibited their limitations sufficiently
+many times to be treated with a limited confidence (cf.\ 
+\cite{bmk88,mis86}).
+Accurate analytical models exist for very few simple networks and protocols
+and there is no straightforward way to generalize them into more complex
+systems.
+General-purpose simulation packages are not of much help, either.
+An accurate description of the behavior of a multi-point broadcast channel
+requires about the same effort in a regular programming language
+as in a language oriented for simulation.
+The most tricky part of this description is not modeling events, but 
+predicting their timing.
+The user of a protocol simulator is not excited about being able to
+schedule events.
+The problem is: {\em how to schedule these events\/} and, in our opinion,
+a good protocol modeling system should absorb this problem completely.
+The interface offered to the user should resemble (in terms of its
+functionality) a realistic physical environment for protocol execution.
+
+\smurph\ is an object-oriented software package for modeling discrete events
+in communication protocols.
+It can be viewed as both an implementation of a certain protocol specification
+language and a process-driven simulator oriented towards investigating
+medium access control (MAC) level protocols.
+In accordance with the above postulate,
+the structure of the simulator is completely invisible to the user.
+All the simulation-related operations, as creating and scheduling
+individual events, maintaining a consistent notion of time, etc.,
+are covered by a high-level interface.
+A protocol description in \smurph\ looks like a program that
+could be executed on a hypothetical hardware.
+\smurph\ emulates this hardware and thus provides a realistic environment
+for executing protocols described in its specification language.
+
+Protocol execution in \smurph\ can be monitored.
+One reason for monitoring the behavior of a protocol is to investigate its
+performance by gathering empirical data.
+Although \smurph\ does not purport to be a protocol verification system,
+it offers some tools for protocol testing.
+These tools, the so-called {\em observers}, look like programmable dynamic
+assertions describing legitimate sequences of protocol actions.
+
+\smurph\ has been programmed in C++.
+The package is configurable: it is not a single interpreter for a variety of
+protocols, but it configures itself into a stand-alone modeling program
+for each particular application.
+
+Although the protocol description language of \smurph\ is essentially C++,
+the standard data types, objects, functions, and macros provided by the
+package extend this language substantially.
+With this approach, the user gets the full power of C++ combined
+with the power of a realistic, emulated environment for programming and
+executing communication protocols.
+
+\smurph\ descends from its predecessor, called \lansf (\cite{gbr90a}),
+which was designed
+and implemented by the authors in 1987.
+\lansf\ was programmed in C and has evolved a number of times from its
+original version.
+It has been successfully applied to investigating the performance and
+correctness of a number of protocols for local area networks
+(\cite{dog88,dog89,dgr90,dgr90a,gbr87,gbr87a,gbr89a,gbr88c}) and
+other distributed systems.
+
+One disadvantage of \lansf\ was its low flexibility in describing
+compound data structures.
+The idea of re-implementing \lansf\ in C++ was born from our collaboration
+with the networking group at the Lockheed Space and Missile Company.
+At first, Objective C was tried, but after a brief preliminary design we
+decided to use C++ instead.
+C++ seems to capture all the essential features of Objective C, and at the same
+time is devoid of some deficiencies of that language.

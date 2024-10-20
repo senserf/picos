@@ -1,0 +1,304 @@
+<html>
+<body background=bground.gif text="#000000" link="#006666" vlink="#990002">
+
+<title> Conveyor belt simulator </title>
+
+<center>
+<img src="cbsim.gif">
+</center>
+<br>
+
+<br>
+
+<p>
+In this experiment, we consider conveyor systems built of
+<i>segments, diverters, mergers, sources,</i> and
+<i>sinks</i>.
+Such a network can be used to transport various objects from sources to sinks.
+In our model, these objects are called <i>boxes</i>.
+
+<ul>
+
+<li>
+<a name="segment">
+A segment is a piece of belt of some definite length,</a>
+with one entry and one exit -- as shown in the following picture:
+
+<br><br>
+
+<center>
+<img src="segment.gif">
+</center>
+
+<br><br>
+
+<p>
+Boxes are inserted into the belt at the entry and are transported
+to the exit.
+As perceived by SIDE, a segment is represented by two sensors and one
+actuator.
+One sensor detects the presence of a box at the entry to the segment,
+the other tells when a box has arrived at the exit.
+
+<p>
+The actuator is a switch that controls the <i>motor</i> driving
+the belt.
+We assume that the motor can only be in two states (on/off) and when it is
+on, the belt is moving with some constant speed.
+
+<p>
+A pair of segments can be connected in such a way that the exit of one
+segment is attached to the entry of the other.
+This way, a box that has reached the exit of the first segment will appear
+at the entry to the second one.
+
+</li>
+
+<br><br>
+
+<li>
+<a name="diverter">
+A diverter is a device interfacing three segments, as shown in the following
+</a>picture:
+
+<br><br>
+
+<center>
+<img src="diverter.gif">
+</center>
+
+<br><br>
+
+<p>
+Boxes arrive from the input segment and, if the diverter doesn't take any
+action, they are delivered at the entry to the primary output segment.
+Some boxes (recognized by the the <i>reader</i>, which is a binary sensor)
+are diverted to the secondary output segment.
+To carry out this operation, the diverter briefly runs its motor when it
+detects that the box currently passing through it should be diverted.
+
+<p>
+More specifically, this operation is performed as follows.
+When the diverter detects the presence of a new box (the entry sensor)
+it waits for some amount of time (needed by the reader to determine the
+fate of the box) and then looks at the value of the reader.
+If it says "yes", the diverter runs its motor for a short while
+to deflect the box from its default path.
+</li>
+
+<br><br>
+
+<li>
+<a name="merger">
+A merger is a device that combines the streams of boxes arriving from two </a>
+separate segments into one stream directed to a single output segment,
+as illustrated below.
+
+<br><br>
+
+<center>
+<img src="merger.gif">
+</center>
+
+<br><br>
+
+<p>
+The arriving boxes are stored in the buffer (with some definite capacity) and
+expedited on the output segment by the motor.
+</li>
+
+<br><br>
+
+<li>
+<a name="source">
+Sources and sinks are places where boxes enter and exit the system,
+</a> respectively.
+Note that a program controlling a conveyor setup doesn't see the sources or
+sinks, because they have no sensors or actuators.
+However, these objects have to be modelled in a simulated version of the
+system.
+</li>
+</ul>
+
+<p>
+To compile the simulator, excute "mks -R -p" in its directory. Three data
+files are provided: <tt>data_simple</tt>
+(a trivial system with a single belt segment),
+<tt>data_diverter</tt>
+(a system with one source, three belt segments, one diverter,
+and two sinks), and <tt>data_merger</tt> (a system with two sources, two
+sinks, five segments, one diverter and one merger).
+
+<p>
+When you run the simulator, e.g.,
+
+<br>
+
+<center>
+<tt>side data_diverter</tt>
+</center>
+
+<br>
+
+<p>
+it will initially suspend itself awaiting connection from the operator
+applet (see directory <tt>Operator</tt>).
+To use that applet, you should make sure that the parameters in file
+<tt>index.html</tt> match the host/port used by the simulator (i.e., the
+host on which the simulator is running and the operator port used by that
+simulator).
+The port number is specified at the end of the data set.
+
+<p>
+Note that java-capable browsers may restrict TCP/IP connections from an applet
+to the host from which the document requesting the applet has been fetched.
+Thus, you may have to run the simulator on a host equipped with a web server
+and fetch the applet from that host.
+Alternatively, you may execute the simulator and the browser on the same
+host.
+
+<p>
+When you invoke the operator applet, you will see the following picture:
+
+<br><br>
+
+<center>
+<img src="panel.gif">
+</center>
+
+<br><br>
+
+<p>
+If you press the <tt>Connect</tt> button, your browser will open a window
+with a control panel interfacing you to the simulator.
+Once you get connected, you can disconnect from the simulator, and
+erase the control panel from the screen, by pressing the <tt>Disconnect</tt>
+button.
+The purpose of the <tt>Stop</tt> button is to terminate the simulation
+experiment before disconnection.
+
+<p>
+Let us consider the diverter experiment (file <tt>data_diverter</tt>).
+The data set describes a simple conveyor network consisting of one
+<a href=#source>source</a>, three
+<a href=#segment>segments</a>, one
+<a href=#diverter>diverter</a>, and two
+<a href=#source>sinks</a>.
+You should see this structure as soon as you get connected.
+The system is visualised as a graph, with blocks representing the components,
+and arrows indicating connections among them.
+The right portion of the window is used to display messages from the system,
+usually diagnosing some abnormal conditions.
+
+<p>
+You can move the components around with your mouse, which
+has no impact on the system behaviour.
+For example, you may
+have a look at what is going on in the first segment (the one connecting
+the source with the diverter).
+This segment is labelled S0.
+First, you have to <i>select</i> the segment, which is accomplished by clicking
+within the segment block without moving it.
+The block should change its colour to green.
+
+<p>
+Many objects can remain
+selected at the same time (selecting a new object doesn't
+unselect the previous one).
+You can unselect a selected object by clicking in its block (without moving
+the block) for the second time.
+An unselected object should revert to its original colour.
+
+<p>
+Selecting an object results in some items being added to the menus.
+In our case, assuming that you have selected segment 0,
+the object's label (i.e., S0) should be added to the <tt>Display</tt> menu
+and several other items should appear in the <tt>Override</tt> menu.
+The idea is that the <tt>Display</tt> menu identifies the objects that
+can be "displayed," and the <tt>Override</tt> menu lists the objects that
+can be "overridden" at the moment.
+The former are simply those selected objects that are not currently being
+displayed, the latter are the <i>overrideable</i> processes run by the
+selected objects.
+Processes whose names start with '+' belong to the simulator, while the
+remaining processes belong to the control program.
+
+<p>
+Let us get back to segment 0.
+To display it, you select its label from the <tt>Display</tt> menu.
+As soon as an object is displayed, its label is moved from the
+<tt>Display</tt> menu to the <tt>Cancel</tt> menu.
+By selecting that label from there, you can erase the object's window from
+the screen.
+
+<p>
+If you have displayed S0, you can now see a stream of boxes leaving the
+source and approaching the diverter.
+As you can see, there are boxes of two types: blue (type 0) and cyan (type 1).
+The diverter is set up to pass the blue boxes to segment 1 (S1) and
+sink 0 (@0), and the cyan ones to segment 2 (S2) and sink 1 (@1).
+In the top row of the segment window, you can see the status of the
+<a href=#segment>two sensors and the motor</a>
+(colour red means that the corresponding sensor/actuator is on).
+When you display the status of other segments, you will
+see that each of them carries boxes of only one colour.
+
+<p>
+You may also display the source.
+As before, select it first and then chose its label from the <tt>Display</tt>
+menu.
+The source window tells you the number of boxes that have departed from the
+source so far and their total length in centimetres, as well as the number
+of boxes queued (piled up at the source due to congestion) and their
+total length.
+Normally there should be no congestion, as
+the box arrival rate is below the conveyor's capacity.
+
+<p>
+Try a simple override operation.
+With the source window displayed, select <tt>TrfGen@BoxSrc#0</tt> from the
+<tt>Override</tt> menu.
+The cryptic string identifies the box generator process at the source.
+The override dialog window should pop up.
+Click at the third box from the right (the selection box) and select the
+item labelled <tt>Hold</tt>.
+Then press the <tt>Apply</tt> button.
+This operation will freeze the source, so that the incoming
+boxes won't be deposited at the entry to segment 0, but they will pile up
+at the source.
+Wait for some time until the belts become empty.
+After a while, their motors will go off.
+
+<p>
+Now perform the same operation, i.e.,
+select <tt>TrfGen@BoxSrc#0</tt> from the <tt>Override</tt> menu, but this
+time choose <tt>Resume</tt> in the dialog.
+When you hit the <tt>Apply</tt> button, the source will resume its normal
+operation.
+For some time (depending for how long it has been halted) segment 0 is
+going to be heavily loaded, but after a while, the pile of boxes will
+dissipate.
+
+<p>
+You may try to confuse the sinks by overriding the action of the
+diverter.
+Display the two sinks.
+Their windows show you the number of boxes of each type received at the
+corresponding sink.
+Then display the diverter.
+Its window is very simple, it just shows you the status of the
+<a href=#diverter>two sensors and the motor</a>.
+Next select <tt>DvtDrv@Dvt#0</tt> (i.e., the diverter driver process running
+at diverter 0) from the <tt>Override</tt> menu and choose <tt>Motor On</tt>
+from the selection box of the <tt>Override</tt> dialog.
+When you press <tt>Apply</tt>, the divert will start operating with the motor
+switch locked in the "on" position.
+Thus all boxes will be diverted to sink 1.
+Each time a blue box reaches sink 1, the reception process running at that
+sink will receive the box, but it will also issue an alert message
+(a warning) appearing in the right half of the main window.
+Whenever a warning or an error message arrives from one of the network
+component, the component's box in the left part of the screen is painted
+red.
+
+</html>

@@ -1,0 +1,12 @@
+Transmission rate               1000 ITUs per bit
+
+Number of stations                24
+Bus length in bits               128
+
+Slot length in bits              128+128+24
+Guard length in bits             8
+
+Mean message inter-arrival time  2048
+Mean message length              1024
+
+Message number limit             2000

@@ -1,0 +1,139 @@
+<html>
+<body background=background.gif text="#000000" link="#006666" vlink="#990002">
+
+<title> SIDE Tanks experiment </title>
+
+<center>
+<img src="tspan.gif">
+</center>
+<br>
+
+<br>
+
+<p>
+This experiment consists of a row of interconnected water tanks.
+You will see this setup when you click "Connect" on the applet panel
+(directory Panel).
+
+<p>
+Each tank is equipped with a sensor indicating the water level.
+Two neighboring tanks are connected with a pipe and a bidirectional
+pump.
+We assume that the tanks are filled (and possibly emptied) from the
+outside.
+The role of the control program in SIDE
+is to maintain about the same level of water in all tanks.
+
+<p>
+<font size=+2 color=#FF9900>
+You can pull the water level in a tank with your mouse and see how the
+system responds to this change.</font>
+
+<h2>Stations</h2>
+
+<p>
+The primary action agents in our simple setup are pumps; therefore,
+it seems natural to represent each pump as a separate station.
+Such a station can be declared as follows:
+
+<br><br>
+
+<center>
+<img src=station.gif>
+
+<br>
+</center>
+
+<br>
+
+<p>
+When a <tt>Pump</tt> is created, its setup method (the constructor) receives
+three network addresses:
+two of them describe two sensors (indicating the water level in the
+tanks connected by the pump), and one identifies the pump's motor actuator.
+The setup method is responsible for creating those objects, in the
+following way:
+
+<br><br>
+
+<center>
+<img src=pump.gif>
+
+<br>
+</center>
+
+<br>
+
+<p>
+The arguments of the <tt>create</tt> operation are passed
+to the setup method of the created object.
+The (virtual) sensors and the actuator will be mapped into their
+physical counterparts by the network map layer of the program.
+
+<h2>Processes</h2>
+
+<p>
+Each pump station is controlled by a single process whose responsibility
+is to monitor the water level in the neighboring tanks and start the pump
+whenever there is a difference.
+This process is declared as follows:
+
+<br><br>
+
+<center>
+<img src=process.gif>
+
+<br>
+</center>
+
+<br>
+
+<p>
+The first line of the above declaration indicates that <tt>PumpDriver</tt>
+is a basic process type (i.e., it descends directly from the built-in
+type <tt>Process</tt>) and that processes of this type will run at stations
+belonging to type <tt>Pump</tt> (including its possible subtypes).
+The setup method creates local copies of the pointers to the attributes
+of the owning station--for convenient reference from the process.
+The process has two states and it runs the following code method:
+
+<br><br>
+
+<center>
+<img src=code.gif>
+
+<br>
+</center>
+
+<br>
+
+<p>
+Having started in state <tt>WaitStatusChange</tt>, <tt>PumpDriver</tt> issues
+two wait requests, one to each of the two sensor mailboxes.
+The process wants to get to its second state, <tt>StatusChange</tt>, as soon
+as the value of any of the two sensors changes.
+This corresponds to a change in the water level in any of the two tanks
+connected by the pipe (and pump) managed by the process.
+When a change is detected, <tt>PumpDriver</tt> compares the indications
+of the two sensors.
+If there is less water in the left tank, the pump motor is started in the
+left direction.
+Otherwise, if the right tank contains less water, the pump is
+started in the opposite direction.
+Finally, if the two levels are the same, the pump is switched off.
+At the end of this action, the process unconditionally transits to
+its initial state.
+
+<p>
+Note that storing the same value in the motor actuator several times
+is harmless, although redundant.
+The code method of <tt>PumpDriver</tt> could be easily "optimized" by
+remembering the previous status of the actuator and setting it to the
+new value only if that value has in fact changed.
+The gain would be negligible, however.
+Besides, the persistent behavior of the process may be advantageous
+from the viewpoint of reliability.
+
+</body>
+
+</html>

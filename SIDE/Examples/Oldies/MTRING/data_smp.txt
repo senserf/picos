@@ -1,0 +1,12 @@
+Number of segments/stations         4
+Segment length                      20000
+Transmission rate                   1000
+Mean message interarrival time      1024
+Mean message length                 512
+Minimum packet length               32
+Maximum packet length               4096
+Frame length                        64
+Header length                       32
+Token length                        32
+
+token passing timeout = 20000000

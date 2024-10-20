@@ -1,0 +1,103 @@
+%Fonts
+\font\ssf=cmss10 %%%% san serif font, the default "sf" is really bold san serif
+\font\ssfb=cmssbx10 %%%% bold san serif font
+
+\newcommand{\putfig}[2]{%
+	\begin{figure}[htbp]%
+		\begin{center}%
+			\input{FIGURES/#1}%
+			\usebox{\graph}%
+			\vspace{0.75cm}
+			\caption{#2\label{fig.#1}}%
+		\end{center}%
+	\end{figure}%
+}%
+
+\newcommand{\puttab}[2]{%
+	\begin{table}[htbp]%
+		\begin{center}%
+			\input{TABLES/#1}%
+			\caption{#2\label{tab.#1}}%
+		\end{center}%
+	\end{table}%
+}%
+
+\newcommand{\sectdef}[3]{%
+	\ifcase #1%
+		\typeout{Section depth #1 undefined; 1 used instead.}%
+		\section{#3\label{sect.#2}}%
+	\or	\section{#3\label{sect.#2}}%
+	\or	\subsection{#3\label{sect.#2}}%
+	\or	\subsubsection{#3\label{sect.#2}}%
+	\or	\paragraph{#3\label{sect.#2}}%
+	\or	\subparagraph{#3\label{sect.#2}}%
+	\else%
+		\typeout{Section depth #1 undefined; 1 used instead.}%
+		\section{#3\label{sect.#2}}%
+	\fi%
+}%
+
+\newcommand{\figdef}[2]{figure~\ref{fig.#1}\putfig{#1}{#2}}%
+\newcommand{\Figdef}[2]{Figure~\ref{fig.#1}\putfig{#1}{#2}}%
+\newcommand{\tabdef}[2]{table~\ref{tab.#1}\puttab{#1}{#2}}%
+\newcommand{\Tabdef}[2]{Table~\ref{tab.#1}\puttab{#1}{#2}}%
+
+\newcommand{\fig}[1]{figure~\ref{fig.#1}}%
+\newcommand{\Fig}[1]{Figure~\ref{fig.#1}}%
+\newcommand{\tab}[1]{table~\ref{tab.#1}}%
+\newcommand{\Tab}[1]{Table~\ref{tab.#1}}%
+\newcommand{\sect}[1]{section~\ref{#1}}%
+\newcommand{\Sect}[1]{Section~\ref{#1}}%
+\newcommand{\defi}[1]{definition~\ref{#1}}%
+\newcommand{\Defi}[1]{Definition~\ref{#1}}%
+\newcommand{\chap}[1]{chapter~\ref{#1}}%
+\newcommand{\Chap}[1]{Chapter~\ref{#1}}%
+\newcommand{\appe}[1]{appendix~\ref{#1}}%
+\newcommand{\Appe}[1]{Appendix~\ref{#1}}%
+
+\newcommand{\references}[1]{%
+	\bibliographystyle{#1}%
+	\bibliography{defs-#1,references}%
+}%
+
+\def\dllist#1{%
+	\begin{list}{[]}%
+		{\settowidth{\labelwidth}{#1}%
+		 \settowidth{\leftmargin}{#1}%
+		 \addtolength{\leftmargin}{2em}%
+		 \setlength{\itemsep}{0in}%
+		 \setlength{\labelsep}{1em}% 
+		}%
+\newcommand{\litem}[1]{\item[{\makebox[\labelwidth][l]{##1}}]}%
+}
+
+\def\drlist#1{%
+	\begin{list}{[]}%
+		{\settowidth{\labelwidth}{#1}%
+		 \settowidth{\leftmargin}{#1}%
+		 \addtolength{\leftmargin}{2em}%
+		 \setlength{\itemsep}{0in}%
+		 \setlength{\labelsep}{1em}% 
+		}%
+\newcommand{\ritem}[1]{\item[{\makebox[\labelwidth][r]{##1}}]}%
+}
+
+\newenvironment{mylist}%
+{\begin{list}{[]}{\setlength{\leftmargin}{1.8 cm} \setlength{\labelsep}{3 mm} \setlength{\itemsep}{0in} \setlength{\topsep}{0in} \setlength{\parsep}{0in} } }%
+{\end{list}}
+
+\newenvironment{llist}[1]{\dllist{#1}}{\end{list}}
+\newenvironment{rlist}[1]{\drlist{#1}}{\end{list}}
+
+\newenvironment{doublespace}%
+{\renewcommand{\baselinestretch}{1.50} \large \normalsize}%
+{\renewcommand{\baselinestretch}{1} \large \normalsize}%
+
+\newenvironment{singlespace}%
+{\renewcommand{\baselinestretch}{1} \large \normalsize}%
+{\renewcommand{\baselinestretch}{1.50} \large \normalsize}%
+
+\newcommand{\lansf}{{\sc Lansf}}
+\newcommand{\smurph}{{\sc Smurph}}
+\newcommand{\dsd}{{\sc Dsd}}
+\sloppy

@@ -1,0 +1,227 @@
+SMURPH Version 1.7      Tue Feb 16 00:19:14 1993
+
+Network topology
+
+Stations:
+
+  NumId             Type         NPorts       NBuffers                NName
+      0         UStation              2              1                -----
+      1         UStation              2              1                -----
+      2         UStation              2              1                -----
+      3         UStation              2              1                -----
+      4         UStation              2              1                -----
+      5         UStation              2              1                -----
+      6         UStation              2              1                -----
+      7         UStation              2              1                -----
+
+Links:
+
+  Link    0,    Type: PLink
+
+    Distance matrix:
+
+     0:      ---    68571   137142   205713   274284   342855   411426   479997
+   ...:   479999   548570   617141   685712   754283   822854   891425   959996
+
+     1:      ***      ---    68571   137142   205713   274284   342855   411426
+   ...:   411428   479999   548570   617141   685712   754283   822854   891425
+
+     2:      ***      ***      ---    68571   137142   205713   274284   342855
+   ...:   342857   411428   479999   548570   617141   685712   754283   822854
+
+     3:      ***      ***      ***      ---    68571   137142   205713   274284
+   ...:   274286   342857   411428   479999   548570   617141   685712   754283
+
+     4:      ***      ***      ***      ***      ---    68571   137142   205713
+   ...:   205715   274286   342857   411428   479999   548570   617141   685712
+
+     5:      ***      ***      ***      ***      ***      ---    68571   137142
+   ...:   137144   205715   274286   342857   411428   479999   548570   617141
+
+     6:      ***      ***      ***      ***      ***      ***      ---    68571
+   ...:    68573   137144   205715   274286   342857   411428   479999   548570
+
+     7:      ***      ***      ***      ***      ***      ***      ***      ---
+   ...:        2    68573   137144   205715   274286   342857   411428   479999
+
+     8:      ***      ***      ***      ***      ***      ***      ***      ***
+   ...:      ---    68571   137142   205713   274284   342855   411426   479997
+
+     9:      ***      ***      ***      ***      ***      ***      ***      ***
+   ...:      ***      ---    68571   137142   205713   274284   342855   411426
+
+    10:      ***      ***      ***      ***      ***      ***      ***      ***
+   ...:      ***      ***      ---    68571   137142   205713   274284   342855
+
+    11:      ***      ***      ***      ***      ***      ***      ***      ***
+   ...:      ***      ***      ***      ---    68571   137142   205713   274284
+
+    12:      ***      ***      ***      ***      ***      ***      ***      ***
+   ...:      ***      ***      ***      ***      ---    68571   137142   205713
+
+    13:      ***      ***      ***      ***      ***      ***      ***      ***
+   ...:      ***      ***      ***      ***      ***      ---    68571   137142
+
+    14:      ***      ***      ***      ***      ***      ***      ***      ***
+   ...:      ***      ***      ***      ***      ***      ***      ---    68571
+
+    15:      ***      ***      ***      ***      ***      ***      ***      ***
+   ...:      ***      ***      ***      ***      ***      ***      ***      ---
+
+    Ports:
+
+      LRId    Station    SRId        Rate
+         0          0       0        1000
+         1          1       0        1000
+         2          2       0        1000
+         3          3       0        1000
+         4          4       0        1000
+         5          5       0        1000
+         6          6       0        1000
+         7          7       0        1000
+         8          7       1        1000
+         9          6       1        1000
+        10          5       1        1000
+        11          4       1        1000
+        12          3       1        1000
+        13          2       1        1000
+        14          1       1        1000
+        15          0       1        1000
+
+(System) End of list
+
+Traffic parameters
+
+UTraffic 0:
+
+MIT distribution:      EXPONENTIAL (Mean = 1.55e+03)
+MLE distribution:      EXPONENTIAL (Mean = 1.02e+03)
+Standard Client is:    ON
+Standard measures are: ON
+
+Communication group #000 (density        8)
+
+Senders:   all stations
+
+(    0        1)   (    1        1)   (    2        1)   (    3        1)   
+(    4        1)   (    5        1)   (    6        1)   (    7        1)   
+
+Receivers: all stations
+
+(    0        1)   (    1        1)   (    2        1)   (    3        1)   
+(    4        1)   (    5        1)   (    6        1)   (    7        1)   
+
+(UTraffic 0) End of list
+
+(Client) End of list
+
+Time:      6989065483     (Client) Global performance measures:
+
+AMD - Absolute message delay:
+
+      Number of samples:               4000
+      Minimum value:                    465
+      Maximum value:               5.16e+06
+      Mean value:                  1.89e+05
+      Variance:                    6.87e+11
+      Standard deviation:          8.29e+05
+      Confidence int @95%:            0.136
+      Confidence int @99%:            0.178
+
+APD - Absolute packet delay:
+
+      Number of samples:               4000
+      Minimum value:                    333
+      Maximum value:               1.85e+06
+      Mean value:                  6.62e+03
+      Variance:                    1.74e+09
+      Standard deviation:          4.17e+04
+      Confidence int @95%:            0.195
+      Confidence int @99%:            0.257
+
+WMD - Weighted message delay:
+
+      Number of samples:            4037544
+      Minimum value:                    465
+      Maximum value:               5.16e+06
+      Mean value:                  1.96e+05
+      Variance:                     7.1e+11
+      Standard deviation:          8.43e+05
+      Confidence int @95%:          0.00419
+      Confidence int @99%:           0.0055
+
+MAT - Message access time:
+
+      Number of samples:               4000
+      Minimum value:                    264
+      Maximum value:               5.16e+06
+      Mean value:                  1.89e+05
+      Variance:                    6.87e+11
+      Standard deviation:          8.29e+05
+      Confidence int @95%:            0.136
+      Confidence int @99%:            0.179
+
+PAT - Packet access time:
+
+      Number of samples:               4000
+      Minimum value:                    264
+      Maximum value:               1.85e+06
+      Mean value:                  6.12e+03
+      Variance:                    1.74e+09
+      Standard deviation:          4.17e+04
+      Confidence int @95%:            0.211
+      Confidence int @99%:            0.278
+
+MLS - Message length distribution:
+
+      Number of samples:               4377
+      Minimum value:                      8
+      Maximum value:               6.47e+03
+      Mean value:                     1e+03
+      Variance:                    9.13e+05
+      Standard deviation:               956
+      Confidence int @95%:           0.0282
+      Confidence int @99%:            0.037
+
+    Number of generated messages:              4377
+    Number of queued messages:                  377
+    Number of transmitted messages:            4000
+    Number of received messages:               4000
+    Number of transmitted packets:             4000
+    Number of received packets:                4000
+    Number of queued bits:                   358176
+    Number of transmitted bits:             4037544
+    Number of received bits:                4037544
+    Measurement start time:                       0
+    Throughput:                               0.578
+
+(Client) End of list
+
+Local message access times
+
+       RVariable         Samples         Minimum         Maximum            Mean
+    MAT Sttn   0             537             264        7.12e+03        1.41e+03
+    MAT Sttn   1             567             264        2.14e+04        1.92e+03
+    MAT Sttn   2             520             264        2.44e+04        2.91e+03
+    MAT Sttn   3             539             264        5.37e+04        4.91e+03
+    MAT Sttn   4             551             264        7.99e+04        1.14e+04
+    MAT Sttn   5             570             280         2.5e+05        3.53e+04
+    MAT Sttn   6             549             328        6.58e+05         1.4e+05
+    MAT Sttn   7             167             778        5.16e+06        3.86e+06
+Bus performance measures
+
+    Number of jamming signals:                    0
+    Number of transfer attempts:               5925
+    Number of transmitted packets:             4000
+    Number of transmitted bits:             4037544
+    Number of received packets:                4000
+    Number of received bits:                4037544
+    Number of transmitted messages:            4000
+    Number of received messages:               4000
+    Throughput (by received bits):            0.578
+    Throughput (by trnsmtd bits):             0.578
+
+(PLink 0) End of list
+
+
+@@@ End of output

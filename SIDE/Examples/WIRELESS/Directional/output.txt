@@ -1,0 +1,116 @@
+SMURPH Version 3.9-AG      Very Simple Wireless Network    Sun Sep 13 21:43:50 2020
+Call arguments: data.txt junk.txt
+
+RFChannel:
+
+  Number of nodes:                16
+  Background noise (dBm):       -110
+  Phys bits per byte:             12
+  Phys header length:              0
+
+   SIR(dB)           BER
+       inf         1e-07
+       inf         2e-07
+      1000         5e-07
+       100         1e-06
+        10         1e-05
+   3.16228        0.0001
+   1.58489          0.01
+         1           0.2
+  0.630957           0.5
+  0.316228          0.99
+
+      Rate         BPS  Boost(dB)
+         0      115000          0
+  Minimum preamble:                8
+  Activity threshold:           -110
+  Cutoff threshold:             -115
+  Fading formula:
+    RP(d)/XP = -10 x 4.0 x log(d/1.0m) + X(4.0) - 38.0dB
+
+Bit rate (same for all nodes): 115000 bps
+
+Time: 21585059059135 [7200.000695] (Client) Global performance measures:
+
+AMD - Absolute message delay:
+
+      Number of samples:                899
+      Minimum value:         0.006496144409
+      Maximum value:            1.674310272
+      Mean value:              0.2200288619
+      Variance:               0.04159493574
+      Standard deviation:      0.2039483654
+      Confidence int @95%:    0.06059221126
+      Confidence int @99%:    0.07960456326
+
+APD - Absolute packet delay:
+
+      Number of samples:                899
+      Minimum value:         0.006496144409
+      Maximum value:            1.674310272
+      Mean value:              0.2200288619
+      Variance:               0.04159493574
+      Standard deviation:      0.2039483654
+      Confidence int @95%:    0.06059221126
+      Confidence int @99%:    0.07960456326
+
+WMD - Weighted message delay:
+
+      Number of samples:            6837096
+      Minimum value:         0.006496144409
+      Maximum value:            1.674310272
+      Mean value:              0.2990655806
+      Variance:               0.05013291646
+      Standard deviation:      0.2239038107
+      Confidence int @95%:  0.0005611969273
+      Confidence int @99%:  0.0007372867794
+
+MAT - Message access time:
+
+      Number of samples:               1768
+      Minimum value:                      0
+      Maximum value:                      0
+      Mean value:                         0
+      Variance:                           0
+      Standard deviation:                 0
+      Confidence int @95%:             -nan
+      Confidence int @99%:             -nan
+
+PAT - Packet access time:
+
+      Number of samples:               1768
+      Minimum value:                      0
+      Maximum value:                      0
+      Mean value:                         0
+      Variance:                           0
+      Standard deviation:                 0
+      Confidence int @95%:             -nan
+      Confidence int @99%:             -nan
+
+MLS - Message length distribution:
+
+      Number of samples:               1768
+      Minimum value:                    272
+      Maximum value:                  16344
+      Mean value:               8188.692308
+      Variance:                 21405033.29
+      Standard deviation:       4626.557391
+      Confidence int @95%:    0.02633651719
+      Confidence int @99%:    0.03460027131
+
+    Number of generated messages:              1768
+    Number of queued messages:                    0
+    Number of transmitted messages:            1768
+    Number of received messages:                899
+    Number of transmitted packets:             1768
+    Number of received packets:                 899
+    Number of queued bits:                        0
+    Number of transmitted bits:            14477608
+    Number of received bits:                6837096
+    Measurement start time:                       0
+    Throughput:                          949.596575
+
+(Client) End of list
+
+
+@@@ End of output

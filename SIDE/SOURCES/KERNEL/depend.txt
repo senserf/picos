@@ -1,0 +1,73 @@
+##
+## This is a skeleton of Makefile used by mks to create the actual Makefile
+## for building a smurph instance
+##
+## SRC=, LIB= , PRC...CLI, CMP=
+
+CFLAGS= $(DET) $(JOU) $(REA) $(RSY) $(PRC) $(OPT) $(ASR) $(OBS) $(AER) $(DST) $(BTC) $(RTS) $(TOL) $(DBG) $(CLI) $(QSL) $(R3D) $(R48) $(TAG) $(FLK) $(NOC) $(NOL) $(NOR) $(NOS) $(NFP) -D__SIDE__=\"$(VER)\" -D__SMURPH__=\"$(VER)\"
+
+$(TRG): $(USO) $(LIB)/ai.o $(LIB)/client.o $(LIB)/display.o $(LIB)/link.o $(LIB)/radio.o $(LIB)/mailbox.o $(LIB)/main.o $(LIB)/monitor.o $(LIB)/mparithm.o $(LIB)/numio.o $(LIB)/observer.o $(LIB)/process.o $(LIB)/rvar.o $(LIB)/sparithm.o $(LIB)/station.o $(LIB)/system.o $(LIB)/timer.o $(LIB)/var.o
+	echo "Linking"
+	$(CMP) -o $(TRG) $(LIB)/mparithm.o $(LIB)/sparithm.o $(LIB)/main.o $(LIB)/monitor.o $(LIB)/system.o $(LIB)/ai.o $(LIB)/client.o $(LIB)/link.o $(LIB)/radio.o $(LIB)/numio.o $(LIB)/observer.o $(LIB)/process.o $(LIB)/mailbox.o $(LIB)/rvar.o $(LIB)/station.o $(LIB)/timer.o $(LIB)/display.o $(LIB)/var.o $(USO) $(OLP) -L$(SRC)/LIB -lm -ltcpip
+?@:	% $(SRC)/KERNEL/Smurph.h $(SRC)/KERNEL/system.h $(SRC)/KERNEL/global.h $(SRC)/version.h `
+	echo "+Compiling %"
+	echo "#include \"Smurph.h\"" > .zzzzscc.C
+	echo "# 1 \"%\"" >> .zzzzscc.C
+	cat % >> .zzzzscc.C
+	$(CMP) $(CFLAGS) -E .zzzzscc.C -DZZ_FN=^ -I$(SRC)/KERNEL $(INC) -I. | $(SRC)/SMPP/smpp ! > &
+	rm -f .zzzzscc.C
+	$(CMP) $(CFLAGS) -c & -o @ -DZZ_FN=^ -I$(SRC)/KERNEL?
+$(LIB)/ai.o:		$(SRC)/KERNEL/ai.cc $(SRC)/KERNEL/system.h $(SRC)/KERNEL/global.h $(SRC)/version.h $(SRC)/KERNEL/inlines.h
+	echo "=Compiling ai.cc"
+	$(CMP) $(CFLAGS) -w -c $(SRC)/KERNEL/ai.cc -o $(LIB)/ai.o
+$(LIB)/client.o:	$(SRC)/KERNEL/client.cc $(SRC)/KERNEL/system.h $(SRC)/KERNEL/global.h $(SRC)/version.h $(SRC)/KERNEL/inlines.h
+	echo "=Compiling client.cc"
+	$(CMP) $(CFLAGS) -w -c $(SRC)/KERNEL/client.cc -o $(LIB)/client.o
+$(LIB)/link.o:		$(SRC)/KERNEL/link.cc $(SRC)/KERNEL/system.h $(SRC)/KERNEL/global.h $(SRC)/version.h $(SRC)/KERNEL/inlines.h
+	echo "=Compiling link.cc"
+	$(CMP) $(CFLAGS) -w -c $(SRC)/KERNEL/link.cc -o $(LIB)/link.o
+$(LIB)/radio.o:		$(SRC)/KERNEL/radio.cc $(SRC)/KERNEL/system.h $(SRC)/KERNEL/global.h $(SRC)/version.h $(SRC)/KERNEL/inlines.h
+	echo "=Compiling radio.cc"
+	$(CMP) $(CFLAGS) -c $(SRC)/KERNEL/radio.cc -o $(LIB)/radio.o
+$(LIB)/main.o:		$(SRC)/KERNEL/main.cc $(SRC)/KERNEL/system.h $(SRC)/KERNEL/global.h $(SRC)/version.h $(SRC)/KERNEL/inlines.h
+	echo "=Compiling main.cc"
+	$(CMP) $(CFLAGS) -w -c $(SRC)/KERNEL/main.cc -o $(LIB)/main.o
+$(LIB)/monitor.o:		$(SRC)/KERNEL/monitor.cc $(SRC)/KERNEL/system.h $(SRC)/KERNEL/global.h $(SRC)/version.h $(SRC)/KERNEL/inlines.h
+	echo "=Compiling monitor.cc"
+	$(CMP) $(CFLAGS) -w -c $(SRC)/KERNEL/monitor.cc -o $(LIB)/monitor.o
+$(LIB)/mparithm.o:	$(SRC)/KERNEL/mparithm.cc $(SRC)/KERNEL/system.h $(SRC)/KERNEL/global.h $(SRC)/version.h $(SRC)/KERNEL/inlines.h
+	echo "=Compiling mparithm.cc"
+	$(CMP) $(CFLAGS) -w -c $(SRC)/KERNEL/mparithm.cc -o $(LIB)/mparithm.o
+$(LIB)/numio.o:	$(SRC)/KERNEL/numio.cc $(SRC)/KERNEL/system.h $(SRC)/KERNEL/global.h $(SRC)/version.h $(SRC)/KERNEL/inlines.h
+	echo "=Compiling numio.cc"
+	$(CMP) $(CFLAGS) -w -c $(SRC)/KERNEL/numio.cc -o $(LIB)/numio.o
+$(LIB)/observer.o:	$(SRC)/KERNEL/observer.cc $(SRC)/KERNEL/system.h $(SRC)/KERNEL/global.h $(SRC)/version.h $(SRC)/KERNEL/inlines.h
+	echo "=Compiling observer.cc"
+	$(CMP) $(CFLAGS) -w -c $(SRC)/KERNEL/observer.cc -o $(LIB)/observer.o
+$(LIB)/process.o:	$(SRC)/KERNEL/process.cc $(SRC)/KERNEL/system.h $(SRC)/KERNEL/global.h $(SRC)/version.h $(SRC)/KERNEL/inlines.h
+	echo "=Compiling process.cc"
+	$(CMP) $(CFLAGS) -w -c $(SRC)/KERNEL/process.cc -o $(LIB)/process.o
+$(LIB)/mailbox.o:	$(SRC)/KERNEL/mailbox.cc $(SRC)/KERNEL/system.h $(SRC)/KERNEL/global.h $(SRC)/version.h $(SRC)/KERNEL/inlines.h $(SRC)/KERNEL/connect.h
+	echo "=Compiling mailbox.cc"
+	$(CMP) $(CFLAGS) -w -c $(SRC)/KERNEL/mailbox.cc -o $(LIB)/mailbox.o
+$(LIB)/rvar.o:		$(SRC)/KERNEL/rvar.cc $(SRC)/KERNEL/system.h $(SRC)/KERNEL/global.h $(SRC)/version.h $(SRC)/KERNEL/rvoffs.h $(SRC)/KERNEL/inlines.h
+	echo "=Compiling rvar.cc"
+	$(CMP) $(CFLAGS) -w -c $(SRC)/KERNEL/rvar.cc -o $(LIB)/rvar.o
+$(LIB)/sparithm.o:	$(SRC)/KERNEL/sparithm.cc $(SRC)/KERNEL/system.h $(SRC)/KERNEL/global.h $(SRC)/version.h $(SRC)/KERNEL/inlines.h
+	echo "=Compiling sparithm.cc"
+	$(CMP) $(CFLAGS) -w -c $(SRC)/KERNEL/sparithm.cc -o $(LIB)/sparithm.o
+$(LIB)/station.o:	$(SRC)/KERNEL/station.cc $(SRC)/KERNEL/system.h $(SRC)/KERNEL/global.h $(SRC)/version.h $(SRC)/KERNEL/inlines.h
+	echo "=Compiling station.cc"
+	$(CMP) $(CFLAGS) -w -c $(SRC)/KERNEL/station.cc -o $(LIB)/station.o
+$(LIB)/system.o:	$(SRC)/KERNEL/system.cc $(SRC)/KERNEL/system.h $(SRC)/KERNEL/global.h $(SRC)/version.h $(SRC)/KERNEL/inlines.h
+	echo "=Compiling system.cc"
+	$(CMP) $(CFLAGS) -w -c $(SRC)/KERNEL/system.cc -o $(LIB)/system.o
+$(LIB)/timer.o:	$(SRC)/KERNEL/timer.cc $(SRC)/KERNEL/system.h $(SRC)/KERNEL/global.h $(SRC)/version.h $(SRC)/KERNEL/inlines.h
+	echo "=Compiling timer.cc"
+	$(CMP) $(CFLAGS) -w -c $(SRC)/KERNEL/timer.cc -o $(LIB)/timer.o
+$(LIB)/display.o:	$(SRC)/KERNEL/display.cc $(SRC)/KERNEL/system.h $(SRC)/KERNEL/display.h $(SRC)/KERNEL/global.h $(SRC)/version.h $(SRC)/KERNEL/inlines.h $(SRC)/KERNEL/dshared.cc $(SRC)/KERNEL/sockbuf.cc
+	echo "=Compiling display.cc"
+	$(CMP) $(CFLAGS) -w -c $(SRC)/KERNEL/display.cc -o $(LIB)/display.o
+$(LIB)/var.o:		$(SRC)/KERNEL/var.cc $(SRC)/KERNEL/system.h $(SRC)/KERNEL/display.h $(SRC)/KERNEL/global.h $(SRC)/version.h $(SRC)/KERNEL/inlines.h
+	echo "=Compiling var.cc"
+	$(CMP) $(CFLAGS) -w -c $(SRC)/KERNEL/var.cc -o $(LIB)/var.o
