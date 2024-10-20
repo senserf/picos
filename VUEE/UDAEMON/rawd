@@ -1,0 +1,684 @@
+#!/bin/sh
+#
+#	Copyright 2002-2020 (C) Olsonet Communications Corporation
+#	Programmed by Pawel Gburzynski & Wlodek Olesinski
+#	All rights reserved
+#
+#	This file is part of the PICOS platform
+#
+#
+###################\
+exec tclsh "$0" "$@"
+
+###############################################################################
+# Raw (command line) interface to VUEE (raw udaemon)
+###############################################################################
+
+set PortNumber 		4443
+set HostName 		"localhost"
+set AGENT_MAGIC		0xBAB4
+set ECONN_OK		129
+
+
+
+array set SREQUESTS	{
+				UART		{  1 "u" }
+				PINS		{  2 "p" }
+				LEDS		{  3 "l" }
+				ROAMER		{  4 "m" }
+				PANEL		{  5 "n" }
+				CLOCK		{  6 "c" }
+				SENSORS		{  7 "s" }
+				LCDG		{  8 "g" }
+				PTRACKER	{  9 "w" }
+				EMUL		{ 10 "e" }
+				XMLDATA		{ 11 "x" }
+				STOP		{ 12 "h" }
+			}
+
+#
+# sng	set node group
+# gua	send to UART for the group
+# pwr	power on or off [node or group]
+#
+array set CMDS		{
+				sng		""
+				cua		""
+				gua		""
+				pwr		""
+				qui		""
+			}
+
+# One connection at a time
+set Sok	""
+set STimeout	5000
+
+###############################################################################
+## encoding/decoding ##########################################################
+###############################################################################
+
+proc tohex { b } {
+
+	scan $b %c v
+	return [format %02x $v]
+}
+	
+proc htodec { d } {
+#
+# Converts a hex digit to decimal
+#
+	global HDIGS
+
+	if ![info exists HDIGS(0)] {
+		# initialize
+		set HDIGS(0) 0
+		set HDIGS(1) 1
+		set HDIGS(2) 2
+		set HDIGS(3) 3
+		set HDIGS(4) 4
+		set HDIGS(5) 5
+		set HDIGS(6) 6
+		set HDIGS(7) 7
+		set HDIGS(8) 8
+		set HDIGS(9) 9
+		set HDIGS(a) 10
+		set HDIGS(b) 11
+		set HDIGS(c) 12
+		set HDIGS(d) 13
+		set HDIGS(e) 14
+		set HDIGS(f) 15
+		set HDIGS(A) 10
+		set HDIGS(B) 11
+		set HDIGS(C) 12
+		set HDIGS(D) 13
+		set HDIGS(E) 14
+		set HDIGS(F) 15
+	}
+
+	if ![info exists HDIGS($d)] {
+		return -1
+	}
+
+	return $HDIGS($d)
+}
+
+proc abinB { s b } {
+#
+# append one binary byte to string s
+#
+	upvar $s str
+	append str [binary format c $b]
+}
+
+proc abinS { s h } {
+#
+# append one short int to string s (in network order)
+#
+	upvar $s str
+	append str [binary format S $h]
+}
+
+proc abinI { s l } {
+#
+# append one 32-bit int to string s (in network order)
+#
+	upvar $s str
+	append str [binary format I $l]
+}
+
+proc dbinB { s } {
+#
+# decode one binary byte from string s
+#
+	upvar $s str
+	if { $str == "" } {
+		return -1
+	}
+	binary scan $str c val
+	set str [string range $str 1 end]
+	return [expr { ($val & 0x000000ff) }]
+}
+
+proc dbinS { s } {
+#
+# decode one binary short int from string s
+#
+	upvar $s str
+	if { [string length $str] < 2 } {
+		return -1
+	}
+	binary scan $str S val
+	set str [string range $str 2 end]
+	return [expr { ($val & 0x0000ffff) }]
+}
+
+proc dbinI { s } {
+#
+# decode one binary 32-bit int from string s
+#
+	upvar $s str
+	if { [string length $str] < 4 } {
+		return -1
+	}
+	binary scan $str I val
+	set str [string range $str 4 end]
+	return $val
+}
+
+###############################################################################
+
+proc valnum { n { min "" } { max "" } } {
+
+	set n [string tolower [string trim $n]]
+	if { $n == "" } {
+		error "empty string"
+	}
+
+	if { ![regexp {[[:digit:]]} $n] || [string first "." $n] >= 0 || \
+	    [string first "e" $n] >= 0 } {
+		error "string is not an integer number"
+	}
+
+	if [catch { expr { $n } } n] {
+		error "string is not a number"
+	}
+
+	if { $min != "" && $n < $min } {
+		error "number must not be less than $min"
+	}
+
+	if { $max != "" && $n > $max } {
+		error "number must not be greater than $max"
+	}
+
+	return $n
+}
+
+###############################################################################
+
+proc conerror { code } {
+
+    switch -- $code {
+
+	0 { return "llegal magic code" }
+	1 { return "node number out of range" }
+	2 { return "unimplelented function" }
+	3 { return "already connected to this module" }
+	4 { return "timeout" }
+	5 { return "module has a non-socket interface" }
+        6 { return "unexpected disconnection" }
+        7 { return "request line too long" }
+        8 { return "invalid request" }
+      128 { return "node has no such module" }
+    }
+
+    return "error code $code (unknown)"
+}
+
+proc wait_for_event { } {
+
+	global Stat
+
+	set Stat(E) 0
+
+	while { $Stat(E) == 0 } {
+		vwait Stat(E)
+	}
+
+	return $Stat(E)
+}
+
+proc trigger_event { } {
+
+	global Stat
+
+	set Stat(E) 1
+}
+
+proc sock_req { rqnum stid flags } {
+#
+# Sends an agent connection request to VUEE
+#
+	global Stat AGENT_MAGIC Sok
+
+	# prepare the request
+	set rqs ""
+	
+	abinS rqs $AGENT_MAGIC
+	abinS rqs $rqnum
+	abinI rqs $stid
+	abinI rqs $flags
+
+	if [catch { puts -nonewline $Sok $rqs } err] {
+		puts "connection failed: $err"
+		cabort
+		return
+	}
+
+	# detect timeouts
+	stimeout
+
+	# prevent writing until connection established; then another action
+	# will be used
+	fileevent $Sok writable ""
+}
+
+proc sock_rep { } {
+#
+# Handles the VUEE reply end of handshake
+#
+	global Stat Sok ECONN_OK
+
+	ctimeout
+
+	# four bytes expected
+	if [catch { read $Sok 4 } res] {
+		# disconnection
+		puts "connection failed: $res"
+		cabort
+		return
+	}
+
+	if { $res == "" } {
+		puts "connection closed by VUEE"
+		cabort
+		return
+	}
+
+	set co [dbinI res]
+	set cc [expr { $co & 0xff }]
+	if { $cc < $ECONN_OK } {
+		puts "connection rejected by VUEE: [conerror $cc]"
+		cabort
+		return
+	}
+
+	set Stat(RSP) $co
+
+	trigger_event
+
+	puts "connected $co"
+}
+
+proc sock_conn { what { stid -1 } { flags 0 } { stype "x" } } {
+#
+# Get a socket to the model
+#
+	global SREQUESTS Stat PortNumber HostName Sok
+
+	if { $Sok != "" } {
+		puts "previous connection in progress"
+		return ""
+	}
+
+	if ![info exists SREQUESTS($what)] {
+		puts "cannot connect to $what, no such object"
+		return ""
+	}
+
+	lassign $SREQUESTS($what) rqnum wcode
+
+	set tt $what
+	if { $stid >= 0 } {
+		append tt " at node $stid"
+	}
+
+	puts -nonewline "connecting to $tt ... "
+
+	set err [catch { socket $HostName $PortNumber } Sok]
+
+	if $err {
+		puts "connection failed: $Sok"
+		return ""
+	}
+
+	if [catch { fconfigure $Sok -blocking 0 -buffering none -translation \
+	    binary -encoding binary } err] {
+		catch { close $Sok }
+		puts "failed: $err"
+		return ""
+	}
+
+	fileevent $Sok writable "sock_req $rqnum $stid $flags"
+	fileevent $Sok readable "sock_rep"
+
+	return $Sok
+}
+
+proc stimeout { } {
+#
+# Socket timeout + abort
+#
+	global Stat Sok STimeout
+
+	if { $Sok != "" && ![info exists Stat($Sok,T)] } {
+		set Stat($Sok,T) [after $STimeout cabort]
+	}
+}
+
+proc ctimeout { } {
+#
+# Cancel socket timeout
+#
+	global Stat Sok
+
+	if { $Sok != "" && [info exists Stat($Sok,T)] } {
+		after cancel $Stat($Sok,T)
+		unset Stat($Sok,T)
+	}
+
+	trigger_event
+}
+
+proc cabort { } {
+#
+# Abort the socket
+#
+	global Sok
+	
+	if { $Sok != "" } {
+		ctimeout
+		catch { close $Sok }
+		set Sok ""
+	}
+}
+
+proc sock_rd { ch { n 4096 } } {
+#
+# Read a chunk of data from VUEE socket
+#
+	global Sok
+	upvar $ch chunk
+
+	if [catch { read $Sok $n } chunk] {
+		# disconnection
+		puts "connection terminated: $ch"
+		cabort
+		return 1
+	}
+
+	if { $chunk == "" } {
+		if [eof $Sok] {
+			# closed
+			puts "connection closed"
+			cabort
+			return 1
+		}
+	}
+
+	return 0
+}
+
+proc sock_wr { da } {
+#
+# Write a chunk of data to VUEE socket
+#
+	global Sok
+
+	if [catch { puts -nonewline $Sok $da } err] {
+		puts "connection closed: $err"
+		cabort
+		return 1
+	}
+
+	return 0
+}
+
+###############################################################################
+
+proc execute_pwr { ags } {
+
+	global NGROUPS Stat Sok
+
+	if { [regexp {^([[:alpha:]]+)(.*)} $ags mat gnm ags] } {
+		# this is a group
+		global NGROUPS
+		if ![info exists NGROUPS($gnm)] {
+			puts "no such group: $gnm"
+			return
+		}
+		set nl $NGROUPS($gnm)
+	} elseif { [regexp {^([[:digit:]]+)(.*)} $ags mat gnm ags] } {
+		if [catch { valnum $gnm 0 2048 } gnm] {
+			puts "illegal node Id"
+		}
+		set nl [list $gnm]
+	} else {
+		puts "group name or node number required"
+		return
+	}
+
+	set ags [string trim $ags]
+
+	if { $ags == "on" } {
+		set cmd "O"
+	} elseif { $ags == "off" } {
+		set cmd "F"
+	} elseif { $ags == "reset" } {
+		set cmd "R"
+	} else {
+		puts "the argument must be 'on', 'off', or 'reset'"
+		return
+	}
+
+	# connect to the panel
+	set Stat(RSP) ""
+
+	if { [sock_conn "PANEL"] == "" } {
+		return
+	}
+
+	wait_for_event
+
+	if { $Sok == "" } {
+		puts "failed connecting to PANEL"
+		return
+	}
+
+	foreach n $nl {
+		puts "doing $n"
+		if { [sock_wr "$cmd $n"] } {
+			puts "aborted"
+		}
+	}
+
+	cabort
+}
+
+proc execute_sng { ags } {
+#
+# Define a node group
+#
+	global NGROUPS
+
+	if ![regexp {^([[:alpha:]]+)(.*)} $ags mat gnm ags] {
+		puts "illegal group name"
+		return
+	}
+
+	while 1 {
+		set ags [string trimleft $ags]
+		if { $ags == "" } {
+			break
+		}
+
+		if [regexp {^([[:digit:]]+)-([[:digit:]]+)(.*)} $ags mat \
+			n1 n2 ags] {
+			# bounds
+			if { [catch { valnum $n1 0 2048 } n1] ||
+			     [catch { valnum $n2 0 2048 } n2] } {
+				puts "illegal node Id"
+				return
+			}
+
+			if { $n2 < $n1 } {
+				puts "illegal node pair: $n1 > $n2"
+				return
+			}
+
+			while { $n1 <= $n2 } {
+				set __nn($n1) ""
+				incr n1
+			}
+			continue
+		} 
+
+		if [regexp {^([[:digit:]]+)(.*)} $ags mat n1 ags] {
+			# a single node
+			if [catch { valnum $n1 0 2048 } n1] {
+				puts "illegal node Id"
+			}
+			set __nn($n1) ""
+			continue
+		}
+
+		puts "illegal syntax"
+		return
+	}
+
+	set nl [lsort -integer [array names __nn]]
+
+	if { $nl == "" } {
+		puts "no nodes specified"
+	} else {
+		set NGROUPS($gnm) $nl
+		puts "group $gnm set ([llength $nl] nodes)"
+	}
+}
+
+proc execute_gua { ags } {
+#
+# Send the line to a UART or a group of UARTs
+#
+	if { [regexp {^([[:alpha:]]+)(.*)} $ags mat gnm ags] } {
+		# this is a group
+		global NGROUPS
+		if ![info exists NGROUPS($gnm)] {
+			puts "no such group: $gnm"
+			return
+		}
+		set nl $NGROUPS($gnm)
+	} elseif { [regexp {^([[:digit:]]+)(.*)} $ags mat gnm ags] } {
+		if [catch { valnum $gnm 0 2048 } gnm] {
+			puts "illegal node Id"
+		}
+		set nl [list $gnm]
+	} else {
+		puts "group name or node number required"
+		return
+	}
+
+	set ags [string trim $ags]
+
+	foreach n $nl {
+		send_to_uart $n $ags
+	}
+
+	puts "done"
+}
+
+proc uart_first_message { } {
+
+	global Sok Stat
+
+	while 1 {
+		if { [sock_rd ch 1] || $ch == "" } {
+			return
+		}
+		if { $ch == "\n" } {
+			# end of command line
+			break
+		}
+		append Stat($Buf) $ch
+	}
+
+	ctimeout
+	trigger_event
+
+	fileevent $Sok readable ""
+}
+
+proc send_to_uart { n txt } {
+
+	global Stat Sok
+
+	set Stat(RSP) ""
+
+	if { [sock_conn "UART" $n] == "" } {
+		# failed
+		return
+	}
+
+	wait_for_event
+
+	if { $Sok == "" } {
+		puts "failed connecting to $n"
+		return
+	}
+
+	if [catch { expr { (($Stat(RSP) >> 8) & 0x0ffff) * 100 } } rt] {
+		puts "illegal response for $n"
+		cabort
+		return
+	}
+
+	puts "UART rate: $rt"
+
+	# wait for first message, the node signature
+	set Stat(Buf) ""
+	fileevent $Sok readable "uart_first_message"
+	stimeout
+
+	wait_for_event
+
+	puts "node signature: $Stat(Buf)"
+
+	sock_wr "${txt}\r\n"
+
+	cabort
+}
+
+proc execute_qui { a } {
+
+	exit 0
+}
+
+proc do_cmd { } {
+
+	global CMDS
+
+	while 1 {
+		puts -nonewline "+: "
+		flush stdout
+		if { [gets stdin line] < 0 } {
+			break
+		}
+		set line [string trim $line]
+		if { $line == "" } {
+			continue
+		}
+		if ![regexp {^([[:alpha:]]+)(.*)} $line mat cmd ags] {
+			puts "illegal syntax"
+			continue
+		}
+		set ags [string trim $ags]
+		if ![info exists CMDS($cmd)] {
+			puts "illegal command: $cmd"
+			continue
+		}
+
+		# do the command
+		execute_$cmd $ags
+	}
+
+	cabort
+}
+		
+proc main { } {
+
+	do_cmd
+}
+
+###############################################################################
+
+main

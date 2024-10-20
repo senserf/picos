@@ -1,0 +1,9483 @@
+#!/bin/sh
+#
+#	Copyright 2002-2020 (C) Olsonet Communications Corporation
+#	Programmed by Pawel Gburzynski & Wlodek Olesinski
+#	All rights reserved
+#
+#	This file is part of the PICOS platform
+#
+#
+########\
+exec wish86 "$0" "$@"
+
+###############################################################################
+
+if [catch { exec uname } Stat(S)] {
+	set Stat(S) "W"
+} elseif [regexp -nocase "linux" $Stat(S)] {
+	set Stat(S) "L"
+} elseif [regexp -nocase "cygwin" $Stat(S)] {
+	set Stat(S) "C"
+} else {
+	set Stat(S) "W"
+}
+if { $Stat(S) != "L" } {
+	# sanitize arguments
+	set u [string trimright [lindex $argv end]]
+	if { $u == "" } {
+		set argv [lreplace $argv end end]
+	} else {
+		set argv [lreplace $argv end end $u]
+	}
+	unset u
+}
+
+###############################################################################
+# Determine the way devices are named; if running natively under Cygwin, use
+# Linux style
+###############################################################################
+
+if [file isdirectory "/dev"] {
+	set Stat(D) "L"
+} else {
+	set Stat(D) "W"
+}
+
+###############################################################################
+
+##
+## This is optional; it just extends the pool of file formats available as
+## background images to ROAMER
+##
+catch { package require Img }
+
+package provide xml 1.0
+
+namespace eval XML {
+
+proc xstring { s } {
+#
+# Extract a possibly quoted string
+#
+	upvar $s str
+
+	if { [xspace str] != "" } {
+		error "illegal white space"
+	}
+
+	set c [string index $str 0]
+	if { $c == "" } {
+		error "empty string illegal"
+	}
+
+	if { $c != "\"" } {
+		# no quote; this is formally illegal in XML, but let's be
+		# pragmatic
+		regexp "^\[^ \t\n\r\>\]+" $str val
+		set str [string range $str [string length $val] end]
+		return [xunesc $val]
+	}
+
+	# the tricky way
+	if ![regexp "^.(\[^\"\]*)\"" $str match val] {
+		error "missing \" in string"
+	}
+	set str [string range $str [string length $match] end]
+
+	return [xunesc $val]
+}
+
+proc xunesc { str } {
+#
+# Remove escapes from text
+#
+	regsub -all "&amp;" $str "\\&" str
+	regsub -all "&quot;" $str "\"" str
+	regsub -all "&lt;" $str "<" str
+	regsub -all "&gt;" $str ">" str
+	regsub -all "&nbsp;" $str " " str
+
+	return $str
+}
+
+proc xspace { s } {
+#
+# Skip white space
+#
+	upvar $s str
+
+	if [regexp -indices "^\[ \t\r\n\]+" $str ix] {
+		set ix [lindex $ix 1]
+		set match [string range $str 0 $ix]
+		set str [string range $str [expr $ix + 1] end]
+		return $match
+	}
+
+	return ""
+}
+
+proc xcmnt { s } {
+#
+# Skip a comment
+#
+	upvar $s str
+
+	set sav $str
+
+	set str [string range $str 4 end]
+	set cnt 1
+
+	while 1 {
+		set ix [string first "-->" $str]
+		set iy [string first "<!--" $str]
+		if { $ix < 0 } {
+			error "unterminated comment: [string range $sav 0 15]"
+		}
+		if { $iy > 0 && $iy < $ix } {
+			incr cnt
+			set str [string range $str [expr $iy + 4] end]
+		} else {
+			set str [string range $str [expr $ix + 3] end]
+			incr cnt -1
+			if { $cnt == 0 } {
+				return
+			}
+		}
+	}
+}
+
+proc xftag { s } {
+#
+# Find and extract the first tag in the string
+#
+	upvar $s str
+
+	set front ""
+
+	while 1 {
+		# locate the first tag
+		set ix [string first "<" $str]
+		if { $ix < 0 } {
+			set str "$front$str"
+			return ""
+		}
+		append front [string range $str 0 [expr $ix - 1]]
+		set str [string range $str $ix end]
+		# check for a comment
+		if { [string range $str 0 3] == "<!--" } {
+			# skip the comment
+			xcmnt str
+			continue
+		}
+		set et ""
+		if [regexp -nocase "^<(/)?\[a-z:_\]" $str ix et] {
+			# this is a tag
+			break
+		}
+		# skip the thing and keep going
+		append front "<"
+		set str [string range $str 1 end]
+	}
+
+	if { $et != "" } {
+		set tm 1
+	} else {
+		set tm 0
+	}
+
+	if { $et != "" } {
+		# terminator, skip the '/', so the text is positioned at the
+		# beginning of keyword
+		set ix 2
+	} else {
+		set ix 1
+	}
+
+	# starting at the keyword
+	set str [string range $str $ix end]
+
+	if ![regexp -nocase "^(\[a-z0-9:_\]+)(.*)" $str ix kwd str] {
+		# error
+		error "illegal tag: [string range $str 0 15]"
+	}
+
+	set kwd [string tolower $kwd]
+
+	# decode the attributes
+	set attr ""
+	array unset atts
+
+	while 1 {
+		xspace str
+		if { $str == "" } {
+			error "unterminated tag: <$et$kwd"
+		}
+		set c [string index $str 0]
+		if { $c == "/" } {
+			# self-terminating
+			if { $tm != 0 || [string index $str 1] != ">" } {
+				error "broken self-terminating tag:\
+					<$et$kwd ... [string range $str 0 15]"
+			}
+			set str [string range $str 2 end]
+			return [list 2 $front $kwd $attr]
+		}
+		if { $c == ">" } {
+			# done
+			set str [string range $str 1 end]
+			# term preceding_text keyword attributes
+			return [list $tm $front $kwd $attr]
+		}
+		# this must be a keyword
+		if ![regexp -nocase "^(\[a-z\]\[a-z0-9_\]*)=" $str match atr] {
+			error "illegal attribute: <$et$kwd ... [string range \
+				$str 0 15]"
+		}
+		set atr [string tolower $atr]
+		if [info exists atts($attr)] {
+			error "duplicate attribute: <$et$kwd ... $atr"
+		}
+		set atts($atr) ""
+		set str [string range $str [string length $match] end]
+		if [catch { xstring str } val] {
+			error "illegal attribute value: \
+				<$et$kwd ... $atr=[string range $str 0 15]"
+		}
+		lappend attr [list $atr $val]
+	}
+}
+
+proc xadv { s kwd } {
+#
+# Returns the text + the list of children for the current tag. A child looks
+# like this:
+#
+#	text:		<"" the_text>
+#	element:	<tag attributes children_list>
+#
+	upvar $s str
+
+	set chd ""
+
+	while 1 {
+		# locate the nearest tag
+		set tag [xftag str]
+		if { $tag == "" } {
+			# no more
+			if { $kwd != "" } {
+				error "unterminated tag: <$kwd ...>"
+			}
+
+			if { $str != "" } {
+				# a tailing text item
+				lappend chd [list "" $str]
+				return $chd
+			}
+		}
+
+		set md [lindex $tag 0]
+		set fr [lindex $tag 1]
+		set kw [lindex $tag 2]
+		set at [lindex $tag 3]
+
+		if { $fr != "" } {
+			# append a text item
+			lappend chd [list "" $fr]
+		}
+
+		if { $md == 0 } {
+			# opening, not self-closing
+			set cl [xadv str $kw]
+			# inclusion ?
+			set tc [list $kw $at $cl]
+			if ![xincl str $tc] {
+				lappend chd $tc
+			}
+		} elseif { $md == 2 } {
+			# opening, self-closing
+			set tc [list $kw $at ""]
+			if ![xincl str $tc] {
+				lappend chd $tc
+			}
+		} else {
+			# closing
+			if { $kw != $kwd } {
+				error "mismatched tag: <$kwd ...> </$kw>"
+			}
+			# we are done with the tag
+			return $chd
+		}
+	}
+}
+
+proc xincl { s tag } {
+#
+# Process an include tag
+#
+	set kw [lindex $tag 0]
+
+	if { $kw != "include" && $kw != "xi:include" } {
+		return 0
+	}
+
+	set fn [sxml_attr $tag "href"]
+
+	if { $fn == "" } {
+		error "href attribute of <$kw ...> is empty"
+	}
+
+	if [catch { open $fn "r" } fd] {
+		error "cannot open include file $fn: $fd"
+	}
+
+	if [catch { read $fd } fi] {
+		catch { close $fd }
+		error "cannot read include file $fn: $fi"
+	}
+
+	# merge it
+	upvar $s str
+
+	set str $fi$str
+
+	return 1
+}
+
+proc sxml_parse { s } {
+#
+# Builds the XML tree from the provided string
+#
+	upvar $s str
+
+	set v [xadv str ""]
+
+	return [list root "" $v]
+}
+
+proc sxml_name { s } {
+
+	return [lindex $s 0]
+}
+
+proc sxml_txt { s } {
+
+	set txt ""
+
+	foreach t [lindex $s 2] {
+		if { [lindex $t 0] == "" } {
+			append txt [lindex $t 1]
+		}
+	}
+
+	return $txt
+}
+
+proc sxml_snippet { s } {
+
+	if { [lindex $s 0] != "" } {
+		return ""
+	}
+
+	return [lindex $s 1]
+}
+
+proc sxml_attr { s n { e "" } } {
+
+	if { $e != "" } {
+		# flag to tell the difference between an empty attribute and
+		# its complete lack
+		upvar $e ef
+		set ef 0
+	}
+
+	if { [lindex $s 0] == "" } {
+		# this is a text
+		return ""
+	}
+
+	set al [lindex $s 1]
+	set n [string tolower $n]
+	foreach a $al {
+		if { [lindex $a 0] == $n } {
+			if { $e != "" } {
+				set ef 1
+			}
+			return [lindex $a 1]
+		}
+	}
+	return ""
+}
+
+proc sxml_children { s { n "" } } {
+
+	# this is automatically null for a text
+	set cl [lindex $s 2]
+
+	if { $n == "+" } {
+		# all including text
+		return $cl
+	}
+
+	set res ""
+
+	if { $n == "" } {
+		# tagged elements only
+		foreach c $cl {
+			if { [lindex $c 0] != "" } {
+				lappend res $c
+			}
+		}
+		return $res
+	} else {
+		# all with the given tag name
+		foreach c $cl {
+			if { [lindex $c 0] == $n } {
+				lappend res $c
+			}
+		}
+	}
+
+	return $res
+}
+
+proc sxml_child { s n } {
+
+	# null for a text
+	set cl [lindex $s 2]
+
+	foreach c $cl {
+		if { [lindex $c 0] == $n } {
+			return $c
+		}
+	}
+
+	return ""
+}
+
+proc sxml_yes { item attr } {
+#
+# A useful shortcut
+#
+	if { [string tolower [string index [sxml_attr $item $attr] 0]] == \
+		"y" } {
+			return 1
+	}
+	return 0
+}
+
+namespace export sxml_*
+
+### end of XML namespace ######################################################
+
+}
+
+namespace import ::XML::*
+
+###############################################################################
+# End of Mini XML parser ######################################################
+###############################################################################
+
+package provide unames 1.0
+
+namespace eval UNAMES {
+
+variable Dev
+
+proc unames_init { dtype { stype "" } } {
+
+	variable Dev
+
+	# device layout type: "L" (Linux), other "Windows"
+	set Dev(DEV) $dtype
+	# system type: "L" (Linux), other "Windows/Cygwin"
+	set Dev(SYS) $stype
+
+	if { $Dev(DEV) == "L" } {
+		# determine the root of virtual ttys
+		if [file isdirectory "/dev/pts"] {
+			# BSD style
+			set Dev(PRT) "/dev/pts/%"
+		} else {
+			set Dev(PRT) "/dev/pty%"
+		}
+		# number bounds (inclusive) for virtual devices
+		set Dev(PRB) { 0 8 }
+		# real ttys
+		if { $Dev(SYS) == "L" } {
+			# actual Linux
+			set Dev(RRT) "/dev/ttyUSB%"
+		} else {
+			# Cygwin
+			set Dev(RRT) "/dev/ttyS%"
+		}
+		# and their bounds
+		set Dev(RRB) { 0 31 }
+	} else {
+		set Dev(PRT) { "CNCA%" "CNCB%" }
+		set Dev(PRB) { 0 3 }
+		set Dev(RRT) "COM%:"
+		set Dev(RRB) { 1 32 }
+	}
+
+	unames_defnames
+}
+
+proc unames_defnames { } {
+#
+# Generate the list of default names
+#
+	variable Dev
+
+	# flag == default names, not real devices
+	set Dev(DEF) 1
+	# true devices
+	set Dev(COM) ""
+	# virtual devices
+	set Dev(VCM) ""
+
+	set rf [lindex $Dev(RRB) 0]
+	set rt [lindex $Dev(RRB) 1]
+	set pf [lindex $Dev(PRB) 0]
+	set pt [lindex $Dev(PRB) 1]
+
+	while { $rf <= $rt } {
+		foreach d $Dev(RRT) {
+			regsub "%" $d $rf d
+			lappend Dev(COM) $d
+		}
+		incr rf
+	}
+
+	while { $pf <= $pt } {
+		foreach d $Dev(PRT) {
+			regsub "%" $d $pf d
+			lappend Dev(VCM) $d
+		}
+		incr pf
+	}
+}
+
+proc unames_ntodev { n } {
+#
+# Proposes a device list for a number
+#
+	variable Dev
+
+	regsub -all "%" $Dev(RRT) $n d
+	return $d
+}
+
+proc unames_ntovdev { n } {
+#
+# Proposes a virtual device list for a number
+#
+	variable Dev
+
+	regsub -all "%" $Dev(PRT) $n d
+
+	if { $Dev(DEV) == "L" && ![file exists $d] } {
+		# this is supposed to be authoritative
+		return ""
+	}
+	return $d
+}
+
+proc unames_unesc { dn } {
+#
+# Escapes the device name so it can be used as an argument to open
+#
+	variable Dev
+
+	if { $Dev(DEV) == "L" } {
+		# no need to do anything
+		return $dn
+	}
+
+	if [regexp -nocase "^com(\[0-9\]+):$" $dn jk pn] {
+		set dn "\\\\.\\COM$pn"
+	} else {
+		set dn "\\\\.\\$dn"
+	}
+
+	return $dn
+}
+
+proc unames_scan { } {
+#
+# Scan actual devices
+#
+	variable Dev
+
+	set Dev(DEF) 0
+	set Dev(COM) ""
+	set Dev(VCM) ""
+
+	# real devices
+	for { set i 0 } { $i < 256 } { incr i } {
+		set dl [unames_ntodev $i]
+		foreach d $dl {
+			if [catch { open [unames_unesc $d] "r" } fd] {
+				continue
+			}
+			catch { close $fd }
+			lappend Dev(COM) $d
+		}
+	}
+
+	for { set i 0 } { $i < 32 } { incr i } {
+		set dl [unames_ntovdev $i]
+		if { $dl == "" } {
+			continue
+		}
+		if { $Dev(DEV) == "L" } {
+			# don't try to open them; unames_ntovdev is
+			# authoritative, and opening those representing
+			# terminals may mess them up
+			foreach d $dl {
+				lappend Dev(VCM) $d
+			}
+			continue
+		}
+		foreach d $dl {
+			if [catch { open [unames_unesc $d] "r" } fd] {
+				continue
+			}
+			catch { close $fd }
+			lappend Dev(VCM) $d
+		}
+	}
+}
+
+proc unames_fnlist { fn } {
+#
+# Returns the list of filenames to try to open, given an element from one of
+# the lists; if not on the list, assume a direct name (to be escaped, however)
+#
+	variable Dev
+
+	if [regexp "^\[0-9\]+$" $fn] {
+		# just a number
+		return [unames_ntodev $fn]
+	}
+
+	if { [lsearch -exact $Dev(COM) $fn] >= 0 } {
+		if !$Dev(DEF) {
+			# this is an actual device
+			return $fn
+		}
+		# get a number and convert to a list
+		if ![regexp "\[0-9\]+" $fn n] {
+			return ""
+		}
+		return [unames_ntodev $n]
+	}
+	if { [lsearch -exact $Dev(VCM) $fn] >= 0 } {
+		if !$Dev(DEF) {
+			return $fn
+		}
+		if ![regexp "\[0-9\]+" $fn n] {
+			return ""
+		}
+		return [unames_ntovdev $n]
+	}
+	# return as is
+	return $fn
+}
+
+proc unames_choice { } {
+
+	variable Dev
+
+	return [list $Dev(COM) $Dev(VCM)]
+}
+
+namespace export unames_*
+
+### end of UNAMES namespace ###################################################
+}
+
+namespace import ::UNAMES::*
+
+unames_init $Stat(D) $Stat(S)
+
+###############################################################################
+
+package provide tooltips 1.0
+
+###############################################################################
+# TOOLTIPS ####################################################################
+###############################################################################
+
+namespace eval TOOLTIPS {
+
+variable ttps
+
+proc tip_init { { fo "" } { wi "" } { bg "" } { fg "" } } {
+#
+# Font, wrap length, i.e., width (in pixels)
+#
+	variable ttps
+
+	if { $fo == "" } {
+		set fo "TkSmallCaptionFont"
+	}
+
+	if { $wi == "" } {
+		set wi 320
+	}
+
+	if { $bg == "" } {
+		set bg "lightyellow"
+	}
+
+	if { $fg == "" } {
+		set fg "black"
+	}
+
+	set ttps(FO) $fo
+	set ttps(WI) $wi
+	set ttps(BG) $bg
+	set ttps(FG) $fg
+	set ttps(EN) 1
+
+}
+
+proc tip_enable { on } {
+
+	variable ttps
+
+	if { $on != 0 } {
+		set ttps(EN) 1
+	} else {
+		set ttps(EN) 0
+	}
+}
+
+proc tip_set { w t } {
+
+	bind $w <Any-Enter> [list after 200 [list tip_show %W $t]]
+	bind $w <Any-Leave> [list after 500 [list destroy %W.ttip]]
+	bind $w <Any-KeyPress> [list after 500 [list destroy %W.ttip]]
+	bind $w <Any-Button> [list after 500 [list destroy %W.ttip]]
+}
+
+proc tip_setc { w c t } {
+
+	$w bind $c <Any-Enter> [list after 200 [list tip_show %W $t]]
+	$w bind $c <Any-Leave> [list after 500 [list destroy %W.ttip]]
+	$w bind $c <Any-KeyPress> [list after 500 [list destroy %W.ttip]]
+	$w bind $c <Any-Button> [list after 500 [list destroy %W.ttip]]
+}
+
+proc tip_show { w t } {
+
+	global tcl_platform
+	variable ttps
+
+	if { $ttps(EN) == 0 } {
+		return
+	}
+
+	set px [winfo pointerx .]
+	set py [winfo pointery .]
+
+	if { [string match $w* [winfo containing $px $py]] == 0 } {
+                return
+        }
+
+	catch { destroy $w.ttip }
+
+	set scrh [winfo screenheight $w]
+	set scrw [winfo screenwidth $w]
+
+	set tip [toplevel $w.ttip -bd 1 -bg black]
+
+	wm geometry $tip +$scrh+$scrw
+	wm overrideredirect $tip 1
+
+	if { $tcl_platform(platform) == "windows" } {
+		wm attributes $tip -topmost 1
+	}
+
+	pack [label $tip.label -bg $ttps(BG) -fg $ttps(FG) -text $t \
+		-justify left -wraplength $ttps(WI) -font $ttps(FO)]
+
+	set wi [winfo reqwidth $tip.label]
+	set hi [winfo reqheight $tip.label]
+
+	set xx [expr $px - round($wi / 2.0)]
+
+	if { $py > [expr $scrh / 2.0] } {
+		# lower half
+		set yy [expr $py - $hi - 10]
+	} else {
+		set yy [expr $py + 10]
+	}
+
+	if  { [expr $xx + $wi] > $scrw } {
+		set xx [expr $scrw - $wi]
+	} elseif { $xx < 0 } {
+		set xx 0
+	}
+
+	wm geometry $tip [join "$wi x $hi + $xx + $yy" {}]
+
+        raise $tip
+
+        bind $w.ttip <Any-Enter> { destroy %W }
+        bind $w.ttip <Any-Leave> { destroy %W }
+}
+
+namespace export tip_*
+
+}
+
+namespace import ::TOOLTIPS::*
+
+###############################################################################
+
+tip_init
+
+set Unique		0
+set MaxLineCount	1024
+set HostName		"localhost"
+set AGENT_MAGIC		0xBAB4
+set ECONN_OK		129
+set PortNumber		""
+set Stat(TD)		0
+set Rms			""
+set RD(S)		""
+
+array set LED_COLORS	{ 0 red 1 green 2 yellow 3 orange 4 blue }
+
+# default colors for the first five node types
+set NTYPE_COLORS	{ yellow blue orange red green }
+
+# default highlight colors: "note bgr" "list of small-value colors"
+set Geometry(H,,)	{
+	{ {} {} }
+	{ black gray white magenta darkviolet goldenrod orangered chocolate }
+}
+
+#
+# Pin status ordinals:
+#
+#	PINSTAT_INPUT		0
+# 	PINSTAT_OUTPUT		1
+# 	PINSTAT_ADC		2
+# 	PINSTAT_DAC0		3
+# 	PINSTAT_DAC1		4
+# 	PINSTAT_PULSE		5
+# 	PINSTAT_NOTIFIER	6
+# 	PINSTAT_ABSENT		7
+#
+
+array set PIN_COLORS	{ D,0 "#A4E22E" D,1 "#FFFF7F" D,2 "#FE8592"
+			  D,3 "#7EDCED" D,4 "#7EDCED" D,5 "#61A77E"
+			  D,6 "#FE3512" D,7 "#C0C0C0" O,0 "#8C82EC"
+			  O,1 "#FF0000" O,2 "#C0C0C0" I,0 "#8C82EC"
+			  I,1 "#FF0000" I,2 "#C0C0C0" A   "#7EDCED"
+			  I   "#C0C0C0" N   "#7EB0ED"
+			}
+
+array set PANEL_COLORS	{ ACTIVE  "#F0EC00" DISABLED "#BEBEBE" DEL "#007DFF"
+			  ONLABEL "#FF0000" OFFLABEL "#909090"
+			  HOSTID  "#F7C89E" GRPNAME  "#66B2FF"
+			  ADDNODE "#3399FF" PRTLABEL "#E881D8" }
+
+array set PIN_STCODE	{ 0 "I" 1 "O" 2 "A" 3 "D" 4 "D" 5 "P" 6 "N" 7 "-" }
+
+array set PIN_STTIP	{
+			  0 "digital input"
+			  1 "digital output"
+			  2 "analog input"
+			  3 "first digital-to-analog"
+			  4 "second digital-to-analog"
+			  5 "pulse counter"
+			  6 "pulse monitor"
+			  7 "absent"
+			}
+
+array set HPA		{ 
+			  H "(\[0-9a-f\]+)"
+			  D "(\[0-9\]+)"
+			  S "(\[+-\]?\[0-9\]+)"
+			  F "(\[0-9.+-E\]+)"
+			  P "<(\[^,\]*),(\[^>\]*)>"
+			  V "\\\[(\[^,\]*),(.*)\\\]"
+			  Q "(\[FO\])"
+			  L "(\[FO\]*)"
+			}
+
+# node signature
+set HPA(G)		"^P $HPA(D) $HPA(Q) $HPA(D) $HPA(D) <(\[^ \]*)>:"
+
+array set FONT		{
+			  D {-family courier -size 10}
+			  R {-family courier -size 9}
+			  L {-family helvetica -size 7 -slant italic}
+			}
+
+#
+# Default canvas parameters for ROAMER:
+#
+# NR     = default node radius
+# TO     = text label Y offset (relative to node bound)
+# LO	 = note offset (x,y) from the corner of node's box
+# RX, RY = running coordinate offset from left bottom
+# MW, MH = minimum width and height
+# DW, DH = default (initial) width and height
+#
+array set CMARGIN	{ L 24 R 24 U 24 D 34 NR 5 TO 5 RX 10 RY 10
+			  LO 0 LW 100 MW 200 MH 200 DW 400 DH 400 }
+
+#
+# Canvas parameters for PTRACKER:
+#
+array set PMARGIN	{ L 12 R 12 T 25 B 30 MW 200 MH 65 DW 500 DH 60 }
+
+#
+# Stuff for the "LCD" clock
+#
+array set LCDSHAPE {
+    a {3.0 5 5.2 3 7.0 5 6.0 15 3.8 17 2.0 15}
+    b {6.3 2 8.5 0 18.5 0 20.3 2 18.1 4 8.1 4}
+    c {19.0 5 21.2 3 23.0 5 22.0 15 19.8 17 18.0 15}
+    d {17.4 21 19.6 19 21.4 21 20.4 31 18.2 33 16.4 31}
+    e {3.1 34 5.3 32 15.3 32 17.1 34 14.9 36 4.9 36}
+    f {1.4 21 3.6 19 5.4 21 4.4 31 2.2 33 0.4 31}
+    g {4.7 18 6.9 16 16.9 16 18.7 18 16.5 20 6.5 20}
+    h {3.5 7.5 6.5 7.5 6.5 11.5 3.5 11.5}
+    i {2.0 23.5 5 23.5 5.0 27.5 2.0 27.5}
+}
+
+array set LCDONITEMS {
+    0 {a b c d e f}
+    1 {c d}
+    2 {b c e f g}
+    3 {b c d e g}
+    4 {a c d g}
+    5 {a b d e g}
+    6 {a b d e f g}
+    7 {b c d}
+    8 {a b c d e f g}
+    9 {a b c d e g}
+    - {g}
+    { } {}
+}
+
+array set LCDOFFITEMS {
+    0 {g}
+    1 {a b e f g}
+    2 {a d}
+    3 {a f}
+    4 {b e f}
+    5 {c f}
+    6 {c}
+    7 {a e f g}
+    8 {}
+    9 {f}
+    - {a b c d e f}
+    { } {a b c d e f g}
+}
+
+array set LCDCOLORS 	{ ONE #ff8080 ONI #ff0000 OFE #000000 OFI #0F0F0F }
+
+array set SREQUESTS	{
+				UART		{  1 "u" }
+				PINS		{  2 "p" }
+				LEDS		{  3 "l" }
+				ROAMER		{  4 "m" }
+				PANEL		{  5 "n" }
+				CLOCK		{  6 "c" }
+				SENSORS		{  7 "s" }
+				LCDG		{  8 "g" }
+				PTRACKER	{  9 "w" }
+				EMUL		{ 10 "e" }
+				XMLDATA		{ 11 "x" }
+				STOP		{ 12 "h" }
+			}
+
+###############################################################################
+## encoding/decoding ##########################################################
+###############################################################################
+
+proc tohex { b } {
+
+	scan $b %c v
+	return [format %02x $v]
+}
+	
+proc htodec { d } {
+#
+# Converts a hex digit to decimal
+#
+	global HDIGS
+
+	if ![info exists HDIGS(0)] {
+		# initialize
+		set HDIGS(0) 0
+		set HDIGS(1) 1
+		set HDIGS(2) 2
+		set HDIGS(3) 3
+		set HDIGS(4) 4
+		set HDIGS(5) 5
+		set HDIGS(6) 6
+		set HDIGS(7) 7
+		set HDIGS(8) 8
+		set HDIGS(9) 9
+		set HDIGS(a) 10
+		set HDIGS(b) 11
+		set HDIGS(c) 12
+		set HDIGS(d) 13
+		set HDIGS(e) 14
+		set HDIGS(f) 15
+		set HDIGS(A) 10
+		set HDIGS(B) 11
+		set HDIGS(C) 12
+		set HDIGS(D) 13
+		set HDIGS(E) 14
+		set HDIGS(F) 15
+	}
+
+	if ![info exists HDIGS($d)] {
+		return -1
+	}
+
+	return $HDIGS($d)
+}
+
+proc abinB { s b } {
+#
+# append one binary byte to string s
+#
+	upvar $s str
+	append str [binary format c $b]
+}
+
+proc abinS { s h } {
+#
+# append one short int to string s (in network order)
+#
+	upvar $s str
+	append str [binary format S $h]
+}
+
+proc abinI { s l } {
+#
+# append one 32-bit int to string s (in network order)
+#
+	upvar $s str
+	append str [binary format I $l]
+}
+
+proc dbinB { s } {
+#
+# decode one binary byte from string s
+#
+	upvar $s str
+	if { $str == "" } {
+		return -1
+	}
+	binary scan $str c val
+	set str [string range $str 1 end]
+	return [expr { ($val & 0x000000ff) }]
+}
+
+proc dbinS { s } {
+#
+# decode one binary short int from string s
+#
+	upvar $s str
+	if { [string length $str] < 2 } {
+		return -1
+	}
+	binary scan $str S val
+	set str [string range $str 2 end]
+	return [expr { ($val & 0x0000ffff) }]
+}
+
+proc dbinI { s } {
+#
+# decode one binary 32-bit int from string s
+#
+	upvar $s str
+	if { [string length $str] < 4 } {
+		return -1
+	}
+	binary scan $str I val
+	set str [string range $str 4 end]
+	return $val
+}
+
+###############################################################################
+# auxiliaries, tests, checks, validation ######################################
+###############################################################################
+
+proc cw { } {
+#
+# Returns the window currently in focus or null if this is the root window
+#
+	set w [focus]
+	if { $w == "." } {
+		set w ""
+	}
+
+	return $w
+}
+
+proc terminate { } {
+
+	catch { destroy . }
+
+}
+
+proc alert { msg } {
+
+	tk_dialog [cw].alert "Attention!" $msg "" 0 "OK"
+}
+
+proc validSid { v } {
+#
+# Validate node ID
+#
+	if { $v == "" } {
+		# empty OK, at least formally, there exist global windows
+		return 1
+	}
+	if { [string length $v] > 6 } {
+		return 0
+	}
+	if { $v == "0" } {
+		return 1
+	}
+	return [regexp "^\[1-9\]\[0-9\]*$" $v]
+}
+
+proc valnum { n { min "" } { max "" } } {
+
+	set n [string tolower [string trim $n]]
+	if { $n == "" } {
+		error "empty string"
+	}
+
+	if { ![regexp {[[:digit:]]} $n] || [string first "." $n] >= 0 || \
+	    [string first "e" $n] >= 0 } {
+		error "string is not an integer number"
+	}
+
+	if [catch { expr { $n } } n] {
+		error "string is not a number"
+	}
+
+	if { $min != "" && $n < $min } {
+		error "number must not be less than $min"
+	}
+
+	if { $max != "" && $n > $max } {
+		error "number must not be greater than $max"
+	}
+
+	return $n
+}
+
+proc valcol { cn } {
+#
+# Checks if the color designator is valid
+#
+	if [regexp -nocase \
+	    "^#\[0-9a-f\]\[0-9a-f\]\[0-9a-f\]\[0-9a-f\]\[0-9a-f\]\[0-9a-f\]$" \
+		$cn] {
+		return 1
+	}
+
+	# check if the color is valid by trying it out
+	toplevel .junk
+	if [catch { label .junk.l -text "a" -fg $cn }] {
+		catch { destroy .junk }
+		return 0
+	}
+	catch { destroy .junk }
+	return 1
+}
+
+proc lappendunique { ls it } {
+#
+#  Append a new item, if it doesn't already exists on the list
+#
+	upvar $ls lst
+
+	if ![info exists lst] {
+		lappend lst $it
+		return 1
+	}
+
+	if { [lsearch -exact $lst $it] < 0 } {
+		lappend lst $it
+		return 1
+	}
+	return 0
+}
+
+proc cut_copy_paste { w x y { c "" } } {
+#
+# Handles windows-style cut-copy-paste from a text widget; invoked in response
+# to right click in a text widget
+#
+	if [catch { $w get sel.first sel.last } sel] {
+		# selection absent -> empty
+		set sel ""
+	}
+
+	# determine the state, i.e., are we allowed to paste into the widget?
+	set sta [$w cget -state]
+	if { [string first "normal" $sta] >= 0 } {
+		set sta "normal"
+	} else {
+		set sta "disabled"
+	}
+
+	set r $w._rcm
+
+	catch { destroy $r }
+
+	set m [menu $r -tearoff 0]
+
+	if { $sel != "" && $sta == "normal" } {
+		# cut allowed
+		set st "normal"
+	} else {
+		set st "disabled"
+	}
+	$m add command -label "Cut" -command "tk_textCut $w" -state $st
+
+	if { $sel != "" } {
+		# copy allowed
+		set st "normal"
+	} else {
+		set st "disabled"
+	}
+	$m add command -label "Copy" -command "tk_textCopy $w" -state $st
+
+	if [catch { clipboard get -displayof $w } cs] {
+		set cs ""
+	}
+	if { $sta == "normal" && $cs != "" } {
+		set st "normal"
+	} else {
+		set st "disabled"
+	}
+	$m add command -label "Paste" -command "tk_textPaste $w" -state $st
+
+	if { $c != "" } {
+		$m add separator
+		if [$w compare 1.0 < "end - 1 chars"] {
+			set st "normal"
+		} else {
+			set st "disabled"
+		}
+		$m add command -label "Clear" -command "clear_txt $w" \
+			-state $st
+	}
+
+	tk_popup $m $x $y
+}
+
+proc clear_txt { w } {
+
+	if [catch { $w configure -state normal }] {
+		return
+	}
+
+	$w delete 1.0 end
+	$w configure -state disabled
+}
+
+###############################################################################
+
+proc md_click { val { lv 0 } } {
+#
+# Generic done event for modal windows/dialogs
+#
+	global P
+
+	if { [info exists P(M$lv,EV)] && $P(M$lv,EV) == 0 } {
+		set P(M$lv,EV) $val
+	}
+}
+
+proc md_stop { { lv 0 } } {
+#
+# Close operation for a modal window
+#
+	global P
+
+	if [info exists P(M$lv,WI)] {
+		catch { destroy $P(M$lv,WI) }
+	}
+	array unset P "M$lv,*"
+	# make sure all upper modal windows are destroyed as well; this is
+	# in case grab doesn't work
+	for { set l $lv } { $l < 10 } { incr l } {
+		if [info exists P(M$l,WI)] {
+			md_stop $l
+		}
+	}
+	# if we are at level > 0 and previous level exists, make it grab the
+	# pointers
+	while { $lv > 0 } {
+		incr lv -1
+		if [info exists P(M$lv,WI)] {
+			catch { grab $P(M$lv,WI) }
+			break
+		}
+	}
+}
+
+proc md_wait { { lv 0 } } {
+#
+# Wait for an event on the modal dialog
+#
+	global P
+
+	set P(M$lv,EV) 0
+	vwait P(M$lv,EV)
+	if ![info exists P(M$lv,EV)] {
+		return -1
+	}
+	if { $P(M$lv,EV) < 0 } {
+		# cancellation
+		md_stop $lv
+		return -1
+	}
+
+	return $P(M$lv,EV)
+}
+
+proc md_window { tt { lv 0 } } {
+#
+# Creates a modal dialog
+#
+	global P
+
+	set w [cw].modal$lv
+	catch { destroy $w }
+	set P(M$lv,WI) $w
+	toplevel $w
+	wm title $w $tt
+
+	if { $lv > 0 } {
+		set l [expr $lv - 1]
+		if [info exists P(M$l,WI)] {
+			# release the grab of the previous level window
+			catch { grab release $P(M$l,WI) }
+		}
+	}
+
+	# this fails sometimes
+	catch { grab $w }
+	return $w
+}
+
+###############################################################################
+# arguments, preprocessing ####################################################
+###############################################################################
+
+proc alex { { msg "" } } {
+#
+# Alert and exit
+#
+	if { $msg != "" } {
+		if [catch { alert $msg }] {
+			catch { puts $msg }
+		}
+	}
+
+	catch { destroy . }
+	exit 99
+}
+
+proc bad_usage { } {
+
+	global argv0
+
+	alex "Usage: $argv0 \[host:port\] \[-R\] \[-T\] \[-P \[file\]\]!"
+}
+
+proc parse_args { } {
+
+	global argv PortNumber HostName TM PF
+
+	# invert Y coordinates
+	set RY 0
+
+	# terminate model on exit
+	set TM 0
+
+	# plugin file
+	set PF ""
+
+	while { [llength $argv] } {
+
+		set j [lindex $argv 0]
+		set argv [lrange $argv 1 end]
+
+		if { $j == "-R" } {
+			# invert y coordinate
+			if $RY {
+				bad_usage
+			}
+			set RY 1
+			continue
+		}
+
+		if { $j == "-T" } {
+			# terminate model on exit
+			if $TM {
+				bad_usage
+			}
+			set TM 1
+			continue
+		}
+
+		if { $j == "-P" } {
+			if { $PF != "" } {
+				bad_usage
+			}
+			set PF [lindex $argv 0]
+			if { $PF == "" || [string index $PF 0] == "-" } {
+				set PF [list "uplug.tcl" "shared_plug.tcl"]
+			} else {
+				set PF [list $PF]
+				set argv [lrange $argv 1 end]
+			}
+			continue
+		}
+
+		# port
+		if { $PortNumber != "" } {
+			bad_usage
+		}
+		if ![regexp "(.*):(.*)" $j j h p] {
+			if [catch { expr { $j } } p] {
+				set p ""
+				set h $j
+			} else {
+				set h ""
+			}
+		}
+		if { $p == "" } {
+			set PortNumber 4443
+		} else {
+			set PortNumber $p
+		}
+		if { $h != "" } {
+			if { [string index $h 0] == "-" } {
+				alex "Illegal host name: $h"
+			}
+			set HostName $h
+		}
+
+		if [catch { valnum $PortNumber 1 65535 } PortNumber] {
+			alex "Illegal port number: $PortNumber!"
+		}
+	}
+
+	if { $PortNumber == "" } {
+		set PortNumber 4443
+	}
+
+	setycoord $RY
+}
+
+proc plugin_check { } {
+
+	global PF Stat
+
+	# no plugin
+	set Stat(P) 0
+
+	if { $PF == "" } {
+		return
+	}
+
+	foreach f $PF {
+
+		if [catch { open $f "r" } fd] {
+			continue
+		}
+
+		if [catch { read $fd } pl] {
+			alex "Cannot read plugin file $f, $pl"
+		}
+
+		catch { close $fd }
+
+		if [catch { uplevel #0 eval $pl } err] {
+			alex "Error inserting the plugin file $f, $err"
+		}
+
+		# plugin present
+		set Stat(P) 1
+		return
+	}
+
+	if { [llength $PF] > 1 } {
+		set msg "Cannot open any of the plugin files: [join $PF]"
+	} else {
+		set msg "Cannot open plugin file: [join $PF]"
+	}
+
+	alex $msg
+}
+
+proc gperror { em } {
+#
+# geometry file parse error
+#
+	alex "Parsing geometry data: $em!"
+}
+
+proc XMLDATA_ini { Sok code } {
+#
+# To read the XML data arriving from the server
+#
+	global Stat Geometry
+
+	# set up the dimensionality
+	setdim [expr { $code & 0xff }]
+
+	# length
+	set dfl [expr { ($code >> 8) & 0x00ffffff }]
+
+	if { $dfl == 0 } {
+		# zero length, no XML data
+		wdestroy $Sok
+		set Geometry(+F) ""
+		return
+	}
+
+	set Stat($Sok,FL) $dfl
+	set Stat($Sok,LE) 0
+	set Stat($Sok,DA) ""
+
+	fileevent $Sok readable "readXML $Sok"
+	stimeout $Sok
+}
+
+proc readXML { Sok } {
+#
+# Read the XML data arriving from the server
+#
+	global Stat Geometry
+
+	while (1) {
+		if [sock_rd $Sok ch \
+		    [expr { $Stat($Sok,FL) - $Stat($Sok,LE) }]] {
+			# failure
+			return
+		}
+		set ln [string length $ch]
+		if { $ln == 0 } {
+			# keep going
+			return
+		}
+		ctimeout $Sok
+		append Stat($Sok,DA) $ch
+		incr Stat($Sok,LE) $ln
+		if { $Stat($Sok,LE) >= $Stat($Sok,FL) } {
+			break
+		}
+		stimeout $Sok
+	}
+
+	set Geometry(+F) $Stat($Sok,DA)
+	wdestroy $Sok
+}
+
+proc STOP_ini { Sok code } {
+#
+# To connect to the termination socket for the model
+#
+	global TM
+
+	set TM ""
+}
+
+proc parse_geometry { } {
+#
+# These days we parse the "standard" VUEE data file for udaemon's tags; the
+# name "geometry" is now a misnomer, but we leave it for historic reasons
+#
+	global Stat Geometry LogStat
+
+	set Geometry(roamer) ""
+
+	log "Waiting for XML data from the simulator ..."
+
+	set LogStat 0
+
+	while 1 {
+		update
+		set Sok [sock_conn "XMLDATA"]
+		if { $Sok == "" } {
+			# connection failure
+			after 500
+			continue
+		}
+		# this will be unset when the socket closes
+		set Stat($Sok,FI) 1
+		vwait Stat($Sok,FI)
+		if [info exists Geometry(+F)] {
+			break
+		}
+		after 500
+	}
+
+	set LogStat 1
+
+	if { $Geometry(+F) == "" } {
+		# nothing to do
+		unset Geometry(+F)
+		log "Connection OK, no XML data"
+		return
+	}
+
+	set p "Connection OK, XML data received, "
+
+	if $Stat(TD) {
+		append p "3d"
+	} else {
+		append p "2d"
+	}
+
+	log $p
+
+	if [catch { sxml_parse Geometry(+F) } p] {
+		gperror $p
+	}
+
+	set Geometry(+F) [sxml_child $p "network"]
+	set Geometry(+S) [sxml_child $p "supplement"]
+
+	if { $Geometry(+F) == "" } {
+		gperror "<network> not found"
+	}
+
+	# get the number of nodes
+	set TN [sxml_attr $Geometry(+F) "nodes"]
+	if { $TN == "" || [catch { valnum $TN 1 } TN] } {
+		gperror "'nodes' attributes ansent in <network>"
+	}
+
+	# zero-level, node-independent modules
+	set p [sxml_child $Geometry(+F) "display"]
+
+	if { $p != "" } {
+		parse_globals $p $TN
+	}
+
+	# go for <nodes>; postpone defaults for the end, so they provide a
+	# fallback
+
+	set p [sxml_child $Geometry(+F) "nodes"]
+
+	set NN -1
+
+	# initialize node color sets
+	set Geometry(N,NC) ""
+
+	# generic defaults
+	set d [sxml_child $p "defaults"]
+	if { $d != "" } {
+		# determine the default node type
+		set dnt [sxml_attr $d "type"]
+	} else {
+		set dnt ""
+	}
+
+	foreach j [sxml_children $p "node"] {
+		# check for explicit node number
+		set nv [sxml_attr $j "number"]
+		set nn [parse_num nv]
+		if { $nn != "" } {
+			set NN $nn
+		} else {
+			incr NN
+		}
+		set tp [sxml_attr $j "type"]
+		if { $tp == "" } {
+			set tp $dnt
+		}
+		set tm [string index [sxml_attr $j "default"] 0]
+		# b - board, d - generic defaults, f - flexible
+		if { $tm == "" } {
+			set tm "d"
+		}
+		# node index to <default mode, node type>
+		set Geometry(N,$NN) [list $tm $tp]
+		parse_node $j $NN $tp
+	}
+
+	# check for supplements, i.e., board-specific, type-indexed defaults,
+	# which should go next
+
+	foreach k [sxml_children $Geometry(+S) "board"] {
+		set tp [sxml_attr $k "type"]
+		set j [sxml_child $k "node"]
+		if { $j == "" } {
+			# just in case
+			continue
+		}
+		# node -1 means supplementary defaults
+		parse_node $j -1 $tp
+	}
+
+	# now for the generic defaults
+	if { $d != "" } {
+		parse_node $d
+	}
+	unset Geometry(+F)
+	unset Geometry(+S)
+}
+
+proc parse_disp { item n mod { nod "" } { typ "" } } {
+#
+# Parses a single "module" tag:
+#
+#	n	module name, e.g., "sensors"
+#	mod	module mode, 0-node-independent, 1-node-dependent
+#	nod	node (if mode == 1), "" means ANY
+#	typ	node type (only valid if mod != 0)
+#
+	global Geometry
+
+	set t [sxml_txt $item]
+
+	if { $mod == 0 } {
+		# make sure this takes precedence
+		set nod ""
+	}
+
+	set dsp 0
+	if { $mod == 0 || ($nod != "" && $nod >= 0) } {
+		# node-independent or  specific node, honor the "display"
+		# attribute
+		set coo [string tolower [sxml_attr $item "display"]]
+		if { $coo == "1" || $coo == "y" || $coo == "yes" } {
+			set dsp 1
+		}
+		# force typ to be ""
+		set typ ""
+	}
+
+	regsub -all "\[ \t\r\n\]+" $t " " t
+
+	# coordinates
+	set coo [parse_gspec $t]
+
+	# item to add
+	set new [list $nod $typ $coo [sxml_attr $item "params"]]
+
+	if { $mod && [info exists Geometry($n)] } {
+		# node-related append
+		lappend Geometry($n) $new
+	} else {
+		# initialize or override
+		set Geometry($n) [list $new]
+	}
+
+	# check for display + single node/node-less; in such a case, add the
+	# item to the startup list
+	if $dsp {
+		lappendunique Geometry(=$n) $nod
+	}
+}
+
+proc postparse_panel { item nn } {
+#
+# Look for named groups of nodes
+#
+	global Geometry
+
+	# make it one less than the number of nodes
+	incr nn -1
+
+	set res ""
+
+	foreach it [sxml_children $item "nodes"] {
+		set nam [sxml_attr $it "name"]
+		if { $nam == "" } {
+			gperror "'name' attribute missing in <panel><nodes>"
+		}
+		if [info exists __nms($nam)] {
+			gperror "duplicate name: $nam in <panel><nodes>"
+		}
+		set ofs [sxml_attr $it "offset"]
+		if { $ofs == "" } {
+			set ofs 0
+		} elseif { [catch { valnum $ofs } ofs] } {
+			gperror "illegal 'offset' in <panel><nodes\
+				name=\"$nam\">"
+		}
+
+		set frm [sxml_attr $it "from"]
+
+		if { $frm != "" } {
+
+			# copied from previous
+			set fl ""
+			foreach r $res {
+				if { [lindex $r 0] == $frm } {
+					# found
+					set fl [lindex $r 1]
+					break
+				}
+			}
+			if { $fl == "" } {
+				gperror "\"from=$frm\" not found in\
+					<panel><nodes name=\"$nam\">"
+			}
+			set nl ""
+			foreach n1 $fl {
+				set n2 [expr { $n1 + $ofs }]
+				if [catch { valnum $n2 0 $nn } n1] {
+					gperror "illegal value $n2 after offset\
+						in <panel><nodes name=\"$nam\">"
+				}
+				lappend nl $n1
+			}
+
+		} else {
+
+			set t [sxml_txt $it]
+			set __nms($nam) ""
+			array unset __nn
+			while 1 {
+				set t [string trimleft $t " \t,\r\n"]
+				if { $t == "" } {
+					break
+				}
+				if [regexp {^([[:digit:]]+)-([[:digit:]]+)(.*)}\
+					 $t mat n1 n2 t] {
+					# bounds
+					if { [catch {
+				       valnum [expr {$n1 + $ofs}] 0 $nn } n1] ||
+			     	     	     [catch {
+				       valnum [expr {$n2 + $ofs}] 0 $nn } n2] ||
+			     	             $n1 > $n2 } {
+						gperror \
+					    		"illegal bound $mat in\
+					     	   <panel><nodes name=\"$nam\">"
+					}
+					while { $n1 <= $n2 } {
+						set __nn($n1) ""
+						incr n1
+					}
+					continue
+				}
+				if [regexp {^([[:digit:]]+)(.*)} $t mat n1 t] {
+					# a single node
+					if [catch { valnum [expr {$n1 + $ofs}] \
+				                                  0 $nn } n1] {
+						gperror \
+					    		"illegal node id $mat\
+ 						in <panel><nodes name=\"$nam\">"
+					}
+					set __nn($n1) ""
+					continue
+				}
+				gperror "illegal node $mat id in\
+					 <panel><nodes name=\"$nam\">"
+
+			} 
+			set nl [lsort -integer [array names __nn]]
+			if { $nl == "" } {
+				gperror "<nodes> list in\
+					<panel><nodes name=\"$nam\"> is empty"
+			}
+		}
+
+		lappend res [list $nam $nl]
+	}
+
+	set Geometry(panel,ng) $res
+}
+
+proc parse_roamer { item } {
+#
+# Parses one roamer
+#
+	global Geometry HPA
+
+	# can be empty
+	set nam [sxml_attr $item "name"]
+
+	# index (for errors)
+	set rnu [llength $Geometry(roamer)]
+
+	# parse the display part
+	parse_disp $item [roamlab $rnu] 0
+
+	# background image
+	set img [sxml_attr $item "image"]
+
+	# intialize wid and hei to absent
+	set wid ""
+	set hei ""
+
+	# fetch these in advance
+	set vw [sxml_attr $item "width"]
+	set vh [sxml_attr $item "height"]
+	set box [sxml_attr $item "box"]
+
+	if { $img != "" } {
+
+		if { $vw == "" && $vh == "" && $box == "" } {
+			gperror "in roamer $rnu, image must be accompanied by\
+				at least one of width, height, or box"
+		}
+
+		if { $vw != "" || $vh != "" } {
+			if { $box != "" } {
+				gperror "in roamer $rnu, legacy width/height\
+					cannot be mixed with box"
+			}
+			# transform into a box
+			set box [list [list 0.0 $vw] [list 0.0 $vh] ""]
+		} else {
+			# decode the box
+			set nli ""
+			while 1 {
+				set box [string trimleft $box " \t,"]
+				if { $box == "" } {
+					break
+				}
+				if ![regexp "^$HPA(F)(.*)" $box jnk v box] {
+					gperror "in roamer $rnu, FP value\
+						expected in box"
+				}
+				lappend nli $v
+			}
+			set xp ""
+			set yp ""
+			set zp ""
+			set nl [llength $nli]
+			if { $nl == 4 } {
+				set xp [list [lindex $nli 0] [lindex $nli 2]]
+				set yp [list [lindex $nli 1] [lindex $nli 3]]
+			} elseif { $nl == 6 } {
+				set xp [list [lindex $nli 0] [lindex $nli 3]]
+				set yp [list [lindex $nli 1] [lindex $nli 4]]
+				set zp [list [lindex $nli 2] [lindex $nli 5]]
+			} else {
+				gperror "in roamer $rnu, illegal number of\
+					values, $nl, in box, 4 or 6 expected"
+			}
+			set box [list $xp $yp $zp]
+		}
+
+		# validate the box
+		set i 0
+		foreach p $box {
+			lassign $p a b
+			incr i
+			if { $a == "" } {
+				# formal verification in terms of the presence
+				# of items has been assessed already
+				continue
+			}
+			if { [catch { expr { $a } } v] || $a < 0.0 } {
+				gperror "in roamer $rnu, illegal box value $a"
+			}
+			if { $b == "" } {
+				continue
+			}
+			if { [catch { expr { $b } } v] || $b < $a 
+			    || ($i < 3 && $b == $a) } {
+				# should we require a minimum difference?
+				gperror "in roamer $rnu, illegal box value $b"
+			}
+		}
+	}
+
+	set v [sxml_attr $item "nodesize"]
+	if { $v != "" } {
+		if [catch { valnum $v 4 100 } ns] {
+			gperror "illegal nodesize in roamer $rnu: $ns"
+		}
+		if [expr { $ns & 1 }] {
+			# make sure it is even
+			incr ns
+		}
+		# this will be stored (half the node size); CMARGIN must be
+		# set: NR <- nsh, TO <- $nsh + 5
+		set nsh [expr { $ns / 2 }]
+	} else {
+		set nsh ""
+	}
+
+	# note: img is probably useless, a flag should do, let's keep it
+	# around though as it does no harm
+	lappend Geometry(roamer) [list $nam $img $box $nsh]
+}
+
+proc parse_globals { data nn } {
+#
+# Parses the global <display> objects
+#
+	global Geometry
+
+	# initialize the list of roamers
+	set Geometry(roamer) ""
+
+	foreach j [sxml_children $data] {
+
+		set n [string tolower [sxml_name $j]]
+
+		if { $n == "roamer" } {
+			# this one is special
+			parse_roamer $j
+		} else {
+			parse_disp $j $n 0
+			if { $n == "panel" } {
+				postparse_panel $j $nn
+			}
+		}
+	}
+}
+
+proc parse_lcols { it } {
+#
+# Parses a standard pair of attribute colors
+#
+	set cf ""
+	set cb ""
+
+	foreach c { cf cb } \
+	   a { { "on" "fg" "foreground" } { "off" "bg" "background" } } {
+
+		foreach k $a {
+			set att [sxml_attr $it $k]
+			if { $att != "" } {
+				break
+			}
+		}
+
+		if { $att != "" && ![valcol $att] } {
+			error "illegal color: $att"
+		}
+
+		set $c $att
+	}
+
+	return [list $cf $cb]
+}
+
+proc parse_label { it { tx 1 } { ix "" } } {
+#
+# Parses a label spec
+#
+	set col [parse_lcols $it]
+
+	if $tx {
+		set lab [sxml_txt $it]
+		# include the text
+		regsub -all "\[ \t\n\r\]+" $lab " " lab
+		if { $lab == "" } {
+			error "empty label"
+		}
+	}
+
+	if { $ix != "" } {
+		# we care about the index
+		upvar $ix nn
+		set att [sxml_attr $it "index"]
+		if { $att == "" } {
+			set att [sxml_attr $it "number"]
+		}
+		if { $att != "" } {
+			set nn [parse_num att "" ""]
+			if { $nn == "" } {
+				error "illegal index/number"
+			}
+		} else {
+			set nn ""
+		}
+	}
+
+	if $tx {
+		# text + colors
+		return [concat [list $lab] $col]
+	}
+
+	# just the colors
+	return $col
+}
+
+proc parse_serr { n t } {
+
+	if { $n == "" } {
+		if { $t != "" } {
+			return "<defaults--$t>"
+		}
+		return "<defaults>"
+	}
+
+	return "<node> $n"
+}
+
+proc parse_salabels { item what n t } {
+#
+# Parse labels in sensors or actuators
+#
+	global Geometry
+
+	set NN -1
+
+	set err "[parse_serr $n $t] <$what><label>"
+
+	set LL ""
+
+	foreach j [sxml_children $item $what] {
+
+		set nv [sxml_attr $j "number"]
+		if { $nv == "" } {
+			set nv [sxml_attr $j "index"]
+		}
+		set nn [parse_num nv -255]
+		if { $nn != "" } {
+			set NN $nn
+		} else {
+			incr NN
+		}
+
+		set it [sxml_child $j "label"]
+		if { $it != "" } {
+
+			if [catch { parse_label $it } lab] {
+				gperror "$err, $lab"
+			}
+
+			lappend LL [concat [list $NN] $lab]
+		}
+	}
+
+	if { $LL != "" } {
+		set LL [sort_indexed $LL]
+	}
+
+	set x "${what}s"
+
+	if ![info exists Geometry(L,$x)] {
+		set Geometry(L,$x) ""
+	}
+
+	lappend Geometry(L,$x) [list $n $t $LL]
+}
+
+proc sort_indexed { ll } {
+#
+# Transforms a list of labels into an array, i.e., a "complete" list
+#
+	set min 999
+	set max -999
+
+	foreach it $ll {
+		set num [lindex $it 0]
+		if [info exists labs($num)] {
+			# this won't happen
+			continue
+		}
+		if { $num < $min } {
+			set min $num
+		}
+		if { $num > $max } {
+			set max $num
+		}
+		set labs($num) $it
+	}
+
+	set res [list $min]
+
+	while { $min <= $max } {
+
+		if [info exists labs($min)] {
+			lappend res [lrange $labs($min) 1 end]
+		} else {
+			lappend res ""
+		}
+		incr min
+	}
+
+	return $res
+}
+
+proc parse_hl { item n t } {
+#
+# Parses the "<highlight>" tag
+#
+	global Geometry
+
+	set err "[parse_serr $n $t] <highlight>"
+
+	if { $n != "" && $n >= 0 } {
+		# force null type if node number present
+		set t ""
+	}
+
+	if [catch { parse_lcols $item } nco] {
+		gperror "$err, $nco"
+	}
+
+	set vcl ""
+	set ncl [sxml_txt $item]
+
+	while 1 {
+		set ncl [string trimleft $ncl ", \t\r\n"]
+		if { $ncl == "" } {
+			break
+		}
+		if ![regexp "^\[^, \t\r\n\]+" $ncl col] {
+			gperror "$err, $ncl, syntax error"
+		}
+		if ![valcol $col] {
+			gperror "$err, illegal color: $col"
+		}
+		lappend vcl $col
+		set ncl [string range $ncl [string length $col] end]
+	}
+
+	set Geometry(H,$n,$t) [list $nco $vcl]
+}
+
+proc parse_pins { item n t } {
+#
+# Parses pin labels
+#
+	global Geometry
+
+	set err "[parse_serr $n $t] <pins><label>"
+
+	if [catch { parse_lablist $item } labs] {
+		gperror "$err, $labs"
+	}
+
+	if ![info exists Geometry(L,pins)] {
+		set Geometry(L,pins) ""
+	}
+
+	lappend Geometry(L,pins) [list $n $t $labs]
+}
+
+proc parse_leds { item n t } {
+#
+# Parses led labels and colors
+#
+	global Geometry
+
+	set err "[parse_serr $n $t] <leds>"
+
+	if [catch { parse_lablist $item } labs] {
+		gperror "$err<label>, $labs"
+	}
+
+	if ![info exists Geometry(L,leds)] {
+		set Geometry(L,leds) ""
+	}
+
+	lappend Geometry(L,leds) [list $n $t $labs]
+
+	set las -1
+	set LL ""
+
+	foreach it [sxml_children $item "color"] {
+
+		if [catch { parse_label $it 0 x } col] {
+			gperror "$err<color>, $col"
+		}
+
+		if { $x == "" } {
+			incr las
+			set x $las
+		} else {
+			set las $x
+		}
+
+		if { $x < 0 || $x > 255 } {
+			gperror "$err<color>, illegal led index: $x"
+		}
+
+		lappend LL [concat [list $x] $col]
+	}
+
+	if { $LL != "" } {
+		set LL [sort_indexed $LL]
+		if ![info exists Geometry(L,ledsc)] {
+			set Geometry(L,ledsc) ""
+		}
+		lappend Geometry(L,ledsc) [list $n $t $LL]
+	}
+}
+			
+proc parse_node { item { n "" } { t "" } } {
+#
+# Parses the node stuff, which may also come from defaults:
+#
+#	color, labels
+#
+	global Geometry
+
+	## color
+
+	if [catch { parse_cset $item } cst] {
+		gperror "[parse_serr $n $t] <color>, $cst"
+	}
+	if { $cst != "" } {
+		lappend Geometry(N,NC) [list $n $t $cst]
+	}
+
+	## sensors
+	set it [sxml_child $item "sensors"]
+	if { $it != "" } {
+		parse_salabels $it "sensor" $n $t
+		parse_salabels $it "actuator" $n $t
+	}
+
+	## pins
+	set it [sxml_child $item "pins"]
+	if { $it != "" } {
+		parse_pins $it $n $t
+	}
+
+	## leds
+	set it [sxml_child $item "leds"]
+	if { $it != "" } {
+		parse_leds $it $n $t
+	}
+
+	# highlight colors
+	set it [sxml_child $item "highlight"]
+	if { $it != "" } {
+		parse_hl $it $n $t
+	}
+
+	# windows
+
+	foreach m { "uart" "sensors" "pins" "leds" "emul" "lcdg" "ptracker" } {
+
+		set it [sxml_child $item $m]
+		if { $it != "" } {
+			set w [sxml_child $it "window"]
+		} else {
+			# try this
+			set w [sxml_child $item "${m}_window"]
+		}
+		if { $w != "" } {
+			parse_disp $w $m 1 $n $t
+		}
+	}
+}
+	
+proc parse_num { ln { min 0 } { max "" } } {
+#
+# Parse a number
+#
+	upvar $ln line
+
+	# no negative numbers in this case, so we stop on a - which means
+	# a range
+
+	if { $min == "" || $min < 0 } {
+		set pat "^\[^ ,\t\n\r]+"
+	} else {
+		set pat "^\[^ ,\t\n\r\-]+"
+	}
+
+	if ![regexp "^$pat" $line code] {
+		return ""
+	}
+
+	# nonnegative integer expected
+	if [catch { valnum $code $min $max } num] {
+		return ""
+	}
+
+	set line \
+		[string trimleft [string range $line [string length $code] end]]
+
+	return $num
+}
+
+proc parse_gspec { geo } {
+#
+# Parse a single geometry specification (a pair of coordinates)
+#
+	set g ""
+	foreach u { 0 1 } {
+		# twice (for the two coordinates)
+		set geo [string trimleft $geo]
+		if { [string index $geo 0] == "-" } {
+			set sg "-"
+			set geo [string range $geo 1 end]
+		} else {
+			set sg "+"
+		}
+		set n [parse_num geo]
+		if { $n == "" } {
+			return ""
+		}
+		append g $sg$n
+		set geo [string trimleft $geo " \t,"]
+	}
+	return $g
+}
+
+proc ndprf { n } {
+#
+# Node preference regarding fallback to default
+#
+	global Geometry
+
+	if [info exists Geometry(N,$n)] {
+		return $Geometry(N,$n)
+	}
+
+	return [list "d" ""]
+}
+
+proc covered_node { col typ num } {
+#
+# Checks whether the number (node ID) is covered by the node group col/typ
+#
+	if { $num == "" } {
+		# absolute windows have no IDs
+		return 1
+	}
+
+	lassign [ndprf $num] tm tp
+
+	if { $col == "" } {
+		# generic default, checked last and always works unless tm is
+		# b (indicating strict preference for supplementary default)
+		if { $tm == "b" } {
+			return 0
+		}
+		return 1
+	}
+
+	if { $col < 0 } {
+		# supplementary default, only works if types match
+		if { $tm == "d" } {
+			# node prefers generic default
+			return 0
+		}
+		if { $typ == "" || $typ == $tp } {
+			return 1
+		}
+		return 0
+	}
+
+
+	if { $col == $num } {
+		# the numbers must match
+		return 1
+	}
+
+	return 0
+}
+
+proc parse_cset { item } {
+#
+# <color led="n"|pin="n" on="..." off="..."/>
+#
+# Returns a list { m c }, where m is "F" or "P" and c is the color (set); for
+# "F", c is a single color, for "P", c is a list of items looking like this:
+# { { n t } coff con }, where n is the pin number, t is "led" or "pin", coff
+# is the "off" color, and con is the "on" color
+#
+	set res ""
+
+	foreach it [sxml_children $item "color"] {
+
+		set att [sxml_attr $it "solid"]
+		if { $att != "" } {
+			if ![valcol $att] {
+				error "illegal solid color: $att"
+			}
+			# search no further
+			return [list "F" $att]
+		}
+
+		set att [sxml_attr $it "pin"]
+		if { $att != "" } {
+			set typ "pin"
+		} else {
+			set att [sxml_attr $it "led"]
+			if { $att != "" } {
+				set typ "led"
+			} else {
+				error "pin, led, or solid attribute required\
+					in <color>"
+			}
+		}
+
+		if [catch { valnum $att 0 255 } pin] {
+			error "illegal $typ number: $stt"
+		}
+
+		set piv [list $pin $typ]
+
+		# expect a pair of colors
+		lassign [parse_lcols $it] fgr bgr
+
+		if { $fgr == "" } {
+			error "on/fg color must be specified"
+		}
+
+		if { $bgr == "" } {
+			# use some default
+			set bgr "lightgray"
+		}
+
+		set new [list $piv $bgr $fgr]
+
+		foreach u $res {
+			set p [lindex $u 0]
+			if { $p == $piv } {
+				error "duplicate color entry: $p"
+			}
+		}
+
+		lappend res $new
+	}
+
+	if { $res != "" } {
+		return [list "P" $res]
+	}
+
+	return ""
+}
+
+proc get_cset { node } {
+#
+# Returns the roamer's color set for the node of the given type
+#
+	global Geometry
+
+	if ![info exists Geometry(N,NC)] {
+		return ""
+	}
+
+	foreach cd $Geometry(N,NC) {
+		if [covered_node [lindex $cd 0] [lindex $cd 1] $node] {
+			return [lindex $cd 2]
+		}
+	}
+
+	return ""
+}
+
+proc get_lset { node mod } {
+#
+# Returns the set of labels for the specified object at the node
+#
+	global Geometry
+
+	if ![info exists Geometry(L,$mod)] {
+		return ""
+	}
+
+	foreach cd $Geometry(L,$mod) {
+		if [covered_node [lindex $cd 0] [lindex $cd 1] $node] {
+			return [lindex $cd 2]
+		}
+	}
+
+	return ""
+}
+
+proc parse_lablist { item } {
+
+	global HPA
+
+	# implict last index
+	set las -1
+
+	set LL ""
+
+	foreach it [sxml_children $item "label"] {
+
+		if [catch { parse_label $it 1 x } lab] {
+			error "<label>, $lab"
+		}
+
+		if { $x == "" } {
+			incr las
+			set x $las
+		} else {
+			if { $x < -256 || $x > 255 } {
+				error "label index out of range: $x"
+			}
+			set las $x
+		}
+			
+		lappend LL [concat [list $x] $lab]
+	}
+
+	if { $LL != "" } {
+		set LL [sort_indexed $LL]
+	}
+
+	return $LL
+}
+
+proc get_label { Sok n { pfx "" } } {
+#
+# Returns the label of object number $n
+#
+	global Stat
+
+	set ll $Stat($Sok,LA)
+	set lb ""
+
+	while 1 {
+
+		if { $ll == "" } {
+			# just the number
+			break
+		}
+
+		set min [lindex $ll 0]
+		if { $n < $min } {
+			break
+		}
+
+		set lb [lindex $ll [expr { $n - $min + 1 }]]
+		break
+	}
+
+	if { $pfx == "-c" } {
+		# just the item
+		return $lb
+	}
+
+	set res [list -text]
+
+	if { $lb == "" } {
+		lappend res "${pfx}$n"
+	} else {
+		lappend res [lindex $lb 0]
+		foreach u { foreground background } v [lrange $lb 1 2] {
+			if { $v != "" } {
+				lappend res "-$u"
+				lappend res $v
+			}
+		}
+	}
+	return $res
+}
+
+proc parse_string { t } {
+#
+# Parses a string enclosed in " ... "
+#
+	upvar $t txt
+
+	set res ""
+
+	set ix 1
+
+	while 1 {
+
+		set c [string index $txt $ix]
+		if { $c == "" } {
+			error "unterminated string"
+		}
+
+		if { $c == "\"" } {
+			break
+		}
+
+		if { $c == "\\" } {
+			incr ix
+			set c [string index $txt $ix]
+			if { $c != "\"" } {
+				append res "\\"
+			}
+		}
+		append res $c
+		incr ix
+	}
+
+	incr ix
+
+	set txt [string range $txt $ix end]
+
+	return $res
+}
+
+proc do_geometry { win kwd { num "" } } {
+
+	global Geometry
+
+	if [info exists Geometry($kwd)] {
+		foreach ml $Geometry($kwd) {
+			set exp [lindex $ml 0]
+			set typ [lindex $ml 1]
+			set geo [lindex $ml 2]
+			if [covered_node $exp $typ $num] {
+				wm geometry $win $geo
+				# the argument
+				return [lindex $ml 3]
+			}
+		}
+	}
+	return ""
+}
+
+proc predisplay { } {
+#
+# Predisplay windows requested with "display" in the geometry file
+#
+	global Geometry
+
+	set Geometry(+D) 200
+
+	foreach p [array names Geometry "=*"] {
+		set wn [string range $p 1 end]
+		set pl $Geometry($p)
+		# check if roamer
+		set rix [isroamlab $wn]
+		if { $rix != "" } {
+			# a roamer
+			predisplay_single "moveHandler $rix"
+			continue
+		}
+		switch -- $wn {
+			"uart" {
+				predisplay_nodes "uartHandler %n a" $pl
+			}
+			"sensors" {
+				predisplay_nodes "sensorsHandler %n" $pl
+			}
+			"pins" {
+				predisplay_nodes "pinsHandler %n" $pl
+			}
+			"leds" {
+				predisplay_nodes "ledsHandler %n" $pl
+			}
+			"emul" {
+				predisplay_nodes "emulHandler %n" $pl
+			}
+			"lcdg" {
+				predisplay_nodes "lcdgHandler %n" $pl
+			}
+			"ptracker" {
+				predisplay_nodes "pwrtHandler %n" $pl
+			}
+			"roamer" {
+				predisplay_single "moveHandler"
+			}
+			"panel" {
+				predisplay_single "panelHandler"
+			}
+			"clock" {
+				predisplay_single "clockHandler"
+			}
+		}
+	}
+}
+
+proc predisplay_nodes { fun nl } {
+#
+# Predisplay node-relative windows
+#
+	global Geometry
+
+	foreach n $nl {
+		if { $n != "" } {
+			regsub "%n" $fun $n f
+			after $Geometry(+D) $f
+			incr Geometry(+D) 200
+		}
+	}
+}
+
+proc predisplay_single { fun } {
+
+	global Geometry
+
+	after $Geometry(+D) $fun
+	incr Geometry(+D) 200
+}
+
+###############################################################################
+
+proc unique { } {
+
+	global Unique
+	incr Unique
+	return $Unique
+}
+
+proc mdName { Sok } {
+#
+# Returns a piece of text (for diagnostics) describing the module to which we
+# are connected
+#
+	global Stat
+
+	if [info exists Stat($Sok,W)] {
+		set in " to $Stat($Sok,W)"
+		set hi ""
+		set id ""
+		if { [info exists Stat($Sok,I)] && $Stat($Sok,I) != "" } {
+			set hi $Stat($Sok,I)
+		}
+		if { [info exists Stat($Sok,N)] && $Stat($Sok,N) != "" } {
+			set id $Stat($Sok,N)
+		}
+		if { $hi != "" || $id != "" } {
+			append in " at node "
+			if { $hi == "" } {
+				set hi $id
+			} elseif { $id == "" } {
+				set id $hi
+			}
+			if { $hi == $id } {
+				append in $hi
+			} else {
+				append in "$hi/$id"
+			}
+		}
+		return $in
+	}
+	return ""
+}
+
+proc uuName { Sok } {
+#
+# Returns the name of U-U device for diagnostics
+#
+	global Stat
+
+	if [info exists Stat($Sok,Q)] {
+		return " $Stat($Sok,Q)"
+	} else {
+		return ""
+	}
+}
+
+proc uuStop { Sok } {
+#
+# Closes a U-U connection
+#
+	global Stat
+
+	set v 0
+	if [info exists Stat($Sok,FD,U)] {
+		if { $Stat($Sok,FD,U) != "" } {
+			catch { close $Stat($Sok,FD,U) }
+			set Stat($Sok,FD,U) ""
+			set v 1
+		}
+		set Stat($Sok,Q) ""
+	}
+	return $v
+}
+
+proc wdestroy { Sok } {
+
+	global Wins Stat
+
+	if [info exists Wins($Sok)] {
+		set w $Wins($Sok)
+		# make sure the window is killed
+		catch { bind $w <Destroy> "" }
+		catch { destroy $w }
+		unset Wins($Sok)
+	}
+
+	if ![regexp "^Zombie" $Sok] {
+		dealloc $Sok
+	}
+
+}
+
+proc cabort { Sok } {
+
+	log "connection timed out"
+	dealloc $Sok
+}
+
+proc stimeout { Sok } {
+#
+# Socket timeout while waiting for first data from the agent
+#
+	global Stat
+
+	set Stat($Sok,T) [after 10000 cabort $Sok]
+}
+
+proc ctimeout { Sok } {
+#
+# Cancels socket timeout when data arrives
+#
+	global Stat
+
+	if [info exists Stat($Sok,T)] {
+		after cancel $Stat($Sok,T)
+		unset Stat($Sok,T)
+	}
+}
+
+proc stwin { Sok } {
+#
+# Safe window acqusition from callbacks to safeguard against them being
+# activated after the window has disappeared; if the window is no more,
+# this function will return to the caller of its caller amounting to a
+# null action of the caller
+#
+	global Wins
+
+	if ![info exists Wins($Sok)] {
+		return -code return
+	}
+
+	set w $Wins($Sok)
+
+	if { $w == "x" } {
+		# stub
+		return -code return
+	}
+
+	if ![winfo exists $w] {
+		return -code return
+	}
+
+	return $w
+}
+
+proc winlocate { tag { stid "" } { hid 0 } } {
+#
+# Tries to locate a window of a given type (tag) for a given node (stid); if
+# stid is null, the window is supposed to be node-independent, i.e., global;
+# returns 1 if the window is already present, zero otherwise
+#
+	global Wins Stat
+
+	set wn ""
+
+	foreach s [array names Wins] {
+		# module name
+		if { $tag != $Stat($s,K) } {
+			continue
+		}
+		# window name
+		set w $Wins($s)
+		# check node ID
+		if { $stid == "" } {
+			if { ![info exists Stat($s,S)] || $Stat($s,S) == "" } {
+				set wn $w
+				break
+			}
+		} else {
+			if $hid {
+				if { [info exists Stat($s,I)] &&
+				    $Stat($s,I) == $stid } {
+					set wn $w
+					break
+				}
+			} else {
+				if { [info exists Stat($s,N)] &&
+				    $Stat($s,N) == $stid } {
+					set wn $w
+					break
+				}
+			}
+		}
+	}
+
+	if { $wn != "" } {
+		# window type
+		set wt [string index $wn 0]
+		if { $wt == "d" } {
+			# dummy, i.e., no window, say it exists, but do nothing;
+			# used for sessions with potentially multiple windows
+			return 1
+		}
+		if { $wt == "x" } {
+			# true, but connection in progress, do nothing, say
+			# something, it basically exists; also used for
+			# simple window-less connections
+			log "connection already in progress"
+			return 1
+		} else {
+			# a true, existing window
+			log "window already present"
+			catch { raise $wn }
+			return 1
+		}
+	}
+
+	return 0
+}
+
+proc dealloc { Sok } {
+#
+# Carries out the action implied by closing an agent socket upon dropped
+# connection or VUEE's request
+#
+	global Wins Stat
+
+	# the course is clear, no need to wait for anything
+	ctimeout $Sok
+
+	if [info exists Wins($Sok)] {
+		# there is a session for this socket
+		set w $Wins($Sok)
+		# window type
+		set t [string index $w 0]
+		if { $t == "d" } {
+			# a dummy (session) window, execute cleanup procedure
+			set cfun ${w}_cleaner
+			if { [info procs $cfun] != "" } {
+				$cfun
+			}
+		} elseif [winfo exists $w] {
+			# indeed, there is; the window becomes a zombie; it
+			# is left on the screen, so it can still be viewed,
+			# but it is detached from the set
+			set wid "Zombie_[unique]"
+			set Wins($wid) $w
+			bind $w <Destroy> "wdestroy $wid"
+		}
+		unset Wins($Sok)
+	}
+
+	foreach it [array names Stat "$Sok,FD,*"] {
+		# any file descriptors to close??
+		if { $Stat($it) != "" } {
+			catch { close $Stat($it) }
+		}
+		unset Stat($it)
+	} 
+
+	if { [info exists Stat($Sok,PLUG)] && $Stat($Sok,PLUG) } {
+		vplug_close $Sok
+	}
+
+	# clear all data related to the window
+	array unset Stat "$Sok,*"
+
+	catch { close $Sok }
+}
+
+proc sntype { t } {
+#
+# Sanitize the node type name received from the VUEE agent (removing the
+# initial mangle); this is for the node names mangled by PiComp
+#
+	regsub "^_+\[^_\]+_*" $t "" t
+	return $t
+}
+
+proc sock_req { Sok rqnum stid flags } {
+#
+# Sends an agent connection request to VUEE
+#
+	global Stat AGENT_MAGIC
+
+	# prepare the request
+	set rqs ""
+	
+	abinS rqs $AGENT_MAGIC
+	abinS rqs $rqnum
+	abinI rqs $stid
+	abinI rqs $flags
+
+	if [catch { puts -nonewline $Sok $rqs } err] {
+		log "connection failed: $err"
+		dealloc $Sok
+		return
+	}
+
+	# wait for the timer to detect timeouts
+	stimeout $Sok
+
+	# prevent writing until connection established; then another action
+	# will be used
+	fileevent $Sok writable ""
+}
+
+proc sock_conn { what { stid -1 } { flags 0 } { stype "x" } } {
+#
+# Get a socket to VUEE
+#
+	global SREQUESTS Stat PortNumber HostName Wins
+
+	if ![info exists SREQUESTS($what)] {
+		log "cannot connect to $what, no such object"
+		return ""
+	}
+
+	lassign $SREQUESTS($what) rqnum wcode
+
+	set tt $what
+	if { $stid >= 0 } {
+		append tt " at node $stid"
+	}
+
+	log "connecting to $tt ..."
+
+	if { [info tclversion] > 8.5 && $HostName == "localhost" } {
+		# do not use -async, it doesn't seem to work in 8.6
+		# hey, it's even weirder, it does work after all, but not
+		# for localhost
+		set err [catch { socket $HostName $PortNumber } Sok]
+	} else {
+		set err [catch { socket -async $HostName $PortNumber } Sok]
+	}
+
+	if $err {
+		log "connection failed: $Sok"
+		return ""
+	}
+
+	if [catch { fconfigure $Sok -blocking 0 -buffering none -translation \
+	    binary -encoding binary } err] {
+		dealloc $Sok
+		log "connection failed: $err"
+		return ""
+	}
+
+	# for disconnection messages
+	set Stat($Sok,W) $what
+
+	# module code
+	set Stat($Sok,K) $wcode
+
+	# this is a placeholder - to preannounce the window for winlocate
+	# until we actually get it up (or otherwise)
+	set Wins($Sok) $stype
+
+	if { $stid >= 0 } {
+		set Stat($Sok,S) $stid
+	}
+
+	fileevent $Sok writable "sock_req $Sok $rqnum $stid $flags"
+	fileevent $Sok readable "sock_rep $Sok"
+
+	return $Sok
+}
+
+proc sock_rep { Sok } {
+#
+# Handles the VUEE reply end of handshake
+#
+	global Wins Stat ECONN_OK
+
+	ctimeout $Sok
+
+	# four bytes expected
+	if [catch { read $Sok 4 } res] {
+		# disconnection
+		log "connection[mdName $Sok] failed: $res"
+		dealloc $Sok
+		return
+	}
+
+	if { $res == "" } {
+		log "connection[mdName $Sok] closed by VUEE"
+		dealloc $Sok
+		return
+	}
+
+	set co [dbinI res]
+	set cc [expr { $co & 0xff }]
+	if { $cc < $ECONN_OK } {
+		log "connection[mdName $Sok] rejected by VUEE: [conerror $cc]"
+		dealloc $Sok
+		return
+	}
+
+	# invoke the initializer
+	set ini "$Stat($Sok,W)_ini"
+	if [catch { $ini $Sok $co } err] {
+		# this should not happen
+		log "initializer $ini failed: $err"
+		dealloc $Sok
+		return
+	}
+	log "connected[mdName $Sok]"
+}
+
+proc sock_rd { Sok ch { n 4096 } } {
+#
+# Read a chunk of data from VUEE socket
+#
+	upvar $ch chunk
+
+	if [catch { read $Sok $n } chunk] {
+		# disconnection
+		log "connection[mdName $Sok] terminated: $ch"
+		dealloc $Sok
+		return 1
+	}
+
+	if { $chunk == "" } {
+		if [eof $Sok] {
+			# closed
+			log "connection[mdName $Sok] closed"
+			dealloc $Sok
+			return 1
+		}
+	}
+
+	return 0
+}
+
+proc sock_wr { Sok da } {
+#
+# Write a chunk of data to VUEE socket
+#
+	if [catch { puts -nonewline $Sok $da } err] {
+		log "connection[mdName $Sok] closed: $err"
+		dealloc $Sok
+		return 1
+	}
+
+	return 0
+}
+
+proc sock_rl { Sok } {
+#
+# Read a line from socket, invoke the handler function per each line; assumes
+# Stat($Sok,B) to have been preset to null
+#
+	global Stat
+
+	while 1 {
+
+		if { [sock_rd $Sok ch] || $ch == "" } {
+			return
+		}
+
+		append Stat($Sok,B) $ch
+
+		while 1 {
+			set n [string first "\n" $Stat($Sok,B)]
+			if { $n < 0 } {
+				return
+			}
+			set ln [string range $Stat($Sok,B) 0 [expr { $n - 1 }]]
+			$Stat($Sok,IH) $Sok [string trim $ln]
+			set Stat($Sok,B) [string range $Stat($Sok,B) \
+				[expr { $n + 1 }] end]
+		}
+	}
+}
+
+proc set_ih { Sok { fun "dummy_ih" } } {
+#
+# Sets up the input handler for socket
+#
+	global Stat
+
+	set Stat($Sok,IH) $fun
+	fileevent $Sok readable "sock_rl $Sok"
+}
+
+proc dummy_ih { s m } {
+#
+# Do nothing
+#
+}
+
+proc node_sig { Sok c { v "" } } {
+#
+# Extracts and verifies node signature
+#
+	upvar $c cmd
+
+	global Stat HPA
+
+	if ![regexp $HPA(G) $cmd mat nod sta hos tot tna] {
+		return "illegal signature format"
+	}
+
+	if [catch {
+		set nod [expr { $nod }]
+		set hos [expr { $hos & 0xFFFF }]
+		set tot [expr { $tot }]
+	} ] {
+		return "illegal number in signature"
+	}
+
+	if { $nod >= $tot } {
+		return "node number >= total in signature"
+	}
+
+	if { [info exists Stat($Sok,S)] && $Stat($Sok,S) != "" } {
+		if  { $Stat($Sok,S) != $nod && $Stat($Sok,S) != $hos } {
+			return "node number $nod/$hos != expected $Stat($Sok,S)"
+		}
+	}
+
+	if { $v != "" } {
+		upvar $v val
+		set val [list $nod $hos $tot [sntype $tna] $sta]
+	}
+
+	set cmd [string range $cmd [string length $mat] end]
+
+	return ""
+}
+		
+###############################################################################
+# UART ########################################################################
+###############################################################################
+
+proc uartHandler { stid mode { fg 0 } } {
+
+	global Wins Stat
+
+	if [winlocate "u" $stid $fg] {
+		# window already exists
+		return
+	}
+
+	if { $mode == "p" } {
+		# Plug
+		set umo 2
+	} elseif { $mode == "h" } {
+		# HEX
+		set umo 1
+	} else {
+		# straight ASCII
+		set umo 0
+	}
+
+	set Sok [sock_conn "UART" $stid $fg]
+	if { $Sok == "" } {
+		# failed, diagnosed
+		return
+	}
+
+	set Stat($Sok,M) $umo
+}
+
+proc UART_ini { Sok code } {
+
+	global Stat
+
+	# the rate
+	set Stat($Sok,R) [expr { (($code >> 8) & 0x0ffff) * 100 }]
+	log "UART rate: $Stat($Sok,R)"
+
+	# wait for the first message
+	set Stat($Sok,B) ""
+	fileevent $Sok readable "uartFirst $Sok"
+}
+
+proc uartFirst { Sok } {
+
+	global Wins Stat
+
+	while 1 {
+		if { [sock_rd $Sok ch 1] || $ch == "" } {
+			return
+		}
+		if { $ch == "\n" } {
+			# end of command line
+			break
+		}
+		append Stat($Sok,B) $ch
+	}
+
+	ctimeout $Sok
+
+	set cmd $Stat($Sok,B)
+	set Stat($Sok,B) ""
+
+	set err [node_sig $Sok cmd pmt]
+
+	if { $err != "" } {
+		log "incorrect handshake, $err"
+		dealloc $Sok
+		return
+	}
+
+	lassign $pmt Stat($Sok,N) Stat($Sok,I)
+
+	# create the window
+	set w ".wu[unique]"
+
+	set Stat($Sok,F) 0
+	set Wins($Sok) $w
+	toplevel $w
+	wm title $w "UART at node $Stat($Sok,I)"
+
+	# any requested type from geometry?
+	set params [string tolower \
+		[string index [do_geometry $w "uart" $Stat($Sok,N)] 0]]
+
+	if { $params == "p" } {
+		set Stat($Sok,M) 2
+	} elseif { $params == "h" || $params == "b" || $params == "x" } {
+		set Stat($Sok,M) 1
+	} elseif { $params == "a" || $params == "c" || $params == "s" } {
+		set Stat($Sok,M) 0
+	}
+
+	if { $Stat($Sok,M) == 2 } {
+		# Plug variant requested
+		set Stat($Sok,PLUG) [vplug_init [lindex $pmt 0] \
+						[lindex $pmt 1] \
+						[lindex $pmt 3] \
+						$Sok]
+		if { $Stat($Sok,PLUG) == 0 } {
+			# force ASCII and leave the choice open
+			set Stat($Sok,M) 0
+		}
+	} else {
+		set Stat($Sok,PLUG) 0
+	}
+
+	set Stat($Sok,UART) [mkUart $Sok]
+
+	# reset the input script
+	fileevent $Sok readable "uartRead $Sok"
+
+	u_state_change $Sok
+}
+
+proc uartRead { Sok } {
+
+	global Wins Stat
+
+	if { [sock_rd $Sok chunk] || $chunk == "" } {
+		return
+	}
+
+	if { $Stat($Sok,FD,U) != "" } {
+		# send it to the C-0-C UART
+		catch { puts -nonewline $Stat($Sok,FD,U) $chunk }
+	}
+
+	if $Stat($Sok,PLUG) {
+		set chunk [vplug_receive $chunk $Sok $Stat($Sok,H)]
+		if { $chunk == "" } {
+			return
+		}
+	}
+
+	set Wn $Wins($Sok)
+
+	if $Stat($Sok,H) {
+		# handle the HEX case
+		show_hbytes $Sok $chunk 0
+	} else {
+		if { $Stat($Sok,M) != -1 } {
+			set Stat($Sok,M) -1
+			if $Stat($Sok,F) {
+				endLine $Sok $Wn.t
+				set Stat($Sok,F) 0
+			}
+		}
+		append Stat($Sok,B) $chunk
+		# look for CR+LF, LF+CR, CR, LF; if there is only
+		# one of those at the end, ignore it for now and
+		# keep for posterity
+		set sl [string length $Stat($Sok,B)]
+
+		while { [regexp "\[\r\n\]" $Stat($Sok,B) m] } {
+			set el [string first $m $Stat($Sok,B)]
+			if { $el == 0 } {
+				# first character
+				if { $sl < 2 } {
+					# have to leave it and wait
+					return
+				}
+				# check the second one
+				set n [string index $Stat($Sok,B) 1]
+				if { $m == "\r" && $n == "\n" || \
+				     $m == "\n" && $n == "\r"    } {
+					# two-character EOL
+					set Stat($Sok,B) \
+					      [string range $Stat($Sok,B) 2 end]
+					incr sl -2
+				} else {
+					set Stat($Sok,B) \
+					      [string range $Stat($Sok,B) 1 end]
+					incr sl -1
+				}
+				# complete previous line
+				endLine $Sok $Wn.t
+				set Stat($Sok,F) 0
+				continue
+			}
+			# send the preceding string to the terminal
+			addText $Sok $Wn.t [string range $Stat($Sok,B) \
+						       0 [expr { $el - 1 }]]
+			incr sl -$el
+			# this is only used to tell wheter we are at the
+			# beginning of a line or not
+			set Stat($Sok,F) 1
+			set Stat($Sok,B) [string range $Stat($Sok,B) $el end]
+		}
+
+		if { $Stat($Sok,B) != "" } {
+			addText $Sok $Wn.t $Stat($Sok,B)
+			set Stat($Sok,F) 1
+			set Stat($Sok,B) ""
+		}
+	}
+}
+
+proc uuRead { Sok } {
+#
+# U-U input
+#
+	global Stat
+
+	set sok $Stat($Sok,FD,U)
+
+	if [catch { read $sok } chunk] {
+		# assume disconnection
+		log "connection to U-U device[uuName $Sok] terminated: $chunk"
+		uuStop $Sok
+		return
+	}
+
+	if [eof $sok] {
+		# closed
+		log "connection to U-U device[uuName $Sok] closed"
+		uuStop $Sok
+		return
+	}
+
+	if { $chunk == "" } {
+		# nothing read
+		return
+	}
+
+	show_hbytes $Sok $chunk 1
+
+	# make this transparent, it is better to detect disconnection
+	# elsewhere
+	catch { puts -nonewline $Sok $chunk }
+}
+
+proc u_state_change { Sok } {
+#
+# Node state change (power up / power down)
+#
+	global Stat
+
+	set nn $Stat($Sok,N)
+
+	if { ![info exists Stat($Sok,UART)] || ![info exists Stat(PNN,$nn)] } {
+		return
+	}
+
+	if { $Stat(PNN,$nn) == "O" } {
+		set co "white"
+	} else {
+		set co "gray"
+	}
+
+	$Stat($Sok,UART) configure -bg $co
+}
+
+###############################################################################
+
+proc connUart { Sok { ix -1 } } {
+#
+# U-U connection/re-connection/drop
+#
+	global Stat
+
+	if ![info exists Stat($Sok,Q)] {
+		return
+	}
+
+	if { $ix >= 0 } {
+		if [catch { $Stat($Sok,O) entrycget $ix -label } opt] {
+			set opt [lindex $Stat($Sok,A) 0]
+		}
+	} else {
+		set opt $Stat($Sok,U)
+	}
+
+	if { [lsearch -exact $Stat($Sok,A) $opt] < 0 } {
+		set opt [lindex $Stat($Sok,A) 0]
+	}
+	set Stat($Sok,U) $opt
+
+	if { ( $opt == "Off" && $Stat($Sok,Q) == "" ) ||
+	       $opt == $Stat($Sok,Q) } {
+		# nothing 
+		return
+	}
+
+	# stop any previous connection
+	if [uuStop $Sok] {
+		log "U-U connection terminated"
+	}
+
+	if { $opt == "Off" } {
+		# that's it
+		return
+	}
+
+	if { $opt == "Scan" } {
+		log "Scanning for devices ..."
+		$Stat($Sok,O) delete 0 end
+		unames_scan
+		set ol [unames_choice]
+		set Stat($Sok,A) \
+			[concat "Off Scan" [lindex $ol 0] [lindex $ol 1]]
+		set ix 0
+		foreach opt $Stat($Sok,A) {
+			$Stat($Sok,O) add command -label $opt -command \
+				"connUart $Sok $ix"
+			incr ix
+		}
+		set Stat($Sok,U) "Off"
+		return
+	}
+
+	set devlist [unames_fnlist $opt]
+	set fail 1
+
+	if { $Stat(S) == "L" } {
+		set accs { RDWR NOCTTY NONBLOCK }
+	} else {
+		set accs "r+"
+	}
+
+	set mode "$Stat($Sok,R),n,8,1"
+
+	foreach udev $devlist {
+		if ![catch { open [unames_unesc $udev] $accs } fd] {
+			# the device has opened; now for the second part, which
+			# may also fail (as it turns out)
+			if ![catch {
+				fconfigure $fd -mode $mode -handshake none \
+					-buffering none -translation binary \
+					-encoding binary -blocking 0 -eofchar ""
+			} ] {
+				set fail 0
+				break
+			}
+			# we have failed after all
+			catch { close $fd }
+		}
+	}
+
+	if $fail {
+		log "cannot open U-U device $opt"
+		set Stat($Sok,U) "Off"
+		return
+	}
+
+	fileevent $fd readable "uuRead $Sok"
+	set Stat($Sok,FD,U) $fd
+	set Stat($Sok,Q) $opt
+
+	log "U-U connection successful"
+}
+
+proc mkUart { Sok } {
+#
+# Creates a new terminal
+#
+	global Wins Stat FONT
+
+	set w $Wins($Sok)
+
+	text $w.t
+
+	# it is better not to scroll on x (wrapping longer lines)
+	#	-xscrollcommand "$w.scrolx set" 
+
+	$w.t configure \
+		-yscrollcommand "$w.scroly set" \
+		-setgrid true \
+        	-width 80 -height 24 -wrap char \
+		-font $FONT(D) \
+		-exportselection 1 \
+		-state normal
+
+	$w.t delete 1.0 end
+
+	scrollbar $w.scroly -command "$w.t yview"
+	# scrollbar $w.scrolx -orient horizontal -command "$w.t xview"
+
+	pack $w.scroly -side right -fill y
+	# pack $w.scrolx -side bottom -fill x
+
+	pack $w.t -expand yes -fill both
+
+	frame $w.stat -borderwidth 2
+	pack $w.stat -expand no -fill x
+
+	text $w.stat.u -height 1 -font $FONT(D)
+	pack $w.stat.u -side left -expand yes -fill x
+
+	bind $w.t <ButtonRelease-3> "cut_copy_paste %W %X %Y c"
+	bind $w.stat.u <ButtonRelease-3> "cut_copy_paste %W %X %Y"
+
+	bind $w.stat.u <Return> "handleUserInput $Sok"
+
+	if { $Stat($Sok,M) == 2 } {
+		# set this just in case
+		set Stat($Sok,H) 0
+		set Stat($Sok,M) -1
+	} else {
+		# do not include the HEX toggle for the plugin variant
+		frame $w.stat.hsel -borderwidth 2
+		pack $w.stat.hsel -side right -expand no
+
+		label $w.stat.hsel.lab -text "HEX"
+		pack $w.stat.hsel.lab -side left
+
+		# now this can be 0 = normal, 1 = hex
+		set Stat($Sok,H) $Stat($Sok,M)
+		if $Stat($Sok,H) {
+			set Stat($Sok,M) 2
+		} else {
+			set Stat($Sok,M) -1
+		}
+		set dmn $w.stat.hsel.but
+		checkbutton $dmn -state normal -variable Stat($Sok,H)
+		pack $dmn -side left
+		tip_set $dmn "Toggle between the normal and HEX modes.\
+			Note: in HEX mode, the input consists of pairs of HEX\
+			digits,	e.g., 68 65 6C 70 0A."  
+	}
+
+	# from now on, Stat($Sok,M) is used to remember the previous state for
+	# the content of the window: 0 - hex reading, 1 - hex writing,
+	# 2 - hex unknown, -1 - ASCII
+
+	# U-U file descriptor
+	set Stat($Sok,FD,U) ""
+
+	frame $w.stat.usel -borderwidth 2
+	pack $w.stat.usel -side right -expand no
+
+	label $w.stat.usel.lab -text "U-U"
+	pack $w.stat.usel.lab -side left
+
+	set Stat($Sok,FD,S) ""
+	set Stat($Sok,FS) [button $w.stat.sfile -command "term_sfile $Sok term"]
+	pack $w.stat.sfile -side right -expand no
+
+	term_setsfb $Sok
+
+	unames_defnames
+	set ol [unames_choice]
+	set Stat($Sok,A) [concat "Off Scan" [lindex $ol 0] [lindex $ol 1]]
+	set Stat($Sok,U) "Off"
+
+	set dmn $w.stat.usel.men
+	eval \
+	    "set Stat($Sok,O) \[tk_optionMenu $dmn Stat($Sok,U) $Stat($Sok,A)\]"
+	set Stat($Sok,U) "Off"
+
+	tip_set $dmn "Use to connect (disconnect) the UART to (from) a real\
+		device (UART-to-UART)"
+
+	foreach op $Stat($Sok,A) {
+		# button release in the menu doesn't work (the event
+		# is triggered before the change), but this does
+		$Stat($Sok,O) entryconfigure $op -command "connUart $Sok"
+	}
+
+	# U-U UART device name for diagnostics
+	set Stat($Sok,Q) ""
+
+	pack $dmn -side left
+
+	$w.t configure -state disabled
+
+	bind $w <Destroy> "wdestroy $Sok"
+
+	return $w.t
+}
+
+proc term_setsfb { Sok } {
+#
+# Set the "File" button text according to file status
+#
+	global Stat
+
+	set w $Stat($Sok,FS)
+
+	if { $Stat($Sok,FD,S) == "" } {
+		$w configure -text "File"
+		tip_set $w "Click to save the session log in a file"
+	} else {
+		$w configure -text "Stop"
+		tip_set $w "Click to stop saving the session log in the file"
+	}
+}
+
+proc term_sfile { Sok tag } {
+#
+# Toggle the terminal's file save status
+#
+	global Stat Wins
+
+	if { $Stat($Sok,FD,S) != "" } {
+		# close
+		catch { close $Stat($Sok,FD,S) }
+		set Stat($Sok,FD,S) ""
+	} else {
+		# save file dialog
+		set fn [tk_getSaveFile \
+				-defaultextension ".txt" \
+				-initialfile "$tag$Stat($Sok,I).txt" \
+				-parent $Wins($Sok) \
+				-title "File to save the session"]
+		if { $fn == "" } {
+			# cancelled
+			return
+		}
+		if [catch { open $fn "w" } fd] {
+			# failed
+			alert "Cannot open $fn: $fd"
+			return
+		}
+		set Stat($Sok,FD,S) $fd
+	}
+
+	term_setsfb $Sok
+}
+
+proc show_hbytes { Sok chunk dir } {
+#
+# Present hex data in the UART window
+#
+	global Stat
+
+	set w [stwin $Sok]
+
+	set sl [string length $chunk]
+	set ou ""
+
+	for { set ix 0 } { $ix < $sl } { incr ix } {
+		append ou " [tohex [string index $chunk $ix]]"
+	}
+
+	if { $Stat($Sok,M) != $dir } {
+		if $Stat($Sok,F) {
+			endLine $Sok $w.t
+			set Stat($Sok,F) 0
+		}
+		if { $dir == 0 } {
+			addText $Sok $w.t "-->"
+		} else {
+			addText $Sok $w.t "<--"
+		}
+		set Stat($Sok,M) $dir
+	}
+	addText $Sok $w.t $ou
+	# not at EOL
+	set Stat($Sok,F) 1
+}
+			
+proc handleUserInput { Sok } {
+
+	global Stat
+
+	set w [stwin $Sok]
+
+	set tx ""
+	# extract the line
+	regexp "\[^\r\n\]+" [$w.stat.u get 0.0 end] tx
+	# remove it from the input field
+	$w.stat.u delete 0.0 end
+
+	if { $Stat($Sok,PLUG) && [vplug_input tx $Sok] } {
+		return
+	}
+
+	if $Stat($Sok,H) {
+		set os ""
+		set tx [string trim $tx]
+		set err 0
+		while { $tx != "" } {
+			set d0 [string index $tx 0]
+			set d1 [string index $tx 1]
+			set tx [string trimleft [string range $tx 2 end]]
+			set d0 [htodec $d0]
+			if { $d0 < 0 } {
+				set err 1
+				break
+			}
+			set d1 [htodec $d1]
+			if { $d1 < 0 } {
+				set err 1
+				break
+			}
+			append os [format %c [expr { $d0 * 16 + $d1 } ]]
+		}
+		if $err {
+			if $Stat($Sok,F) {
+				endLine $Sok $w.t
+			}
+			addText $Sok $w.t "ILLEGAL HEX INPUT, LINE IGNORED!!!"
+			endLine $Sok $w.t
+			set Stat($Sok,F) 0
+			return
+		}
+		show_hbytes $Sok $os 1
+		sock_wr $Sok $os
+	} else {
+		if $Stat($Sok,F) {
+			endLine $Sok $w.t
+			set Stat($Sok,F) 0
+		}
+		set Stat($Sok,M) -1
+		# ASCII
+		if [sock_wr $Sok "${tx}\r\n"] {
+			return
+		}
+		# echo
+		addText $Sok $w.t $tx
+		endLine $Sok $w.t
+	}
+}
+
+proc addText { Sok w txt } {
+
+	global Stat
+
+	if { $Sok != "" && $Stat($Sok,FD,S) != "" } {
+		# saving in a file
+		catch {
+			puts -nonewline $Stat($Sok,FD,S) $txt
+			flush $Stat($Sok,FD,S)
+		}
+	}
+
+	$w configure -state normal
+	$w insert end "$txt"
+	$w configure -state disabled
+	$w yview -pickplace end
+
+}
+
+proc endLine { Sok w } {
+
+	global Stat MaxLineCount
+
+	if { $Sok != "" && $Stat($Sok,FD,S) != "" } {
+		puts $Stat($Sok,FD,S) ""
+	}
+	
+	$w configure -state normal
+	$w insert end "\n"
+
+	set ix [$w index end]
+	set ix [string range $ix 0 [expr { [string first "." $ix] - 1 } ]]
+
+	if { $ix > $MaxLineCount } {
+		# scroll out the topmost line if above limit
+		$w delete 1.0 2.0
+	}
+
+	$w configure -state disabled
+	# make sure the last line is displayed
+	$w yview -pickplace end
+
+}
+
+###############################################################################
+# For UART plugins ############################################################
+###############################################################################
+
+proc term_output { text Sok } {
+
+	global Stat Wins
+
+	if { ![info exists Stat($Sok,UART)] || [catch { addText $Sok \
+	    $Stat($Sok,UART) $text } ] } {
+		return 1
+	}
+
+	return 0
+}
+
+proc uart_send { text Sok } {
+
+	global Stat
+
+	if { ![info exists Stat($Sok,UART)] || [sock_wr $Sok $text] } {
+		return 1
+	}
+
+	return 0
+}
+
+###############################################################################
+# CLOCK #######################################################################
+###############################################################################
+
+proc clockHandler { } {
+
+	if [winlocate "c"] {
+		return
+	}
+
+	sock_conn "CLOCK"
+}
+
+proc CLOCK_ini { Sok code } {
+
+	global Wins Stat CTime
+
+	set Wins($Sok) ".wc[unique]"
+
+	set Stat($Sok,B) ""
+	set Stat($Sok,F) 0
+
+	set CTime(sec) 0
+	set CTime(tim) ""
+	set CTime(buf) ""
+
+	mkClock $Sok
+
+	fileevent $Sok readable "clockRead $Sok"
+}
+
+proc clockRead { Sok } {
+
+	global CTime
+
+	set rd [expr { 4 - [string length $CTime(buf)] }]
+
+	if [sock_rd $Sok chunk $rd] {
+		return
+	}
+
+	append CTime(buf) $chunk
+	if { [string length $chunk] != $rd } {
+		return
+	}
+
+	set CTime(sec) [dbinI CTime(buf)]
+ 	set CTime(tim) [sectos $CTime(sec)]
+
+	showClock $Sok
+}
+
+proc sectos { sec } {
+
+	set hr [expr { ($sec / 3600) % 24 }]
+	set mn [expr { ($sec / 60) % 60 }]
+	set se [expr { ($sec % 60) }]
+
+	if [expr { $se & 0x01 }] {
+		return [format "%02d:%02d:%02d" $hr $mn $se]
+	} else {
+		return [format "%02d %02d %02d" $hr $mn $se]
+	}
+}
+
+proc showClock { Sok } {
+
+	global CTime LCDSHAPE LCDONITEMS LCDOFFITEMS LCDCOLORS
+
+	set w [stwin $Sok]
+
+	$w.c delete lcd
+	set offset 8
+
+	foreach char [split $CTime(tim) ""] {
+
+		if { $char == ":" || $char == " " } {
+			if { $char == ":" } {
+				$w.c move [eval $w.c create polygon \
+					$LCDSHAPE(h) -tags lcd \
+						-outline $LCDCOLORS(ONE) \
+						-fill $LCDCOLORS(ONI) ] \
+							$offset 4
+				$w.c move [eval $w.c create polygon \
+					$LCDSHAPE(i) -tags lcd \
+						-outline $LCDCOLORS(ONE) \
+						-fill $LCDCOLORS(ONI) ] \
+							$offset 4
+			} else {
+				$w.c move [eval $w.c create polygon \
+					$LCDSHAPE(h) -tags lcd \
+						-outline $LCDCOLORS(OFE) \
+						-fill $LCDCOLORS(OFI) ] \
+							$offset 4
+				$w.c move [eval $w.c create polygon \
+					$LCDSHAPE(i) -tags lcd \
+						-outline $LCDCOLORS(OFE) \
+						-fill $LCDCOLORS(OFI) ] \
+							$offset 4
+			}
+        		incr offset 8
+			continue
+		}
+
+	        foreach sym $LCDONITEMS($char) {
+            		$w.c move [eval $w.c create polygon $LCDSHAPE($sym) \
+				-tags lcd \
+                    		-outline $LCDCOLORS(ONE) \
+				-fill $LCDCOLORS(ONI)] $offset 4
+        	}
+	        foreach sym $LCDOFFITEMS($char) {
+            		$w.c move [eval $w.c create polygon $LCDSHAPE($sym) \
+				-tags lcd \
+                    		-outline $LCDCOLORS(OFE) \
+				-fill $LCDCOLORS(OFI)] $offset 4
+        	}
+
+		incr offset 24
+	}
+}
+
+proc mkClock { Sok } {
+#
+# Creates the clock window
+#
+	global Wins
+
+	set w $Wins($Sok)
+	toplevel $w
+
+	wm title $w "CLOCK"
+	do_geometry $w "clock"
+
+	canvas $w.c -width 170 -height 45 -bg black
+	tip_set $w.c "Tells the amount of modeled time in seconds counted from\
+		the beginning of simulation"
+	pack $w.c -expand y
+	bind $w <Destroy> "wdestroy $Sok"
+}
+
+###############################################################################
+# LEDS ########################################################################
+###############################################################################
+
+proc ledsHandler { stid { fg 0 } } {
+
+	if [winlocate "l" $stid $fg] {
+		return
+	}
+
+	sock_conn "LEDS" $stid $fg
+}
+
+proc LEDS_ini { Sok code } {
+
+	global Stat
+
+	# timeout for the first update, which is expected immediately
+	stimeout $Sok
+	set Stat($Sok,B) ""
+	fileevent $Sok readable "ledsFirst $Sok"
+}
+
+proc ledsFirst { Sok } {
+
+	global Wins Stat LED_COLORS
+
+	while 1 {
+		if { [sock_rd $Sok ch 1] || $ch == "" } {
+			return
+		}
+		if { $ch == "\n" } {
+			# end of command line
+			break
+		}
+		append Stat($Sok,B) $ch
+	}
+
+	set cmd $Stat($Sok,B)
+	set Stat($Sok,B) ""
+
+	if { [node_sig $Sok cmd pmt] != "" } {
+		# keep going
+		return
+	}
+
+	if ![regexp "(\[0-1\]) (\[0-2\]+)" $cmd junk Stat($Sok,FA) \
+	    Stat($Sok,LD)] {
+		return
+	}
+
+	lassign $pmt Stat($Sok,N) Stat($Sok,I)
+
+	# terminate the timeout
+	ctimeout $Sok
+
+	# the node
+	set nod $Stat($Sok,N)
+
+	# the number of leds
+	set nleds [string length $Stat($Sok,LD)]
+
+	# determine the colors to be used for the leds; start with the defaults
+	set i 0
+	while 1 {
+		if { $i >= $nleds } {
+			break
+		}
+		if ![info exists LED_COLORS($i)] {
+			# that's it
+			break
+		}
+		# these are the "on" colors, the off colors are gray by default
+		set Stat($Sok,LC,O,$i) $LED_COLORS($i)
+		incr i
+	}
+
+	# user-provided led colors
+	set co [get_lset $nod "ledsc"]
+	if { $co != "" } {
+		set Stat($Sok,LA) $co
+		for { set i 0 } { $i < $nleds } { incr i } {
+			set ix [get_label $Sok $i -c]
+			if { $ix == "" } {
+				continue
+			}
+			lassign $ix on of
+			set Stat($Sok,LC,O,$i) $on
+			set Stat($Sok,LC,F,$i) $of
+		}
+	}
+
+	# the labels
+	set Stat($Sok,LA) [get_lset $nod "leds"]
+
+	# use the label background as the canvas background
+	if { $Stat($Sok,LA) != "" } {
+		for { set i 0 } { $i < $nleds } { incr i } {
+			set ix [get_label $Sok $i -c]
+			if { $ix == "" } {
+				continue
+			}
+			set Stat($Sok,LC,B,$i) [lindex $ix 2]
+		}
+	}
+
+	# create the window
+	set Wn ".wl[unique]"
+
+	set Wins($Sok) $Wn
+	set Stat($Sok,D) 80
+
+	mkLeds $Sok $nleds "$Stat($Sok,I) LEDS"
+
+	l_state_change $Sok
+
+	fileevent $Sok readable "ledsUpdate $Sok"
+}
+
+proc ledsUpdate { Sok } {
+
+	global Stat
+
+	while 1 {
+		if [sock_rd $Sok ch 1] {
+			return
+		}
+		if { $ch == "" } {
+			# input halted, reset the congestion timer
+			set Stat($Sok,D) 80
+			fileevent $Sok readable "ledsUpdate $Sok"
+			return
+		}
+		if { $ch == "\n" } {
+			# end of command line
+			set nd [expr { $Stat($Sok,D) - 10 }]
+			# decrease congestion timer after every line; we don't
+			# want to stall them, only tell apart the first few
+			# close ones
+			if { $nd < 0 } {
+				set nd 0
+			}
+			set Stat($Sok,D) $nd
+			set cmd $Stat($Sok,B)
+			set Stat($Sok,B) ""
+			if { ![regexp ": (\[0-1\]) (\[0-2\]+)" $cmd junk \
+			    Stat($Sok,FA) Stat($Sok,LD)] } {
+				# ignore NOPs and illegal commands
+				return
+			}
+
+			l_state_change $Sok
+			if { $nd > 0 } {
+				# hold before accepting next line
+				fileevent $Sok readable ""
+				after $nd ledsUpdate $Sok
+				return
+			}
+			continue
+		}
+		append Stat($Sok,B) $ch
+	}
+}
+
+proc mkoneled { canv off n } {
+
+	set t [$canv create oval $off 4 [expr { 20 + $off }] 24 -fill grey]
+	tip_setc $canv $t "Shows the status of LED number $n"
+	return $t
+}
+
+proc ledColor { Sok i s } {
+
+	global Stat
+
+	if $s {
+		if [info exists Stat($Sok,LC,O,$i)] {
+			return $Stat($Sok,LC,O,$i)
+		} else {
+			return "red"
+		}
+	}
+
+	if [info exists Stat($Sok,LC,F,$i)] {
+		return $Stat($Sok,LC,F,$i)
+	} else {
+		return "grey"
+	}
+}
+
+proc mkLeds { Sok nleds tt } {
+#
+# Creates a new leds window
+#
+	global Wins Stat
+
+	set w $Wins($Sok)
+
+	toplevel $w
+
+	wm title $w $tt
+
+	do_geometry $w "leds" $Stat($Sok,N)
+
+	# blinker callback
+	set Stat($Sok,G) ""
+	# blinker toggle
+	set Stat($Sok,X) 1
+
+	for { set i 0 } { $i < $nleds } { incr i } {
+		set f $w.f$i
+		eval labelframe $f [get_label $Sok $i]
+		pack $f -side left -expand y -fill both
+		canvas $f.c -width 28 -height 28
+		if { [info exists Stat($Sok,LC,B,$i)] && \
+		    $Stat($Sok,LC,B,$i) !=  "" } {
+			$f.c configure -bg $Stat($Sok,LC,B,$i)
+		}
+		pack $f.c -side left -expand y -fill both
+		set Stat($Sok,O,$i) [mkoneled $f.c 4 $i]
+		set Stat($Sok,V,$i) -1
+	}
+
+	bind $w <Destroy> "wdestroy $Sok"
+}
+
+proc l_state_change { Sok } {
+
+	global Stat
+
+	if ![info exists Stat($Sok,FA)] {
+		return
+	}
+
+	set fast $Stat($Sok,FA)
+	set stat $Stat($Sok,LD)
+	set nn $Stat($Sok,N)
+
+	set w [stwin $Sok]
+
+	set n [string length $stat]
+	set blink 0
+
+	for { set i 0 } { $i < $n } { incr i } {
+		if ![info exists Stat($Sok,O,$i)] {
+			# something wrong
+			break
+		}
+		# new value
+		if { $Stat(PNN,$nn) == "F" } {
+			# force OFF
+			set val 0
+		} else {
+			set val [string index $stat $i]
+			if { $val == 2 } {
+				# some leds blink
+				set blink 1
+			}
+		}
+		# old value
+		set ova $Stat($Sok,V,$i)
+		#
+		if { $val != $ova } {
+			# new value
+			set Stat($Sok,V,$i) $val
+			if { $val == 2 && !$Stat($Sok,X) } {
+				set val 0
+			}
+			$w.f$i.c itemconfigure $Stat($Sok,O,$i) -fill \
+				[ledColor $Sok $i $val]
+		}
+	}
+
+	if $blink {
+		if $fast {
+			set Stat($Sok,J) 128
+		} else {
+			set Stat($Sok,J) 512
+		}
+		if { $Stat($Sok,G) == "" } {
+			# start the blinker callback
+			set Stat($Sok,G) [after $Stat($Sok,J) ledsBlinker $Sok]
+		}
+	} elseif { $Stat($Sok,G) != "" } {
+		after cancel $Stat($Sok,G)
+		set Stat($Sok,G) ""
+	}
+}
+
+proc ledsBlinker { Sok } {
+
+	global Stat
+
+	if { ![info exists Stat($Sok,G)] || $Stat($Sok,G) == "" } {
+		# we are gone
+		return
+	}
+
+	set on $Stat($Sok,X)
+
+	set w [stwin $Sok]
+
+	for { set i 0 } { [info exists Stat($Sok,V,$i)] } { incr i } {
+		if { $Stat($Sok,V,$i) == 2 } {
+			$w.f$i.c itemconfigure $Stat($Sok,O,$i) -fill \
+				[ledColor $Sok $i $on]
+		}
+	}
+
+	if $on {
+		set Stat($Sok,X) 0
+	} else {
+		set Stat($Sok,X) 1
+	}
+
+	set Stat($Sok,G) [after $Stat($Sok,J) ledsBlinker $Sok]
+}
+
+###############################################################################
+# EMUL ########################################################################
+###############################################################################
+
+proc emulHandler { stid { fg 0 } } {
+
+	if [winlocate "e" $stid $fg] {
+		return
+	}
+
+	sock_conn "EMUL" $stid $fg
+}
+
+proc EMUL_ini { Sok code } {
+
+	global Stat
+
+	stimeout $Sok
+	set Stat($Sok,B) ""
+	fileevent $Sok readable "emulFirst $Sok"
+}
+
+proc emulFirst { Sok } {
+
+	global Wins Stat FONT
+
+	while 1 {
+
+		if { [sock_rd $Sok ch 1] || $ch == "" } {
+			return
+		}
+
+		if { $ch == "\n" } {
+			# end of command line
+			break
+		}
+		append Stat($Sok,B) $ch
+	}
+
+	# terminate the timeout timer
+	ctimeout $Sok
+
+	set cmd $Stat($Sok,B)
+	set Stat($Sok,B) ""
+
+	set err [node_sig $Sok cmd pmt]
+	if { $err != "" } {
+		log "incorrect handshake, $err"
+		dealloc $Sok
+		return
+	}
+
+	lassign $pmt Stat($Sok,N) Stat($Sok,I)
+
+	set w ".we[unique]"
+	set Wins($Sok) $w
+
+	toplevel $w
+
+	wm title $w "EMUL at node $Stat($Sok,I)"
+
+	do_geometry $w "emul" $Stat($Sok,N)
+
+	text $w.t
+
+	$w.t configure \
+		-yscrollcommand "$w.scroly set" \
+		-setgrid true \
+		-width 80 -height 24 -wrap char \
+		-font $FONT(R) \
+		-exportselection 1 \
+		-state normal
+
+	$w.t delete 1.0 end
+
+	scrollbar $w.scroly -command "$w.t yview"
+	pack $w.scroly -side right -fill y
+	pack $w.t -expand yes -fill both
+
+	bind $w.t <ButtonRelease-3> "cut_copy_paste %W %X %Y c"
+
+	frame $w.stat -borderwidth 2
+	pack $w.stat -expand no -fill x
+
+	entry $w.stat.f -width 20 -font $FONT(D) -textvariable Stat($Sok,F)
+	pack $w.stat.f -side right -expand no
+	tip_set $w.stat.f "Enter here a regular expression to select the lines\
+		that you want to see. When empty, all lines are qualified."
+	label $w.stat.l -text "Filter:"
+	pack $w.stat.l -side right -expand no
+
+	$w.t configure -state disabled
+	bind $w <Destroy> "wdestroy $Sok"
+
+	# for saving in a file
+	set Stat($Sok,FD,S) ""
+	set Stat($Sok,FS) [button $w.stat.sfile -command "term_sfile $Sok emul"]
+	pack $w.stat.sfile -side right -expand no
+	term_setsfb $Sok
+
+	fileevent $Sok readable "emulUpdate $Sok"
+	e_state_change $Sok
+}
+
+proc emulUpdate { Sok } {
+
+	global Stat Wins
+
+	while 1 {
+
+		if { [sock_rd $Sok ch] || $ch == "" } {
+			return
+		}
+
+		append Stat($Sok,B) $ch
+
+		while 1 {
+			set el [string first "\n" $Stat($Sok,B)]
+			if { $el < 0 } {
+				break
+			}
+			set ms [string range $Stat($Sok,B) 0 [expr { $el - 1 }]]
+			set Stat($Sok,B) [string range $Stat($Sok,B) \
+				[expr { $el + 1 }] end]
+
+			set ms [string trim $ms]
+			if { $ms == "" } {
+				# a NOP
+				continue
+			}
+
+			# pass through the filter
+			set f [string trim $Stat($Sok,F)]
+			if { $f != "" } {
+				if [catch { regexp $f $ms } q] {
+					set q 1
+				}
+				if !$q {
+					continue
+				}
+			}
+			addText $Sok $Wins($Sok).t $ms
+			endLine $Sok $Wins($Sok).t
+		}
+	}
+}
+
+proc e_state_change { Sok } {
+#
+# Node state change (power up / power down)
+#
+	global Stat Wins
+
+	set nn $Stat($Sok,N)
+
+	if { ![info exists Wins($Sok)] || ![info exists Stat(PNN,$nn)] } {
+		return
+	}
+
+	if { $Stat(PNN,$nn) == "O" } {
+		set co "white"
+	} else {
+		set co "gray"
+	}
+
+	catch { $Wins($Sok).t configure -bg $co }
+}
+
+###############################################################################
+# LCDG ########################################################################
+###############################################################################
+
+proc lcdgHandler { stid { fg 0 } } {
+
+	if [winlocate "g" $stid $fg] {
+		return
+	}
+
+	sock_conn "LCDG" $stid $fg
+}
+
+proc LCDG_ini { Sok code } {
+
+	global Stat
+
+	stimeout $Sok
+	set Stat($Sok,B) ""
+	fileevent $Sok readable "lcdgFirst $Sok"
+}
+
+proc lcdgFirst { Sok } {
+
+	global Wins Stat
+
+	while 1 {
+
+		if { [sock_rd $Sok ch 1] || $ch == "" } {
+			return
+		}
+
+		if { $ch == "\n" } {
+			# end of command line
+			break
+		}
+		append Stat($Sok,B) $ch
+	}
+
+	# terminate the timeout timer
+	ctimeout $Sok
+
+	set cmd $Stat($Sok,B)
+	set Stat($Sok,B) ""
+
+	set err [node_sig $Sok cmd pmt]
+
+	if { $err != "" } {
+		log "incorrect handshake, $err"
+		dealloc $Sok
+		return
+	}
+
+	lassign $pmt Stat($Sok,N) Stat($Sok,I)
+
+	set Wn ".wg[unique]"
+
+	set Wins($Sok) $Wn
+	toplevel $Wn
+	wm title $Wn "LCDG: $Stat($Sok,I)"
+	do_geometry $Wn "lcdg" $Stat($Sok,N)
+	set im [image create photo -width 130 -height 130]
+	set Stat($Sok,IM) $im
+	set w [label $Wn.im -image $im]
+	pack $w
+	bind $w <Destroy> "wdestroy $Sok"
+	bind $w <B1-ButtonRelease> "lcdgRefresh $Sok"
+
+	# The default rectangle: full image
+	set Stat($Sok,X0) 0
+	set Stat($Sok,X1) 129
+	set Stat($Sok,Y0) 0
+	set Stat($Sok,Y1) 129
+
+	# last pixel (for a stray repeat)
+	set Stat($Sok,LP) 0
+
+	for { set y 0 } { $y <= 129 } { incr y } {
+		# create the row
+		set Stat($Sok,RA,$y) [lrepeat 130 "#FFFFFF"]
+	}
+
+	# Current x, y for pixel fill
+	set Stat($Sok,XC) 0
+	set Stat($Sok,YC) 0
+
+	# Status is on, so "off" request will be effective
+	set Stat($Sok,IS) 1
+	# And turn it off (blanking it out)
+	lcdgUPDI $Sok off
+
+	# wait for the updates
+	fileevent $Sok readable "lcdgRead $Sok"
+}
+
+proc g_state_change { Sok } {
+
+	global Stat
+
+	if ![info exists Stat($Sok,IS)] {
+		return
+	}
+
+	set nn $Stat($Sok,N)
+
+	if { $Stat(PNN,$nn) == "F" } {
+		lcdgUPDI $Sok "off"
+	}
+}
+
+proc lcdgRefresh { Sok } {
+
+	global Stat
+
+	if ![info exists Stat($Sok,IS)] {
+		# we are a zombie
+		return
+	}
+
+	set st $Stat($Sok,IS)
+
+	set Stat($Sok,IS) 0
+	lcdgUPDI $Sok "on"
+
+	set Stat($Sok,IS) $st
+}
+
+proc lcdgUPDI { Sok { on "" } } {
+#
+# Update the image
+#
+	global Stat
+
+	set im $Stat($Sok,IM)
+
+	set rows ""
+
+	if { $Stat($Sok,IS) == 0 } {
+		# display is off
+		if { $on != "on" } {
+			# do nothing
+			return
+		}
+		# turn on
+		set Stat($Sok,IS) 1
+		# display the whole image
+	} else {
+
+		# display is on
+		if { $on == "off" } {
+			# turn off
+			set Stat($Sok,IS) 0
+			$im blank
+			return
+		}
+	}
+
+	for { set y 0 } { $y <= 129 } { incr y } {
+		lappend rows $Stat($Sok,RA,$y)
+	}
+
+	$im put $rows
+}
+
+proc lcdgUPDP { Sok v } {
+#
+# Update a single pixel
+#
+	global Stat
+
+	# current position
+	set x $Stat($Sok,XC)
+	set y $Stat($Sok,YC)
+
+	set r [expr { int(255.0 * (($v >> 8) & 0xF) / 15.0) }]
+	set g [expr { int(255.0 * (($v >> 4) & 0xF) / 15.0) }]
+	set b [expr { int(255.0 * (($v     ) & 0xF) / 15.0) }]
+	# puts "PIXEL [format %04x $v] $r $g $b"
+
+	lset Stat($Sok,RA,$y) $x [format #%02X%02X%02X $r $g $b]
+
+	# advance
+	incr x
+	if { $x > $Stat($Sok,X1) } {
+		set x $Stat($Sok,X0)
+		incr y
+		if { $y > $Stat($Sok,Y1) } {
+			set y $Stat($Sok,Y0)
+		}
+		set Stat($Sok,YC) $y
+	}
+	set Stat($Sok,XC) $x
+}
+
+proc lcdgRead { Sok } {
+
+	global Wins Stat
+
+	while 1 {
+
+		if { [sock_rd $Sok ch] || $ch == "" } {
+			return
+		}
+
+		if { $Stat($Sok,B) != "" } {
+			# there was a previous bit
+			set ch "$Stat($Sok,B)$ch"
+		}
+
+		# process the chunk
+		while { [string length $ch] > 1 } {
+
+			binary scan $ch S val
+
+			# word type
+			set tp [expr { $val & 0x0F000 }]
+
+			if { $tp == 0 } {
+				# this is a pixel
+				lcdgUPDP $Sok $val
+				set Stat($Sok,LP) $val
+			} elseif { $tp == 0x1000 } {
+				# a command
+				set cmd [expr { $val & 0x00F00 }]
+				if { $cmd == 0x300 } {
+					# set, requires 8 more bytes
+					if { [string length $ch] < 10 } {
+						# wait for more
+						break
+					}
+					set pm [string range $ch 2 9]
+					binary scan $pm SSSS x0 x1 y0 y1
+					# sanity check
+					if { $x0 < 0 || $x1 > 129 ||
+					     $y0 < 0 || $y1 > 129 ||
+					     $x0 > $x1 || $y0 > $y1 } {
+						log "illegal rectangle: $x0 $x1\
+							$y0 $y1, ignored"
+					} else {
+						set Stat($Sok,X0) $x0
+						set Stat($Sok,X1) $x1
+						set Stat($Sok,Y0) $y0
+						set Stat($Sok,Y1) $y1
+						set Stat($Sok,XC) $x0
+						set Stat($Sok,YC) $y0
+					}
+					set ch [string range $ch 10 end]
+					# puts "SET: $x0 $x1 $y0 $y1"
+					continue
+				}
+				if { $cmd == 0x400 } {
+					# update
+					if $Stat($Sok,IS) {
+						lcdgUPDI $Sok
+					}
+				} elseif { $cmd == 0x100 } {
+					# ON
+					if { $Stat($Sok,IS) == 0 } {
+						lcdgUPDI $Sok "on"
+					}
+					# puts "ON: $Stat($Sok,IS)"
+				} elseif { $cmd == 0x200 } {
+					# OFF
+					if { $Stat($Sok,IS) != 0 } {
+						lcdgUPDI $Sok "off"
+					}
+					# puts "OFF: $Stat($Sok,IS)"
+				} else {
+					if { $cmd != 0x000 } {
+						log "illegal LCDG command\
+						    [format %04X $val], ignored"
+					}
+				}
+
+			} elseif { [expr { $val & 0x8000 }] != 0 } {
+
+				# last pixel repeat
+				set val [expr { $val & 0x7fff }]
+				set lp $Stat($Sok,LP)
+				# puts "REPEAT: [format %04x $lp] $val"
+				while { $val >= 0 } {
+					lcdgUPDP $Sok $lp
+					incr val -1
+				}
+			}
+
+			set ch [string range $ch 2 end]
+		}
+		# the leftover
+		set Stat($Sok,B) $ch
+	}
+		
+}
+
+###############################################################################
+# PINS ########################################################################
+###############################################################################
+				
+proc pinsHandler { stid { fg 0 } } {
+
+	if [winlocate "p" $stid $fg] {
+		return
+	}
+
+	sock_conn "PINS" $stid $fg
+}
+
+proc PINS_ini { Sok code } {
+
+	global Stat
+
+	# wait for first update, which is expected right away
+	stimeout $Sok
+	set Stat($Sok,B) ""
+	fileevent $Sok readable "pinsFirst $Sok"
+}
+
+proc pinsFirst { Sok } {
+
+	global Wins Stat HPA
+
+	while 1 {
+
+		if { [sock_rd $Sok ch 1] || $ch == "" } {
+			return
+		}
+
+		if { $ch == "\n" } {
+			# end of command line
+			break
+		}
+		append Stat($Sok,B) $ch
+	}
+
+	# terminate the timeout timer
+	ctimeout $Sok
+
+	set cmd $Stat($Sok,B)
+	set Stat($Sok,B) ""
+
+	set err [node_sig $Sok cmd pmt]
+	if { $err != "" } {
+		log "incorrect handshake, $err"
+		dealloc $Sok
+		return
+	}
+
+	lassign $pmt Stat($Sok,N) Stat($Sok,I)
+
+	if ![regexp "$HPA(D) $HPA(D) $HPA(S) $HPA(S)" $cmd junk np na d0 d1] {
+		log "incorrect handshake, pin counts missing"
+		dealloc $Sok
+		return
+	}
+
+	if { [catch {
+		set np [expr { $np }]
+		set na [expr { $na }]
+		set d0 [expr { $d0 }]
+		set d1 [expr { $d1 }]
+	} ] || $np < 1 || 
+	    $na >  $np ||
+	    $d0 >= $np ||
+	    $d1 >= $np ||
+	   ($d0 >= 0 && $d0 == $d1)
+	} {
+		log "incorrect handshake, illegal pin numbers $np/$na"
+		dealloc $Sok
+		return
+	}
+
+	set dl ""
+	if { $d0 >= 0 } {
+		lappend dl $d0
+	}
+	if { $d1 >= 0 } {
+		lappend dl $d1
+	}
+	set Stat($Sok,LA) [get_lset $Stat($Sok,N) "pins"]
+
+	# create the window
+	set Wn ".wp[unique]"
+
+	set Wins($Sok) $Wn
+	set Stat($Sok,D) 80
+
+	for { set i 0 } { $i < $np } { incr i } {
+		# currently displayed status
+		set Stat($Sok,CS,$i) ""
+		# updated status (which may be held, e.g., while the node is
+		# powered down); note that we start with all pins output and
+		# zero, which basically corresponds to a powered-down node
+		set Stat($Sok,NS,$i) [list 1 0]
+	}
+
+	mkPins $Sok $np $na $dl "PINS at node $Stat($Sok,I)"
+	p_state_change $Sok
+
+	fileevent $Sok readable "pinsUpdate $Sok"
+}
+
+proc p_state_change { Sok } {
+
+	global Stat PIN_COLORS PIN_STCODE PIN_STTIP
+
+	set w [stwin $Sok]
+
+	set np $Stat($Sok,NP)
+	set na $Stat($Sok,NA)
+	set nn $Stat($Sok,N)
+
+	set da(0) 0
+	set da(1) 0
+
+	for { set pin 0 } { $pin < $np } { incr pin } {
+
+		if { $Stat(PNN,$nn) == "F" } {
+			# if the node is down, set them all output 0
+			set s [list 1 0]
+			set pt " (this status is forced, because the node\
+				is currently powered down)"
+		} else {
+			# use actual values
+			set s $Stat($Sok,NS,$pin)
+			set pt ""
+		}
+		if { $Stat($Sok,CS,$pin) == $s } {
+			# no change
+			continue
+		}
+		set Stat($Sok,CS,$pin) $s
+		lassign $s sta val
+
+		set px $w.dig.d$pin
+		$px configure -bg $PIN_COLORS(D,$sta) -text $PIN_STCODE($sta)
+		tip_set $px "Shows the pin's current configuration status;\
+			this pin is configured as \"$PIN_STTIP($sta)\"$pt"
+
+		set px $w.dig.i$pin
+		set pt "Shows the value of a digital input pin, including\
+			pulse monitor and counter"
+		if { $sta == 0 || $sta == 5 || $sta == 6 } {
+			# input
+			if $val {
+				# make sure this is zero or 1
+				set val 1
+			}
+			$px configure \
+				-activebackground $PIN_COLORS(A) \
+				-bg $PIN_COLORS(I,$val) -text $val \
+				-state normal
+			set Stat($Sok,J$pin) $val
+			append pt ". Left click to toggle the value, right\
+				click to generate a pulse."
+		} else {
+			$px configure -bg $PIN_COLORS(I,2) -text "-" \
+				-state disabled
+			set Stat($Sok,J$pin) "-"
+			append pt " (this is not a digital input pin, so the\
+				field shows nothing)"
+		}
+		tip_set $px $pt
+
+		set px $w.dig.o$pin
+		set pt "Shows the value of a digital output pin"
+		if { $sta == 1 } {
+			#output
+			if $val {
+				# make sure this is zero or 1
+				set val 1
+			}
+			$px configure -bg $PIN_COLORS(O,$val) \
+				-text $val
+		} else {
+			$px configure -bg $PIN_COLORS(O,2) -text "-"
+			append pt " (this is not a digital output pin, so the\
+				field shows nothing)"
+		}
+		tip_set $px $pt
+
+		if { $pin < $na } {
+			# take care of ADC pins
+			set st 0
+			set s $w.adc.s$pin
+			set pt "Shows the voltage of an ADC pin"
+			if { $sta == 2 } {
+				if { $Stat(PNN,$nn) == "F" } {
+					append pt " (not adjustable at the\
+						moment, because the node is\
+						powered down)"
+				} else {
+					set st 1
+					append pt " (adjustable by the user)"
+				}
+				$s set [toVoltage $val]
+			} else {
+				append pt ". The pins is currently not\
+					configured as ADC, so the widget is\
+					disabled."
+			}
+			if $st {
+				$s configure -state normal \
+					-activebackground $PIN_COLORS(A) \
+					-bg $PIN_COLORS(N)
+			} else {
+				$s configure -state disabled -bg $PIN_COLORS(I)
+			}
+			tip_set $s $pt
+		}
+
+		set s ""
+		if { $sta == 3 && [lindex $Stat($Sok,DA) 0] != "" } {
+			set s $w.dac.f0.v
+			set da(0) 1
+		} elseif { $sta == 4 && [lindex $Stat($Sok,DA) 1] != "" } {
+			set s $w.dac.f1.v
+			set da(1) 1
+		}
+		if { $s != "" } {
+			$s configure -text [toVoltage $val]
+		}
+	}
+
+	for { set i 0 } { $i < 2 } { incr i } {
+		if { [lindex $Stat($Sok,DA) $i] != "" } {
+			set s $w.dac.f$i.v
+			set pt "Shows the voltage on a DAC\
+				(digital-to-analog) pin"
+			if !$da($i) {
+				append pt ". This pin is currently not\
+					configured as DAC."
+			}
+			tip_set $s $pt
+		}
+	}
+}
+
+proc pinsUpdate { Sok } {
+
+	global Stat
+
+	while 1 {
+
+		if [sock_rd $Sok ch 1] {
+			return
+		}
+
+		if { $ch == "" } {
+			# end of data, revert to default damping delay
+			set Stat($Sok,D) 80
+			fileevent $Sok readable "pinsUpdate $Sok"
+			return
+		}
+
+		if { $ch == "\n" } {
+			# end of command line
+			set nd [expr { $Stat($Sok,D) - 10 }]
+			if { $nd < 0 } {
+				set nd 0
+			}
+			set Stat($Sok,D) $nd
+			set cmd $Stat($Sok,B)
+			set Stat($Sok,B) ""
+
+			newPinStatus $Sok $cmd
+
+			if { $nd > 0 } {
+				fileevent $Sok readable ""
+				after $nd pinsUpdate $Sok
+				return
+			}
+			continue
+		}
+		append Stat($Sok,B) $ch
+	}
+}
+
+proc pinsInput { Sok pin } {
+
+	global Stat PIN_COLORS
+
+	set w [stwin $Sok]
+
+	if { $Stat($Sok,XC$pin) != "" } {
+		# temporarily disabled
+		return 0
+	}
+
+	set nn $Stat($Sok,N)
+	if { $Stat(PNN,$nn) == "F" } {
+		# the node is off
+		return 0
+	}
+
+	set b $w.dig.i$pin
+	# the previous value
+	set ov $Stat($Sok,J$pin)
+	if { $ov == "-" } {
+		log "pin input ignored, pin $pin is not input"
+		return 0
+	}
+
+	if $ov {
+		set ov 0
+	} else {
+		set ov 1
+	}
+
+	if [sock_wr $Sok "S $pin $ov\n"] {
+		return 0
+	}
+
+	$b configure -text $ov -activebackground $PIN_COLORS(A) \
+		-bg $PIN_COLORS(I,$ov)
+
+	set Stat($Sok,J$pin) $ov
+	return 1
+}
+
+proc setPinDac { Sok pin v } {
+
+	set w [stwin $Sok]
+
+	# convert the value
+	set v [expr { int(($v / 3.3) * 32768.0) }]
+	if { $v > 32767 } {
+		set v 32767
+	}
+
+	sock_wr $Sok "D $pin $v\n"
+}
+
+proc mkPins { Sok np na dl tt } {
+
+	global Wins Stat
+
+	set w $Wins($Sok)
+	toplevel $w
+
+	wm title $w $tt
+
+	do_geometry $w "pins" $Stat($Sok,N)
+
+	frame $w.dig -borderwidth 4
+	pack $w.dig -side top -expand 1 -fill both
+
+	set ih 2
+
+	set Stat($Sok,NP) $np
+	set Stat($Sok,NA) $na
+	set Stat($Sok,DA) $dl
+
+	for { set i 0 } { $i < $np } { incr i } {
+		# numbers
+		set c [eval label $w.dig.h$i [get_label $Sok $i]]
+		grid $c -column $i -row 0 -sticky nsew
+		# directions
+		set Stat($Sok,D$i) -1
+		set c [label $w.dig.d$i -height 2 -text "-" \
+			 -relief raised]
+		grid $c -column $i -row 1 -sticky nsew
+		# output
+		set Stat($Sok,O$i) -1
+		set c [label $w.dig.o$i -height 2 -text "-" \
+			-relief sunken]
+		grid $c -column $i -row 2 -sticky nsew
+		# buttons
+		set Stat($Sok,I$i) -1
+		set c [button $w.dig.i$i -height 2 -text "-" \
+			-command "pinsInput $Sok $i" -state normal]
+		set Stat($Sok,J$i) "-"
+		grid $c -column $i -row 3 -sticky nsew
+	}
+
+	grid rowconfigure $w.dig { 1 2 3 } -weight 1
+	for { set i 0 } { $i < $np } { incr i } {
+		grid columnconfigure $w.dig $i -weight 1
+		set v $w.dig.i$i
+		bind $v <B3-ButtonRelease> "pinsButt $Sok $i"
+		set Stat($Sok,XC$i) ""
+	}
+
+	# Analog input
+	if { $na > 0 } {
+
+		frame $w.adc -borderwidth 4
+		pack $w.adc -side top -expand 0 -fill x
+		set u $w.adc
+
+		for { set i 0 } { $i < $na } { incr i } {
+
+			eval label $u.l$i -anchor w [get_label $Sok $i "ADC "]
+			grid $u.l$i -column 0 -row $i -sticky nsw
+
+			scale $u.s$i -orient horizontal -length 200 \
+				-from 0.0 -to 3.3 -resolution 0.01 \
+				-command "setPinDac $Sok $i" -state normal
+			grid $u.s$i -column 1 -row $i -sticky nsew
+			$u.s$i set 0.0
+		}
+
+		grid columnconfigure $w.adc 1 -weight 1
+	}
+
+	if { $Stat($Sok,DA) != "" } {
+
+		frame $w.dac -borderwidth 4 -relief raised
+		pack $w.dac -side top -expand 0 -fill x
+		# DAC output
+		set i 0
+		foreach dp $Stat($Sok,DA) {
+			set f [frame $w.dac.f$i -borderwidth 0]
+			pack $f -side left -expand 1 -fill x
+			label $f.v -text "00.000 V" -relief sunken
+			pack $f.v -side right -expand 0
+			eval label $f.l -justify right -anchor e \
+				[get_label $Sok $dp "DAC "]
+			pack $f.l -side left -expand 1 -fill x
+			incr i
+		}
+	}
+
+	bind $w <Destroy> "wdestroy $Sok"
+}
+
+proc pinsButt { Sok pin } {
+
+	global Wins Stat
+
+	set w [stwin $Sok]
+
+	if { $Stat($Sok,XC$pin) != "" } {
+		# delay in progress
+		return
+	}
+
+	if [pinsInput $Sok $pin] {
+		# succeeded
+		set Stat($Sok,XC$pin) [after 300 pinsUnButt $Sok $pin]
+	}
+}
+
+proc pinsUnButt { Sok pin } {
+
+	global Wins Stat
+
+	set w [stwin $Sok]
+
+	if ![info exists Stat($Sok,XC$pin)] {
+		return
+	}
+
+	set Stat($Sok,XC$pin) ""
+
+	pinsInput $Sok $pin
+}
+
+proc toVoltage { v } {
+
+	if { $v > 32767 } {
+		# this is in fact negative
+		return 00.000
+	}
+	return [format %06.3f [expr { 3.3 * ($v / 32768.0) }]]
+}
+
+proc newPinStatus { Sok upd } {
+
+	global Stat
+
+	if ![regexp ": (\[0-9\]+) (\[0-9\]+) (\[0-9\]+)" $upd jnk pin sta val] {
+		# ignore
+		return
+	}
+
+	# a few sanity checks
+
+	set np $Stat($Sok,NP)
+
+	if { [catch {
+		set pin [expr { $pin }]
+		set val [expr { $val }]
+	     }] || $pin >= $np } {
+	
+		return
+	}
+
+	if ![regexp "^\[0-7\]$" $sta] {
+		# incorrect status
+		return
+	}
+
+	set Stat($Sok,NS,$pin) [list $sta $val]
+
+	p_state_change $Sok
+}
+
+###############################################################################
+# SENSORS #####################################################################
+###############################################################################
+
+proc sensorsHandler { stid { fg 0 } } {
+
+	if [winlocate "s" $stid $fg] {
+		return
+	}
+
+	sock_conn "SENSORS" $stid $fg
+}
+
+proc SENSORS_ini { Sok code } {
+
+	global Stat
+
+	# first update expected right away
+	stimeout $Sok
+	set Stat($Sok,B) ""
+	fileevent $Sok readable "sensorsFirst $Sok"
+}
+
+proc sensorsFirst { Sok } {
+
+	global Wins Stat HPA
+
+	while 1 {
+
+		if { [sock_rd $Sok ch 1] || $ch == "" } {
+			return
+		}
+
+		if { $ch == "\n" } {
+			# end of command line
+			break
+		}
+		append Stat($Sok,B) $ch
+	}
+
+	ctimeout $Sok
+
+	set cmd $Stat($Sok,B)
+	set Stat($Sok,B) ""
+
+	set err [node_sig $Sok cmd pmt]
+	if { $err != "" } {
+		log "incorrect handshake, $err"
+		dealloc $Sok
+		return
+	}
+
+	lassign $pmt Stat($Sok,N) Stat($Sok,I)
+
+	# This must be the first update with parameters
+	if ![regexp "$HPA(D) $HPA(D) $HPA(D) $HPA(D)" $cmd junk \
+	    na oa ns os] {
+		log "incorrect handshake, sensor counts expected"
+		dealloc $Sok
+		return
+	}
+
+	if { [catch {
+		set na [expr { $na }]
+		set oa [expr { $oa }]
+		set ns [expr { $ns }]
+		set os [expr { $os }]
+	} ] } {
+		log "incorrect handshake,\
+			illegal sensor counts $na/$oa/$ns/$os"
+		dealloc $Sok
+		return
+	}
+
+	set Stat($Sok,LA,0) [get_lset $Stat($Sok,N) "actuators"]
+	set Stat($Sok,LA,1) [get_lset $Stat($Sok,N) "sensors"]
+
+	for { set i 0 } { $i < $ns } { incr i } {
+		set Stat($Sok,CS,$i) ""
+		set Stat($Sok,NS,$i) [list 0 0]
+	}
+
+	for { set i 0 } { $i < $na } { incr i } {
+		set Stat($Sok,CA,$i) ""
+		set Stat($Sok,NA,$i) [list 0 0]
+	}
+
+	# create the window
+	set Wn ".ws[unique]"
+
+	set Wins($Sok) $Wn
+	# damping delay
+	set Stat($Sok,D) 80
+
+	mkSensors $Sok $ns $os $na $oa "SENSORS at node $Stat($Sok,I)"
+	s_state_change $Sok
+
+	fileevent $Sok readable "sensorsUpdate $Sok"
+}
+
+proc mkSensors { Sok ns os na oa tt } {
+
+	global Wins Stat PIN_COLORS
+
+	set w $Wins($Sok)
+	toplevel $w
+
+	wm title $w $tt
+
+	do_geometry $w "sensors" $Stat($Sok,N)
+
+	set Stat($Sok,NS) $ns
+	set Stat($Sok,OS) $os
+	set Stat($Sok,NA) $na
+	set Stat($Sok,OA) $oa
+
+	if { $na > 0 } {
+
+		set Stat($Sok,LA) $Stat($Sok,LA,0)
+
+		if { $ns > 0 } {
+			frame $w.act -borderwidth 4 -pady 4 -relief sunken
+		} else {
+			frame $w.act -borderwidth 4
+		}
+		pack $w.act -side top -expand 0 -fill x
+
+		for { set i 0 } { $i < $na } { incr i } {
+			set f $w.act.f$i
+			# min/max/value: initialized to unusable
+			set Stat($Sok,AC$i) ""
+
+			scale ${f}s -orient horizontal -from 0.0 -length 300 \
+				-command {} -state disabled \
+				-sliderlength 7
+			grid ${f}s -row $i -column 1 -sticky ew
+			# rescale them later once we know everything about
+			# the window
+			${f}s set 0.0
+			tip_set ${f}s "Shows the value of an actuator (cannot\
+				be adjusted by the user, only by the node)"
+
+			eval label ${f}l -anchor w \
+				[get_label $Sok [expr { $i - $oa }] "Act "]
+
+			grid ${f}l -row $i -column 0 -sticky we
+		}
+		grid columnconfigure $w.act 0 -weight 0
+		grid columnconfigure $w.act 1 -weight 1
+	}
+
+	if { $ns > 0 } {
+
+		set Stat($Sok,LA) $Stat($Sok,LA,1)
+
+		if { $na > 0 } {
+			frame $w.sen -borderwidth 4 -pady 4 -relief sunken
+		} else {
+			frame $w.sen -borderwidth 4
+		}
+		pack $w.sen -side top -expand 0 -fill x
+
+		for { set i 0 } { $i < $ns } { incr i } {
+			set f $w.sen.f$i
+			# min/max/value
+			set Stat($Sok,SE$i) ""
+
+			scale ${f}s -orient horizontal -from 0.0 -length 300 \
+				-command "setSensor $Sok $i" -state disabled
+			grid ${f}s -row $i -column 1 -sticky ew
+			${f}s set 0.0
+
+			eval label ${f}l -anchor w \
+				[get_label $Sok [expr { $i - $os }] "Sen "]
+
+			grid ${f}l -row $i -column 0 -sticky we
+
+			button ${f}e -text "E!" -state normal \
+				-command "triggerSensor $Sok $i"
+			grid ${f}e -row $i -column 2 -sticky news
+		}
+		grid columnconfigure $w.sen 0 -weight 0
+		grid columnconfigure $w.sen 1 -weight 1
+		grid columnconfigure $w.sen 2 -weight 0
+	}
+
+	bind $w <B1-ButtonRelease> "sensorSend $Sok"
+	bind $w <Destroy> "wdestroy $Sok"
+}
+
+proc sensorsUpdate { Sok } {
+
+	global Stat
+
+	while 1 {
+
+		if [sock_rd $Sok ch 1] {
+			return
+		}
+
+		if { $ch == "" } {
+			# revert to default damping delay
+			set Stat($Sok,D) 80
+			fileevent $Sok readable "sensorsUpdate $Sok"
+			return
+		}
+
+		if { $ch == "\n" } {
+			# end of command line
+			set nd [expr { $Stat($Sok,D) - 10 }]
+			if { $nd < 0 } {
+				set nd 0
+			}
+			set Stat($Sok,D) $nd
+			set cmd $Stat($Sok,B)
+			set Stat($Sok,B) ""
+
+			newSensorStatus $Sok $cmd
+
+			if { $nd > 0 } {
+				fileevent $Sok readable ""
+				after $nd sensorsUpdate $Sok
+				return
+			}
+			continue
+		}
+		append Stat($Sok,B) $ch
+	}
+}
+
+proc newSensorStatus { Sok upd } {
+
+	global Stat
+
+	set par ""
+	if ![regexp "^(\[AS\])\[^:\]+: (\[0-9\]+) (\[^ \]+)(.*)" $upd jnk \
+	    typ sen val max] {
+		# ignore
+		return
+	}
+
+	# sanity checks
+
+	if [catch { expr { $sen } } sen] {
+		return
+	}
+
+	if [catch { expr { "0x[string trim $max]" } } max] {
+		return
+	}
+
+	if [catch { expr { "0x[string trim $val]" } } val] {
+		return
+	}
+
+	if { $val > $max } {
+		return
+	}
+
+	if { $typ == "A" } {
+		if { $sen > $Stat($Sok,NA) } {
+			return
+		}
+		set Stat($Sok,NA,$sen) [list $val $max]
+	} else {
+		if { $sen > $Stat($Sok,NS) } {
+			return
+		}
+		set Stat($Sok,NS,$sen) [list $val $max]
+	}
+
+	s_state_change $Sok
+}
+
+proc s_state_change { Sok } {
+
+	global Stat
+
+	set w [stwin $Sok]
+
+	set nn $Stat($Sok,N)
+
+	# actuators
+
+	set nk $Stat($Sok,NA)
+
+	for { set sen 0 } { $sen < $nk } { incr sen } {
+
+		if { $Stat(PNN,$nn) == "F" } {
+			set s [list 0 0]
+		} else {
+			set s $Stat($Sok,NA,$sen)
+		}
+
+		set pv $Stat($Sok,CA,$sen)
+		if { $pv == $s } {
+			# no change
+			continue
+		}
+
+		set Stat($Sok,CA,$sen) $s
+		lassign $s val max
+		set f "$w.act.f$sen"
+
+		if $max {
+			set dmax [expr { double($max) }]
+		} else {
+			set val 0
+			set dmax 1.0
+		}
+
+		if { $max != [lindex $pv 1] } {
+			# the maximum has changed
+			${f}s configure -to $dmax \
+				-tickinterval [expr { $dmax / 5.0 }]
+		}
+
+		set val [expr { double($val) }]
+
+		${f}s configure -state normal
+		${f}s set $val
+		${f}s configure -state disabled
+	}
+
+	# sensors
+
+	set nk $Stat($Sok,NS)
+
+	for { set sen 0 } { $sen < $nk } { incr sen } {
+
+		if { $Stat(PNN,$nn) == "F" } {
+			set s [list 0 0]
+		} else {
+			set s $Stat($Sok,NS,$sen)
+		}
+
+		set pv $Stat($Sok,CS,$sen)
+		if { $pv == $s } {
+			# no change
+			continue
+		}
+
+		set Stat($Sok,CS,$sen) $s
+		lassign $s val max
+		set f "$w.sen.f$sen"
+
+		if $max {
+			set dmax [expr { double ($max) }]
+		} else {
+			set dmax 1.0
+			set val 0
+		}
+
+		if { $max != [lindex $pv 1] } {
+			# the maximum has changed
+			${f}s configure -to $dmax \
+				-tickinterval [expr { $dmax / 5.0 }]
+
+			set tp "Shows and sets the sensor value ("
+			set te "Sends a sensor event to the node"
+			if $max {
+				append tp "can be adjusted by the user"
+			} else {
+				append tp "cannot be adjusted at this time,\
+					because the node is powered down"
+				append te "(disabled at the moment, because the\
+					node is powered down)"
+			}
+			append tp ")"
+			tip_set ${f}s $tp
+			tip_set ${f}e $te
+		}
+
+
+		set val [expr { double($val) }]
+		${f}s configure -state normal
+		${f}s set $val
+		if { $max == 0 } {
+			${f}s configure -state disabled
+			${f}e configure -state disabled
+		} else {
+			${f}e configure -state normal
+		}
+	}
+}
+
+proc setSensor { Sok sen v } {
+
+	global Stat
+
+	set w [stwin $Sok]
+	set Stat($Sok,SEV,$sen) [list $sen $v]
+}
+
+proc sensorSend { Sok } {
+
+	global Stat
+
+	foreach va [array names Stat "$Sok,SEV,*"] {
+		set sn [lindex $Stat($va) 0]
+		set sv [lindex $Stat($va) 1]
+		set ln "S $sn [format 0x%1x [expr { int ($sv) }]]\n"
+		if [sock_wr $Sok $ln] {
+			break
+		}
+	}
+	array unset Stat "$Sok,SEV,*"
+}
+
+proc triggerSensor { Sok sen } {
+
+	global Stat
+
+	set w [stwin $Sok]
+	sock_wr $Sok "E $sen\n"
+}
+
+###############################################################################
+# PANEL #######################################################################
+###############################################################################
+
+# the number of nodes
+set Stat(PNN) ""
+# state of the panel window: 0 - no, +1 active, -1 initializing
+set Stat(PNN,IN) 0
+
+proc panel_preconnect { } {
+#
+# Initial connection to the panel; udaemon keeps it alive all the time; called
+# only once at the very beginning
+#
+	global Stat
+
+	# establish persistent connection to the panel service
+	after 100 "sock_conn PANEL -1 2"
+}
+
+proc PANEL_ini { Sok code } {
+
+	global Stat Wins
+
+	set Stat(PNN,S) $Sok
+
+	set_ih $Sok panelUpd
+	stimeout $Sok
+}
+
+proc panelUpd { Sok cmd } {
+
+	global Stat HPA
+
+	if [regexp "^$HPA(D) +$HPA(Q)" $cmd junk nod sta] {
+		# short status message
+		if { $Stat(PNN) != "" && $nod < $Stat(PNN) &&
+		     $Stat(PNN,$nod) != $sta } {
+			# an actual and legit update
+			set Stat(PNN,$nod) $sta
+			nodeStateChange $nod
+			if { $Stat(PNN,IN) > 0 } {
+				# window active
+				updPanel
+			}
+		}
+		return
+	}
+
+	if { [node_sig $Sok cmd pmt] == "" } {
+		# window startup query response
+		if { $Stat(PNN) != "" && $Stat(PNN,IN) != 0 } {
+			panelWinInit $pmt
+		}
+		return
+	}
+
+	# now, it can only be the initial message specifying the status of all
+	# nodes
+
+	if [regexp "^$HPA(D):+$HPA(L)" $cmd junk nn nst] {
+		if { $Stat(PNN) != "" } {
+			# initialized already
+			return
+		}
+
+		if [catch { expr { $nn } } nn] {
+			log "illegal panel init message: $cmd"
+			return
+		}
+
+		for { set i 0 } { $i < $nn } { incr i } {
+			set s [string index $nst $i]
+			if { $s == "F" || $s == "O" } {
+				set Stat(PNN,$i) $s
+			} else {
+				# format error
+				array unset Stat "PNN,*"
+				log "illegal panel init message: $cmd"
+				return
+			}
+		}
+
+		ctimeout $Sok
+
+		set Stat(PNN) $nn
+
+		# initial state triggers
+		for { set i 0 } { $i < $nn } { incr i } {
+			nodeStateChange $i
+		}
+	}
+}
+
+proc nodeStateChange { n } {
+
+	global Stat Wins
+
+	foreach s [array names Wins] {
+
+		set w $Wins($s)
+
+		if { [info exists Stat($s,N)] && $Stat($s,N) == $n } {
+			set tp [string index $w 2]
+			catch { ${tp}_state_change $s }
+		}
+	}
+}
+
+###############################################################################
+
+proc panelHandler { } {
+
+	global Stat
+
+	if $Stat(PNN,IN) {
+		# already active or being initialized
+		return
+	}
+
+	# number of tries for timeout
+	set Stat(PNN,T) 0
+
+	panelStart
+}
+
+proc panelStart { } {
+
+	global Stat Wins
+
+	if { $Stat(PNN) == "" } {
+		# delay for a sec, perhaps the interface is just being
+		# initialized
+		if { $Stat(PNN,T) > 50 } {
+			log "connection to panel timed out"
+			return
+		}
+		incr Stat(PNN,T)
+		after 100 panelStart
+		return
+	}
+
+	if $Stat(PNN,IN) {
+		# race with another request
+		return
+	}
+
+	# initializing
+	set Stat(PNN,IN) -1
+
+	# 
+	set Sok $Stat(PNN,S)
+
+	set Stat($Sok,SL) ""
+	set Stat($Sok,EL) ""
+
+	set tot $Stat(PNN)
+	if { $tot > 16 } {
+		set tot 16
+	}
+
+	for { set n 0 } { $n < $tot } { incr n } {
+		if [sock_wr $Sok "Q $n\n"] {
+			log "error sending panel request"
+			panelClose
+			return
+		}
+		lappend Stat($Sok,EL) $n
+	}
+
+	log "receiving panel status info ..."
+}
+
+proc panelClose { } {
+
+	global Stat
+
+	set Sok $Stat(PNN,S)
+
+	if [info exists Wins($Sok)] {
+		catch { destroy $Wins($Sok) }
+		unset -nocomplain Wins($Sok)
+	}
+
+	# no need to worry about zombie windows, because (normally) the socket
+	# itself stays alive until the end of the session
+
+	set Stat(PNN,IN) 0
+}
+
+proc panelWinInit { pmt } {
+
+	global Stat Wins
+
+	lassign $pmt nod hos tot nnm sta
+	set Sok $Stat(PNN,S)
+
+	set ix [lsearch -exact $Stat($Sok,EL) $nod]
+	if { $ix < 0 } {
+		# we are not waiting for this node status
+		return
+	}
+
+	set Stat($Sok,EL) [lreplace $Stat($Sok,EL) $ix $ix]
+	lappend Stat($Sok,SL) [list $nod $hos $nnm]
+
+	if [llength $Stat($Sok,EL)] {
+		# waiting for more
+		return
+	}
+
+	if { $Stat(PNN,IN) < 0 } {
+		# initializing, ready to display
+		set Stat(PNN,IN) 1
+		# currently displayed list
+		set Stat($Sok,DL) ""
+		set Wins($Sok) ".wa[unique]"
+		log "done"
+	}
+
+	updPanel
+}
+
+proc addPanel { Sok } {
+
+	global Stat
+
+	set w [stwin $Sok]
+
+	if { ![info exists Stat($Sok,NA)] || $Stat($Sok,NA) == "" } {
+		# no node
+		log "node number required"
+		return
+	}
+
+	if { [catch { expr { $Stat($Sok,NA) } } nod] || $nod < 0 } {
+		# this is just a precaution
+		log "illegal node number"
+		return
+	}
+
+	if { $nod >= $Stat(PNN) } {
+		log "node number out of range"
+		return
+	}
+
+	# check if the node is not already present
+	foreach no $Stat($Sok,SL) {
+		if { [lindex $no 0] == $nod } {
+			log "node $nod already present in panel"
+			return
+		}
+	}
+
+	# OK, can request this node
+	if [sock_wr $Sok "Q $nod\n"] {
+		return
+	}
+
+	# append the node to the awaited list
+	if { [lsearch -exact $Stat($Sok,EL) $nod] < 0 } {
+		lappend Stat($Sok,EL) $nod
+	}
+}
+
+proc reqPanel { Sok ix rq } {
+
+	global Stat
+
+	set w [stwin $Sok]
+
+	set no [lindex $Stat($Sok,SL) $ix]
+
+	if { $no == "" } {
+		log "request ignored, bad node index"
+		return
+	}
+
+	sock_wr $Sok "$rq [lindex $no 0]\n"
+}
+
+proc reqPanelG { Sok ix rq } {
+
+	global Stat Geometry
+
+	set w [stwin $Sok]
+
+	if ![info exists Geometry(panel,ng)] {
+		log "request ignored, no node groups"
+		return
+	}
+
+	set nl [lindex [lindex $Geometry(panel,ng) $ix] 1]
+	if { $nl == "" } {
+		log "request ignored, no such node group"
+	}
+
+	foreach no $nl {
+		sock_wr $Sok "$rq $no\n"
+	}
+}
+
+proc turnNode { n st } {
+
+	global Stat
+
+	if ![info exists Stat(PNN,S)] {
+		log "request ignored, no panel connection"
+		return
+	}
+
+	sock_wr $Stat(PNN,S) "$st $n\n"
+}
+
+proc delPanel { Sok ix } {
+
+	global Stat
+
+	set w [stwin $Sok]
+
+	set no [lindex $Stat($Sok,SL) $ix]
+
+	if { $no == "" } {
+		log "request ignored, bad node index"
+		return
+	}
+
+	set Stat($Sok,SL) [lreplace $Stat($Sok,SL) $ix $ix]
+
+	updPanel
+}
+
+proc updPanel { } {
+#
+# Make or re-make, e.g., after adding/deleting a node
+#
+	global Wins Stat PANEL_COLORS Geometry
+
+	set Sok $Stat(PNN,S)
+	set w $Wins($Sok)
+	set ne [llength $Stat($Sok,SL)]
+
+	if { $ne != [llength $Stat($Sok,DL)] } {
+
+		# redo the whole window
+		if [catch { wm geometry $w } ge] {
+			# window absent
+			set ge ""
+		} else {
+			bind $w <Destroy> {}
+			destroy $w
+		}
+
+		toplevel $w
+		wm title $w "PANEL"
+		bind $w <Destroy> panelClose
+		if { $ge != "" } {
+			# preserve previous location
+			regexp "\\+.*\\+.*" $ge ge
+			wm geometry $w $ge
+		} else {
+			do_geometry $w "panel"
+		}
+
+		set fr [frame $w.stat -borderwidth 1]
+		pack $fr -side top -expand 1 -fill x
+
+		set row 0
+		for { set ix 0 } { $ix < $ne } { incr ix } {
+			# create placeholders for the node descriptors
+			set c [label $fr.ni$ix -text "" -width 7 -justify right]
+			grid $c -column 0 -row $row -sticky nsew
+			tip_set $c "Shows the internal (SMURPH) number of\
+				the node and its type name, i.e., program name\
+				suffix"
+			set c [label $fr.ho$ix -text "" \
+				-bg $PANEL_COLORS(HOSTID) \
+				-width 7 -justify right]
+			grid $c -column 1 -row $row -sticky nsew
+			tip_set $c "This is the host_id of the node, i.e.,\
+				its formal network address"
+			set c [button $fr.on$ix -text "On" \
+				-command "reqPanel $Sok $ix O"]
+			grid $c -column 2 -row $row -sticky nsew
+			tip_set $c "Press to power the node on"
+			set c [button $fr.of$ix -text "Off" \
+				-command "reqPanel $Sok $ix F"]
+			grid $c -column 3 -row $row -sticky nsew
+			tip_set $c "Press to power the node off"
+			set c [button $fr.re$ix -text "Reset" -state normal \
+				-command "reqPanel $Sok $ix R" \
+				-bg $PANEL_COLORS(ACTIVE)]
+			grid $c -column 4 -row $row -sticky nsew
+			tip_set $c "Press to reset the node"
+			set c [button $fr.de$ix -text "Delete" -state normal \
+				-command "delPanel $Sok $ix" \
+				-bg $PANEL_COLORS(DEL)]
+			grid $c -column 5 -row $row -sticky nsew
+			tip_set $c "Press to remove the node from the\
+				panel. Nothing will happen to the node itself:\
+				it will just disappear from the panel."
+			incr row
+		}
+		if [info exists Geometry(panel,ng)] {
+			set ix 0
+			foreach nl $Geometry(panel,ng) {
+				set c [label $fr.nm$ix -text [lindex $nl 0] \
+					-justify right \
+					-bg $PANEL_COLORS(GRPNAME)]
+				grid $c -column 0 -columnspan 2 -row $row \
+					-sticky nsew
+				tip_set $c "Shows the node group to be\
+					turned on or off (or reset) all at once"
+				set c [button $fr.nn$ix -text "On" \
+					-state normal \
+					-command "reqPanelG $Sok $ix O"]
+				grid $c -column 2 -row $row -sticky nsew
+				tip_set $c "Press to power the group on"
+				set c [button $fr.ff$ix -text "Off" \
+					-state normal \
+					-command "reqPanelG $Sok $ix F"]
+				grid $c -column 3 -row $row -sticky nsew
+				tip_set $c "Press to power the group off"
+				set c [button $fr.rs$ix -text "Reset" \
+					-state normal \
+					-command "reqPanelG $Sok $ix R" \
+						-bg $PANEL_COLORS(ACTIVE)]
+				grid $c -column 4 -row $row -sticky nsew
+				tip_set $c "Press to reset the group"
+				incr ix
+				incr row
+			}
+		}
+
+		if { $ne < $Stat(PNN) } {
+			set c [entry $fr.an -relief sunken \
+				-textvariable Stat($Sok,NA) -validate key \
+					-vcmd {validSid %P} -invcmd bell]
+			grid $c -column 0 -columnspan 2 -row $row -sticky nsew \
+				-padx 2 -pady 2
+			tip_set $c "Enter here the (internal) number\
+				of the node to be added to the panel.\
+				You can only add one node at a time."
+			bind $c <Return> "addPanel $Sok"
+			set c [button $fr.but -text "Add" \
+				-command "addPanel $Sok" \
+				-bg $PANEL_COLORS(ADDNODE)]
+			grid $c -column 2 -columnspan 3 -row $row -sticky nsew
+			tip_set $c "Press to add to the panel the node\
+				whose number you have entered in the box to\
+				the left"
+		}
+
+	}
+
+	# update labels and buttons
+	set ix 0
+	set fr $w.stat
+	foreach no $Stat($Sok,SL) {
+		lassign $no non noh not
+		$fr.ni$ix configure -text [format "%4d: %s" $non $not]
+		$fr.ho$ix configure -text [format "%5d" $noh]
+		if { $Stat(PNN,$non) == "F" } {
+			# node is down: ON active, OFF disabled
+			$fr.ni$ix configure -bg $PANEL_COLORS(OFFLABEL)
+			$fr.on$ix configure -state normal -bg \
+				$PANEL_COLORS(ACTIVE)
+			$fr.of$ix configure -state disabled -bg \
+				$PANEL_COLORS(DISABLED)
+		} else {
+			# node is up: OFF active, ON disabled
+			$fr.ni$ix configure -bg $PANEL_COLORS(ONLABEL)
+			$fr.on$ix configure -state disabled -bg \
+				$PANEL_COLORS(DISABLED)
+			$fr.of$ix configure -state normal -bg \
+				$PANEL_COLORS(ACTIVE)
+		}
+		incr ix
+	}
+
+	if [info exists Geometry(panel,ng)] {
+		# update group status
+		set ix 0
+		foreach nl $Geometry(panel,ng) {
+			set nof 0
+			set non 0
+			foreach no [lindex $nl 1] {
+				if { [info exists Stat(PNN,$no)] &&
+				     $Stat(PNN,$no) == "F" } {
+					incr nof
+				} else {
+					incr non
+				}
+			}
+			if { $non == 0 } {
+				# all nodes in group are off
+				$fr.nm$ix configure -bg $PANEL_COLORS(OFFLABEL)
+			} elseif { $nof == 0 } {
+				$fr.nm$ix configure -bg $PANEL_COLORS(ONLABEL)
+			} else {
+				$fr.nm$ix configure -bg $PANEL_COLORS(PRTLABEL)
+			}
+
+			if { $non != 0 } {
+				$fr.ff$ix configure -state normal \
+					-bg $PANEL_COLORS(ACTIVE)
+			} else {
+				$fr.ff$ix configure -state disabled \
+					-bg $PANEL_COLORS(DISABLED)
+			}
+
+			if { $nof != 0 } {
+				$fr.nn$ix configure -state normal \
+					-bg $PANEL_COLORS(ACTIVE)
+			} else {
+				$fr.nn$ix configure -state disabled \
+					-bg $PANEL_COLORS(DISABLED)
+			}
+			incr ix
+		}
+	}
+
+	set Stat($Sok,DL) $Stat($Sok,SL)
+}
+
+###############################################################################
+# PTRACKER ####################################################################
+###############################################################################
+
+proc pwrtHandler { stid { fg 0 } } {
+
+	if [winlocate "w" $stid $fg] {
+		return
+	}
+
+	sock_conn "PTRACKER" $stid $fg
+}
+
+proc PTRACKER_ini { Sok code } {
+
+	global Stat
+
+	stimeout $Sok
+	set Stat($Sok,B) ""
+	fileevent $Sok readable "pwrtFirst $Sok"
+}
+
+proc pwrtFirst { Sok } {
+
+	global Wins Stat
+
+	while 1 {
+		if { [sock_rd $Sok ch 1] || $ch == "" } {
+			return
+		}
+		if { $ch == "\n" } {
+			# end of command line
+			break
+		}
+		append Stat($Sok,B) $ch
+	}
+
+	set cmd $Stat($Sok,B)
+	set Stat($Sok,B) ""
+
+	if { [node_sig $Sok cmd pmt] != "" } {
+		# keep waiting for the signature
+		return
+	}
+
+	lassign $pmt Stat($Sok,N) Stat($Sok,I)
+
+	ctimeout $Sok
+
+	set Wn ".ww[unique]"
+
+	set Wins($Sok) $Wn
+	set Stat($Sok,D) 80
+	# current val, avg, min, max
+	set Stat($Sok,VL) [list 0.0 0.0 0.0 0.0 0.0 0 1]
+
+	mkPwrt $Sok "PTracker at node $Stat($Sok,I)"
+
+	# wait for updates
+	fileevent $Sok readable "pwrtUpd $Sok"
+}
+
+proc mkPwrt { Sok tt } {
+
+	global Wins Stat PMARGIN
+
+	set w $Wins($Sok)
+
+	toplevel $w
+
+	wm title $w $tt
+	do_geometry $w "ptracker"
+	wm minsize $w $PMARGIN(MW) $PMARGIN(MH)
+
+	set Stat($Sok,NC) [list $PMARGIN(DW) $PMARGIN(DH)]
+
+	canvas $w.c -width $PMARGIN(DW) -height $PMARGIN(DH)
+	pack $w.c -side left -expand 1 -fill both
+
+	button $w.z -text "x" -command "pwrtZero $Sok"
+	pack $w.z -side right -fill x
+
+	set Stat($Sok,WW) $PMARGIN(DW)
+	set Stat($Sok,WH) $PMARGIN(DH)
+
+	pwrtRedraw $Sok
+
+	bind $w <Destroy> "wdestroy $Sok"
+	bind $w.c <Configure> "pwrtResize $Sok %w %h"
+
+	w_state_change $Sok
+}
+
+proc w_state_change { Sok } {
+
+	global Stat
+
+	set nn $Stat($Sok,N)
+
+	if ![info exists Stat(PNN,$nn)] {
+		return
+	}
+
+	set pt "Shows the current (in milliamps) drawn by the node.\
+		The red point shows the present (momentary) usage, the green\
+		point shows the average."
+
+	set pq "Press this button to reset the average (to be calculated\
+		from now)"
+
+	if { $Stat(PNN,$nn) == "F" } {
+		set cl "gray"
+		set ss "disabled"
+		append pt " The node is currently powered down, so the red\
+			point shows zero."
+		append pq ". The button is disabled, because the node is\
+			powered down at the moment."
+	} else {
+		set cl "white"
+		set ss "normal"
+	}
+
+	set w [stwin $Sok]
+
+	tip_set $w.c $pt
+	tip_set $w.z $pq
+
+	$w.c configure -bg $cl
+	$w.z configure -state $ss
+}
+
+proc pwrtZero { Sok } {
+
+	sock_wr $Sok "C\n"
+}
+
+proc pwrtResize { Sok nw nh } {
+
+	global Stat
+
+	stwin $Sok
+
+	if ![info exists Stat($Sok,RM)] {
+		# this is a dummy first time after startup; we use it to
+		# determine the window margin size, i.e., the difference
+		# between the resized width and height and the actual
+		# canvas parameters
+		set aw $Stat($Sok,WW)
+		set ah $Stat($Sok,WH)
+		set Stat($Sok,RM) [list [expr { $nw - $aw }]\
+			[expr { $nh - $ah }]]
+		return
+	}
+
+	if [info exists Stat($Sok,T)] {
+		# update timer running, kill it
+		after cancel $Stat($Sok,T)
+	}
+
+	set Stat($Sok,WW) $nw
+	set Stat($Sok,WH) $nh
+
+	# delay the actual action until we have stabilized
+	set Stat($Sok,T) [after 1000 pwrtDoResize $Sok]
+}
+
+proc pwrtDoResize { Sok } {
+
+	global Stat
+
+	stwin $Sok
+
+	if [info exists Stat($Sok,T)] {
+		unset Stat($Sok,T)
+	}
+
+	# correct for the window boundary
+	set aw $Stat($Sok,WW)
+	set ah $Stat($Sok,WH)
+	lassign $Stat($Sok,RM) dw dh
+
+	set aw [expr { $aw - $dw }]
+	set ah [expr { $ah - $dh }]
+
+	set Stat($Sok,WW) $aw
+	set Stat($Sok,WH) $ah
+
+	pwrtRedraw $Sok
+}
+
+proc pwrtRedraw { Sok } {
+
+	global Stat PMARGIN
+
+	set w [stwin $Sok]
+
+	lassign $Stat($Sok,VL) tm vv av sv bv tf tl
+
+	set W $Stat($Sok,WW)
+	set H $Stat($Sok,WH)
+
+	# width and height for the gauge
+	set gw [expr { $W - $PMARGIN(L) - $PMARGIN(R) }]
+	set gh [expr { $H - $PMARGIN(T) - $PMARGIN(B) }]
+
+	$w.c delete all
+
+	set go [$w.c create rectangle \
+		$PMARGIN(L) $PMARGIN(T) \
+		[expr { $W - $PMARGIN(R) }] [expr { $H - $PMARGIN(B) }] \
+			-fill gray]
+
+	# draw the scales
+	set nx [expr { $tl - $tf }]
+
+	set i 0
+	for { set tk $tf } { $tk <= $tl } { incr tk } {
+		# labeled ticks
+		set x [expr { (($gw * $i) / $nx) + $PMARGIN(L) }]
+		$w.c create line $x [expr { $PMARGIN(T) - 5 }] \
+				 $x [expr { $PMARGIN(T) + 5 }]
+		# the label
+		$w.c create text $x [expr { $PMARGIN(T) - 7 }] \
+			-anchor s -text "1e$tk" -state disabled
+
+		# unlabeled ticks
+		set db [expr { pow(10,$tk) }]
+
+		incr i
+
+		if { $tk == $tl } {
+			continue
+		}
+
+		for { set j 2 } { $j <= 9 } { incr j } {
+			set dc [expr { $db * $j }]
+			set x [expr { [pwrt_eval $gw $tf $tl $dc] + 
+				$PMARGIN(L) }]
+			$w.c create line $x [expr { $PMARGIN(T) - 3 }] \
+				 $x [expr { $PMARGIN(T) + 3 }]
+		}
+	}
+
+	# coordinates of marks
+	set xv [pwrt_eval $gw $tf $tl $vv]
+	set xa [pwrt_eval $gw $tf $tl $av]
+
+	set x [expr { $xv + $PMARGIN(L) - 3 }]
+	set y0 [expr { $PMARGIN(T) - 1 }]
+	set y1 [expr { $PMARGIN(T) + $gh + 1 }]
+	set Stat($Sok,MC) [$w.c create rectangle $x $y0 [expr { $x + 6 }] $y1 \
+		-fill red]
+	set x [expr { $xa + $PMARGIN(L) - 3 }]
+	set Stat($Sok,MA) [$w.c create rectangle $x $y0 [expr { $x + 6 }] $y1 \
+		-fill green]
+
+	# textual values
+	set Stat($Sok,TS) [$w.c create text $PMARGIN(L) [expr { $H - 4 }] \
+		-anchor sw -text "Tim: $tm" -state disabled]
+	set Stat($Sok,TC) [$w.c create text [expr { $W / 3 }] \
+		[expr { $H - 4 }] \
+		-anchor s -text "Cur: [pwrt_pz $vv]" -state disabled]
+	set Stat($Sok,TA) [$w.c create text [expr { int(1.8 * $W / 3.0) }] \
+		[expr { $H - 4 }] -anchor s -text "Avg: [pwrt_pz $av]" \
+		-state disabled]
+	set Stat($Sok,TM) [$w.c create text [expr { $W - $PMARGIN(R) }] \
+		[expr { $H - 4 }] \
+		-anchor se -text "Max: [pwrt_pz $bv]" -state disabled]
+}
+
+proc pwrtUpd { Sok } {
+
+	global Stat
+
+	while 1 {
+
+		if [sock_rd $Sok ch 1] {
+			return
+		}
+
+		if { $ch == "" } {
+			# damping
+			set Stat($Sok,D) 80
+			fileevent $Sok readable "pwrtUpd $Sok"
+			return
+		}
+
+		if { $ch == "\n" } {
+			# end of line
+			set nd [expr { $Stat($Sok,D) - 10 }]
+			if { $nd < 0 } {
+				set nd 0
+			}
+			set Stat($Sok,D) $nd
+			pwrtParse $Sok
+			set Stat($Sok,B) ""
+			if { $nd > 0 } {
+				fileevent $Sok readable ""
+				after $nd pwrtUpd $Sok
+				return
+			}
+			continue
+		}
+		append Stat($Sok,B) $ch
+	}
+}
+
+proc pwrt_pz { v } {
+#
+# Print as zero something smaller than practical nonzero
+#
+	if { $v < 0.0011 } {
+		return 0.0
+	}
+	return $v
+}
+
+proc pwrtLex { d } {
+	return [expr { int(floor(log10($d))) }]
+}
+
+proc pwrtHex { d } {
+	return [expr { int(ceil(log10($d))) }]
+}
+
+proc pwrt_eval { w tf tl v } {
+
+	if { $v < 0.0000000001 } {
+		return 0
+	}
+
+	return [expr { int(((log10($v) - $tf) / ($tl - $tf)) * $w) }]
+}
+
+proc pwrtParse { Sok } {
+
+	global Stat PMARGIN HPA
+
+	set w [stwin $Sok]
+
+	if ![regexp "(\[^ \]+): +(\[^ \]+) +(\[^ \]+)" \
+	    $Stat($Sok,B) jnk tim avg lst] {
+		return
+	}
+
+	regexp "^.0*(.*).$" $tim jnk tim
+
+	if { [catch { expr { $avg } } avg] || [catch { expr { $lst } } lst] ||
+		$avg < 0.0 || $lst < 0.0 } {
+			return
+	}
+
+	if { $avg < 0.001 } {
+		set avg 0.001
+	}
+
+	if { $lst < 0.001 } {
+		set lst 0.001
+	}
+
+	lassign $Stat($Sok,VL) tm vv av sv bv tf tl
+
+	if { $bv == 0.0 } {
+		# the first time around
+		if { $avg > $lst } {
+			set bv $avg
+			set sv $lst
+		} else {
+			set bv $lst
+			set sv $avg
+		}
+		set tf [pwrtLex $sv]
+		set tl [pwrtHex $bv]
+		if { $tf == $tl } {
+			incr tl
+		}
+		set Stat($Sok,VL) [list $tim $lst $avg $sv $bv $tf $tl]
+		pwrtRedraw $Sok
+		return
+	}
+
+	if { $avg < $lst } {
+		set mn $avg
+		set mx $lst
+	} else {
+		set mn $lst
+		set mx $avg
+	}
+
+	set redr 0
+	if { $mn < $sv } {
+		set sv $mn
+		set xp [pwrtLex $mn]
+		if { $xp < $tf } {
+			set tf $xp
+			set redr 1
+		}
+	}
+	if { $mx > $bv } {
+		set bv $mx
+		set xp [pwrtHex $mx]
+		if { $xp > $tl } {
+			set tl $xp
+			set redr 1
+		}
+	}
+	set Stat($Sok,VL) [list $tim $lst $avg $sv $bv $tf $tl]
+
+	if $redr {
+		pwrtRedraw $Sok
+		return
+	}
+
+	# just update
+
+	set W $Stat($Sok,WW)
+	set H $Stat($Sok,WH)
+
+	# width and height for the gauge
+	set gw [expr { $W - $PMARGIN(L) - $PMARGIN(R) }]
+	set gh [expr { $H - $PMARGIN(T) - $PMARGIN(B) }]
+
+	set xv [pwrt_eval $gw $tf $tl $lst]
+	set xa [pwrt_eval $gw $tf $tl $avg]
+
+	set y0 [expr { $PMARGIN(T) - 1 }]
+	set y1 [expr { $PMARGIN(T) + $gh + 1 }]
+
+	set x [expr { $xv + $PMARGIN(L) - 3 }]
+	$w.c coords $Stat($Sok,MC) $x $y0 [expr { $x + 6 }] $y1
+
+	set x [expr { $xa + $PMARGIN(L) - 3 }]
+	$w.c coords $Stat($Sok,MA) $x $y0 [expr { $x + 6 }] $y1
+
+	$w.c itemconfigure $Stat($Sok,TS) -text "Tim: $tim"
+	$w.c itemconfigure $Stat($Sok,TC) -text "Cur: [pwrt_pz $lst]"
+	$w.c itemconfigure $Stat($Sok,TA) -text "Avg: [pwrt_pz $avg]"
+	$w.c itemconfigure $Stat($Sok,TM) -text "Max: [pwrt_pz $bv]"
+}
+
+###############################################################################
+# ROAMER ######################################################################
+###############################################################################
+
+proc setdim { acode } {
+#
+# Declare the procs handling node position input, which depend on
+# dimensionality; called by XMLDATA_ini after initial handshake
+#
+    global Stat ECONN_OK
+
+    if { $acode != $ECONN_OK } {
+
+	set Stat(TD) 1
+
+	proc rdnpos { cmd } {
+	#
+	# Read node position from roamer cmd
+	#
+		global HPA
+
+		if ![regexp "$HPA(F) $HPA(F) $HPA(F) $HPA(D) $HPA(P) $HPA(V)" \
+			$cmd junk x y z mov ls ps vc vn] {
+
+			return ""
+		}
+
+		# here we want to diagnose problems
+		if [catch {
+			set xx [expr { $x }]
+			set yy [expr { $y }]
+			set zz [expr { $z }]
+		} ] {
+			error "illegal node coordinates <$x,$y,$z>"
+		}
+
+		if { $xx < 0.0 || $yy < 0.0 || $zz < 0.0 } {
+			error "negative node coordinate <$x,$y,$z>"
+		}
+
+		return [list [list $xx $yy $zz] $mov $ls $ps $vc $vn]
+	}
+
+	proc rdnupd { cmd } {
+	#
+	# Read node position update
+	#
+		global HPA
+
+		if ![regexp \
+		"^U $HPA(D) $HPA(Q) $HPA(F) $HPA(F) $HPA(F) $HPA(P) $HPA(V)" \
+	      	    $cmd junk nod os x y z ls ps vc vn] {
+			return ""
+		}
+
+		# here we ignore problems
+		if [catch {
+			set xx [expr { $x }]
+			set yy [expr { $y }]
+			set zz [expr { $z }]
+		} ] {
+			return ""
+		}
+
+		if { $xx < 0.0 || $yy < 0.0 || $zz < 0.0 } {
+			return ""
+		}
+
+		return [list $nod $os [list $xx $yy $zz] $ls $ps $vc $vn]
+	}
+
+    } else {
+
+	proc rdnpos { cmd } {
+	#
+	# Read node position from roamer cmd
+	#
+		global HPA
+
+		if ![regexp "$HPA(F) $HPA(F) $HPA(D) $HPA(P) $HPA(V)" \
+			$cmd junk x y mov ls ps vc vn] {
+
+			return ""
+		}
+
+		# here we want to diagnose problems
+		if [catch {
+			set xx [expr { $x }]
+			set yy [expr { $y }]
+		} ] {
+			error "illegal node coordinates <$x,$y>"
+		}
+
+		if { $xx < 0.0 || $yy < 0.0 } {
+			error "negative node coordinate <$x,$y>"
+		}
+		return [list [list $xx $yy 0.0] $mov $ls $ps $vc $vn]
+	}
+
+	proc rdnupd { cmd } {
+	#
+	# Read node position update
+	#
+		global HPA
+
+		if ![regexp \
+		"^U $HPA(D) $HPA(Q) $HPA(F) $HPA(F) $HPA(P) $HPA(V)" \
+	      	    $cmd junk nod os x y ls ps vc vn] {
+			return ""
+		}
+
+		# here we ignore problems
+		if [catch {
+			set xx [expr { $x }]
+			set yy [expr { $y }]
+		} ] {
+			return ""
+		}
+
+		if { $xx < 0.0 || $yy < 0.0 } {
+			return ""
+		}
+
+		return [list $nod $os [list $xx $yy 0.0] $ls $ls $vc $vn]
+	}
+    }
+}
+
+proc setycoord { ry } {
+#
+# Declares procs that depend on the y-coordinate direction
+#
+    if $ry {
+	# Y reversed, i.e., top = 0
+	proc ytocv { sid y } {
+	#
+	# Converts network y coordinate to canvas y
+	#
+		global RD CMARGIN
+	
+		return [expr { round (($RD($sid,M,h) * \
+			($y - $RD($sid,yl)))/$RD($sid,M,H)) + $CMARGIN(D) }]
+	}
+	proc yfromcv { sid ny } {
+	#
+	# Converts canvas y coordinate to network y
+	#
+		global RD CMARGIN
+
+		return [expr { ($RD($sid,M,H) * \
+			double ($ny - $CMARGIN(D))) / double ($RD($sid,M,h)) \
+				+ $RD($sid,yl) }]
+	}
+    } else {
+	# bottom = 0
+	proc ytocv { sid y } {
+	#
+		global RD CMARGIN
+
+		set ch $RD($sid,M,h)
+		return [expr { $ch - round (($ch * \
+			($y - $RD($sid,yl)))/$RD($sid,M,H)) + $CMARGIN(U) }]
+	}
+	proc yfromcv { sid ny } {
+	#
+		global RD CMARGIN
+
+		set ch $RD($sid,M,h)
+		return [expr { ($RD($sid,M,H) * \
+			double ($ch - $ny + $CMARGIN(U))) / double ($ch) + \
+				$RD($sid,yl) }]
+	}
+    }
+}
+
+proc xtocv { sid x } {
+#
+# Converts network x coordinate to canvas x
+#
+	global RD CMARGIN
+
+	return [expr { round (($RD($sid,M,w) * \
+		($x - $RD($sid,xl)))/$RD($sid,M,W)) + $CMARGIN(L) }]
+}
+
+proc xfromcv { sid nx } {
+#
+# Converts canvas x coordinate to network x
+#
+	global RD CMARGIN
+
+	return [expr { ($RD($sid,M,W) * \
+		double ($nx - $CMARGIN(L))) / double ($RD($sid,M,w)) + \
+			$RD($sid,xl) }]
+}
+
+###############################################################################
+
+proc dmove_cleaner { } {
+#
+# This function will be called when the session socket for roamer windows is
+# closed by the simulator
+#
+	global Rms RD RBI
+
+	log "roamer session terminated"
+	# disable the canvases in all windows; this should freeze them and
+	# make the removal of their data safe
+	foreach r $Rms {
+		set sid [lindex $r 1]
+		catch { $RD($sid,WN).c configure -state disabled }
+	}
+
+	# now we lose the link to the existing windows
+	set Rms ""
+
+	# free the data structures
+	array unset RD
+
+	# master session socket (as a flag that the session is no more)
+	set RD(S) ""
+
+	# delete background images
+	array unset RBI
+}
+
+proc delete_roamer { sid } {
+#
+# Called to destroy the roamer window
+#
+	global Rms RD
+
+	# remove the roamer from the list
+	set nfn 1
+	set new ""
+	foreach r $Rms {
+		if { [lindex $r 1] == $sid } {
+			set nfn 0
+		} else {
+			lappend new $r
+		}
+	}
+
+	if $nfn {
+		# deleting a zombie window, nothing left to do
+		return
+	}
+
+	set Rms $new
+
+	# make sure the window is in fact destroyed
+	if [info exists RD($sid,WN)] {
+		set w $RD($sid,WN)
+		catch { bind $w <Destroy> "" }
+		catch { destroy $w }
+	}
+
+	# delete the roamer's data
+	array unset RD "$sid,*"
+
+	if { $Rms == "" } {
+		# kill the session
+		dealloc $RD(S)
+	}
+}
+
+proc move_ixtosid { ix } {
+#
+# Convert roamer index to sid
+#
+	global Rms
+
+	foreach r $Rms {
+		if { [lindex $r 0] == $ix } {
+			return [lindex $r 1]
+		}
+	}
+
+	return ""
+}
+
+proc move_sidtoix { sid } {
+#
+# Convert sid to roamer index
+#
+	global Rms
+
+	foreach r $Rms {
+		if { [lindex $r 1] == $sid } {
+			return [lindex $r 0]
+		}
+	}
+
+	return ""
+}
+
+proc moveHandler { rix } {
+#
+# Starts a roamer window
+#
+	global Geometry Rms RD Wins
+
+	set sid [move_ixtosid $rix]
+
+	if { $sid != "" } {
+		# the roamer is there already, get the window
+		if ![info exists RD($sid,WN)] {
+			log "connection already in progress"
+			return
+		}
+		# apparently, the window is there already
+		catch { raise $RD($sid,WN) }
+		return
+	}
+
+	# the roamer
+	set ro [lindex $Geometry(roamer) $rix]
+
+	# create a sid
+	set sid "s[unique]"
+
+	# create a list entry: rix sid
+	lappend Rms [list $rix $sid]
+
+	# re-sort the list by rix (we don't really have to)
+	set Rms [lsort -index 0 -integer $Rms]
+
+	# this is the socket of the master session
+	if [info exists RD(SU)] {
+		# this means that the session has started
+		move_start_roamers
+		return
+	}
+
+	if { $RD(S) == "" } {
+		# this means that there is no session
+		move_start_session
+	}
+
+	# otherwise, the session is started, so we just wait
+}
+
+proc move_start_session { } {
+#
+# Initiate a connection to the simulator
+#
+	global RD
+
+	if [winlocate "m"] {
+		# this wont happen
+		return
+	}
+
+	# for now, we always ask for background images, if any; the last arg
+	# sets session type to d and requests a cleaner
+	set RD(S) [sock_conn "ROAMER" -1 2 "dmove"]
+}
+
+proc ROAMER_ini { Sok code } {
+
+	global Stat
+
+	set bfl [expr { ($code >> 8) & 0x00ffffff }]
+	# message acquisition buffer
+	set Stat($Sok,B) ""
+	# background image data
+	set Stat($Sok,BI) ""
+
+	if $bfl {
+		# read the background image: total length
+		set Stat($Sok,FL) $bfl
+		# length so far
+		set Stat($Sok,LE) 0
+		fileevent $Sok readable "moveBGI $Sok"
+		stimeout $Sok
+		return
+	}
+
+	moveINP $Sok
+}
+
+proc moveBGI { Sok } {
+#
+# Read the background image from the simulator
+#
+	global Stat Geometry RBI
+
+	while (1) {
+		if [sock_rd $Sok ch \
+		    [expr { $Stat($Sok,FL) - $Stat($Sok,LE) }]] {
+			# failure
+			return
+		}
+		set ln [string length $ch]
+		if { $ln == 0 } {
+			return
+		}
+		ctimeout $Sok
+		append Stat($Sok,BI) $ch
+		incr Stat($Sok,LE) $ln
+		if { $Stat($Sok,LE) >= $Stat($Sok,FL) } {
+			break
+		}
+		stimeout $Sok
+	}
+
+	# partition it into images
+	set tot $Stat($Sok,LE)
+	set img $Stat($Sok,BI)
+
+	unset Stat($Sok,LE)
+	unset Stat($Sok,BI)
+
+	set rem $tot
+	set nro 0
+
+	while 1 {
+
+		if { $rem < 10 } {
+			break
+		}
+
+		set rix [dbinS img]
+		set len [dbinI img]
+
+		incr rem -6
+
+		if { $rix >= [llength $Geometry(roamer)] || $len <= 0 ||
+		     $len > $rem } {
+
+			log "illegal format of background image data"
+			dealloc $Sok
+			return
+		}
+
+		set RBI($rix) [string range $img 0 [expr { $len - 1 }]]
+		set img [string range $img $len end]
+
+		incr rem -$len
+		incr nro
+	}
+
+	if { $nro == 1 } {
+		set s ""
+	} else {
+		set s "s"
+	}
+
+	log "$tot bytes of background image data, $nro image$s"
+
+	moveINP $Sok
+}
+
+proc moveINP { Sok } {
+
+	global Stat RD
+
+	# collect node info: total number of nodes unknown
+	set RD(NN) -1
+	# for default coloring: the number of node colors used so far,
+	# one color per node type
+	set RD(NT) 0
+	# current node number queried
+	set RD(CI) 0
+
+	log "receiving node positions ..."
+
+	if [sock_wr $Sok "Q 0\n"] {
+		return
+	}
+
+	set_ih $Sok moveGNP
+	stimeout $Sok
+}
+
+proc moveGNP { Sok cmd } {
+#
+# Receive initial node positions
+#
+	global RD HPA NTYPE_COLORS Geometry
+
+	if { [node_sig $Sok cmd pmt] != "" } {
+		# check for an update arriving while we are collecting
+		# the initial positions; store it and play back later when
+		# we are done with this stage
+		if [regexp "^U $HPA(D) " $cmd junk nod] {
+			set RD(PZ,$nod) $cmd
+		}
+		return
+	}
+
+	if [catch { rdnpos $cmd } pos] {
+		log "illegal response, $pos"
+		dealloc $Sok
+		return
+	}
+
+	if { $pos == "" } {
+		return
+	}
+
+	lassign $pos xyz mov ls ps vc vn
+
+	if { $ls != "" } {
+		# fast-blink flag for the LEDs
+		set fb [string index $ls 0]
+		set ls [string range $ls 1 end]
+	} else {
+		set fb 0
+	}
+
+	if [catch { set mov [expr { $mov }] } ] {
+		return
+	}
+
+	lassign $pmt nod hos tot tn sta
+
+	# this obviates any pending update for the node
+	unset -nocomplain RD(PZ,$nod)
+
+	if { $nod != $RD(CI) } {
+		# the expected node number is wrong, this will not happen
+		log "illegal or out of sequence node number $nod"
+		dealloc $Sok
+		return
+	}
+
+	if { $RD(NN) < 0 } {
+		# set the total only once
+		set RD(NN) $tot
+	} elseif { $RD(NN) != $tot } {
+		# different total, this will never happen either
+		log "illegal response,\
+			total doesn't match expected value '$cmd'"
+		dealloc $Sok
+		return
+	}
+
+	# we have received a new sample, so clear the timeout
+	ctimeout $Sok
+
+	# node type color: if there's a Geometry entry for the node, it takes
+	# effect; otherwise, we use some standard colors indexed by node type;
+	# we start by assigning standard colors to types
+	if ![info exists RD(NT,$tn)] {
+		# this is a new type, assign a default color to the type
+		if { $RD(NT) >= [llength $NTYPE_COLORS] } {
+			# no more colors
+			set co "grey"
+		} else {
+			set co [lindex $NTYPE_COLORS $RD(NT)]
+			incr RD(NT)
+		}
+		set RD(NT,$tn) $co
+	}
+
+	#
+	# determine how this node is to be colored; the options are:
+	#
+	# - standard coloring based on default colors for node types
+	# - fixed color assigned by Roamer's Geometry spec
+	# - pin-driven color (or colors) with the node drawn as a pie
+	#
+	# Generally, the calculated list of colors, co, looks like this:
+	# { n { { color blink } ... { color blink } } cdesc }, where
+	# n is the number of different colors (pie slices), which is followed
+	# by the list of currently assigned colors with blink flags, followed
+	# in turn by the geometry data pattern (cdesc) describing how to
+	# assign colors (when the pin/led value changes).
+	#
+	# For the first two options, the situation is simpler (there is a
+	# single immutable color), so co looks like this: { 0 { { color 0 } } }
+	# (in agreement with the general format). Note that cdesc (being
+	# irrelevant) is NULL. Also, there is a difference between the first
+	# element being 0 and 1 (the latter indicating a single mutable color).
+	#
+	# The format of cdesc is described at parse_cset. Note that as stored
+	# in co the list does not include the leading flag ("F" or "P"),
+	# because it is bound to be P, only the second item, i.e., it is a
+	# list of items looking like this: { { pin typ } offcolor oncolor },
+	# where typ can be "led" or "pin".
+	#
+
+	set co [get_cset $nod]
+	if { $co != "" } {
+		# type
+		set cty [lindex $co 0]
+		# color or color set
+		set cse [lindex $co 1]
+		if { $cty == "F" } {
+			# a fixed color
+			set co [list 0 [list [list $cse 0]]]
+		} else {
+			set co [list [llength $cse] [cassgn $cse $ls $ps] $cse]
+		}
+	} else {
+		# use the default
+		set co [list 0 [list [list $RD(NT,$tn) 0]]]
+	}
+
+	# highlight colors for fast access (needed by vipars among others)
+	if [info exists Geometry(H,$nod,)] {
+		set hl $Geometry(H,$nod,)
+	} else {
+		# need a default
+		lassign [ndprf $nod] tm tp
+		if { $tm != "d" && [info exists Geometry(H,-1,$tp)] } {
+			# applicable supplementary default found
+			set hl $Geometry(H,-1,$tp)
+		} else {
+			# use the generic default (we must find something)
+			set hl $Geometry(H,,)
+		}
+	}
+
+	# small-numbered colors for node highlighting
+	set RD(HV,$nod) [lindex $hl 1]
+
+	# fgr/bgr pair for notes and node identifiers
+	lassign [lindex $hl 0] RD(HF,$nod) RD(HB,$nod)
+
+	if { $RD(HF,$nod) == "" } {
+		# this one cannot be null
+		set RD(HF,$nod) "black"
+	}
+
+	if { $sta == "F" } {
+		set v [list "gray" ""]
+	} else {
+		set v [vipars $vc $vn $nod]
+	}
+
+	#
+	# This list gives the complete description of how the node should be
+	# drawn:
+	#
+	# coordinates
+	# type name
+	# color (or color set)
+	# fast blink flag for the LEDs
+	# { color label } for highlighting
+	#
+	set RD(NL,$nod) [list $xyz $tn $co $fb $v]
+
+	# Two items that used to be present on this list, following co, i.e.,
+	#
+	# list of canvas items
+	# text item for node number
+	#
+	# have been moved to the roamer-specific location RD($sid,$nod). If
+	# that entry does not exist, it means that the node is not present
+	# in the roamer
+	# 
+
+	# the host number, i.e., the lower word of host_id, aka local_host
+	set RD(NH,$nod) $hos
+
+	# movability
+	set RD(NM,$nod) $mov
+
+	incr RD(CI)
+	if { $RD(CI) == $tot } {
+		# done
+		unset RD(CI)
+		# flag == session UP
+		set RD(SU) 1
+		move_start_roamers
+		if { $RD(S) == "" } {
+			# no session (all roamers failed to start)
+			return
+		}
+		# play back pending updates
+		foreach ix [array names RD "PZ,*"] {
+			# the first arg to moveUpd is not used
+			moveUpd $Sok $RD($ix)
+			unset RD($ix)
+		}
+		log "roamer session started"
+		set_ih $Sok moveUpd
+		return
+	}
+		
+	# query for next node
+	sock_wr $Sok "Q $RD(CI)\n"
+}
+
+proc move_start_roamers { } {
+#
+# Called whenever there is at least one new roamer in the pool; scans the
+# roamers in order and initializes the first one; then goes again from the
+# top
+
+	global RD Rms
+
+	while { $Rms != "" } {
+		set nomore 1
+		foreach r $Rms {
+			if ![info exists RD([lindex $r 1],WN)] {
+				# window not present, set it up
+				mkMove $r
+				set nomore 0
+			}
+		}
+		if $nomore {
+			return
+		}
+	}
+}
+
+###############################################################################
+
+proc mkMove { rmr } {
+#
+# Create a roamer window
+#
+	global Stat RD RBI CMARGIN Geometry
+
+	lassign $rmr rix sid
+
+	set rmg [lindex $Geometry(roamer) $rix]
+	# name
+	set nam [lindex $rmg 0]
+	# node size
+	set nsh [lindex $rmg 3]
+
+	set w ".wm$sid"
+	toplevel $w
+	set aw [roamlab $rix]
+	if { $nam != "" } {
+		set nam "$aw ($nam)"
+	} else {
+		set nam $aw
+	}
+	wm title $w $nam
+	do_geometry $w $aw
+
+	# make it visible for deletion on failure (below)
+	set RD($sid,WN) $w
+	set c $w.c
+
+	# margins implied by node size
+	if { $nsh == "" } {
+		set nsh $CMARGIN(NR)
+	}
+	set RD($sid,MN) $nsh
+	set RD($sid,MT) [expr { $nsh + $CMARGIN(TO) }]
+
+	if { [lindex $rmg 1] != "" && [info exists RBI($rix)] } {
+		# use the image received from the simulator
+		if [catch { image create photo -data $RBI($rix) } bgr] {
+			log "cannot render remote background image for roamer\
+				$nam, $bgr"
+			# clear RD($sid,...), delete window, check null session
+			delete_roamer $sid
+			return 1
+		}
+		# apparently we have succeeded with the image
+		set aw [image width $bgr]
+		set ah [image height $bgr]
+		# not resizable
+		wm minsize $w $aw $ah
+		wm maxsize $w $aw $ah
+		wm resizable $w 0 0
+		set RD($sid,NC) [list $aw $ah]
+		set RD($sid,RE) 0
+		set wi 0.0
+		set hi 0.0
+		lassign [lindex $rmg 2] xp yp zp
+		if { [lindex $xp 1] != "" } {
+			# there is a width
+			if [catch { expr { [lindex $xp 1] - [lindex $xp 0] } }\
+			    wi] {
+				set wi 0.0
+			}
+		}
+		if { [lindex $yp 1] != "" } {
+			# there is a height
+			if [catch { expr { [lindex $yp 1] - [lindex $yp 0] } }\
+			    hi] {
+				set hi 0.0
+			}
+		}
+		if { ($wi == 0.0 && $hi == 0.0) || $wi < 0.0 || $hi < 0.0 } {
+			log "illegal box parameters for roamer $nam"
+			delete_roamer $sid
+			return 1
+		}
+
+		if { $wi != 0 && $hi == 0 } {
+			set hi [expr { (double($wi) * $ah) / $aw }]
+			lset yp 1 [expr { [lindex $yp 0] + $hi }]
+		}
+		if { $hi != 0 && $wi == 0 } {
+			set wi [expr { (double ($hi) * $aw) / $ah }]
+			lset xp 1 [expr { [lindex $xp 0] + $wi }]
+		}
+		set RD($sid,BB) [list $xp $yp $zp]
+		if [cvcalc_static $sid $wi $hi] {
+			delete_roamer $sid
+			return 1
+		}
+		canvas $c -width $aw -height $ah
+		pack $c -expand 1 -fill both
+		$c create image 0 0 -anchor nw -image $bgr
+	} else {
+		wm minsize $w $CMARGIN(MW) $CMARGIN(MH)
+		set aw $CMARGIN(DW)
+		set ah $CMARGIN(DH)
+		set RD($sid,NC) [list $aw $ah]
+		# resizable
+		set RD($sid,RE) 1
+		cvcalc_dynamic $sid
+		canvas $c -width $aw -height $ah
+		pack $c -expand 1 -fill both
+		set RD($sid,BB) ""
+	}
+
+	set tsm "*-Right click a node to see the menu of modules to\
+		connect to"
+	if $Stat(TD) {
+		append tsm " or to move the node in the 'z' dimension"
+	}
+	append tsm ".\n*-Drag a node to move it to a new location.\n\
+		*-Click one node then another one to see the\
+		distance between them.\n*-Hover over a node to see\
+		(in left bottom corner) its coordinates and IDs.\n*-Click\
+		the dimension box in right bottom corner to save node\
+		coordinates in a file."
+	tip_set $c $tsm
+
+	moveRedraw $sid
+
+	bind $w <Destroy> "delete_roamer $sid"
+	bind $c <Configure> "moveResize $sid %w %h"
+	bind $c <B1-ButtonRelease> "moveShowPos $sid %x %y"
+
+	# a popup menu for node-related commands; cannot be torn off, because
+	# it is shared
+	set m [menu $w.ncm -tearoff 0]
+	# the number of fixed items
+	set nit 0
+	if $Stat(P) {
+		$m add command -label "UART (plug)" \
+			-command {moveNC "UART (plug)"}
+		incr nit
+	}
+	$m add command -label "UART (ascii)" -command {moveNC "UART (ascii)"}
+	$m add command -label "UART (hex)" -command {moveNC "UART (hex)"}
+	$m add command -label "SENSORS" -command {moveNC "SENSORS"}
+	$m add command -label "PINS" -command {moveNC "PINS"}
+	$m add command -label "LEDS" -command {moveNC "LEDS"}
+	$m add command -label "EMUL" -command {moveNC "EMUL"}
+	$m add command -label "LCDG" -command {moveNC "LCDG"}
+	$m add command -label "PTRACKER" -command {moveNC "PTRACKER"}
+	$m add command -label "Move" -command {moveZC}
+	incr nit 9
+
+	set RD($sid,MI) $nit
+
+	return 0
+}
+
+proc vipars { col lab nod } {
+#
+# Sanitize the "visualization" arguments and combine them into a single item
+#
+	global HPA RD
+
+	set lab [string trim $lab]
+	if { $col == "" && $lab == "" } {
+		# nothing
+		return ""
+	}
+	if { $col != "" && ![catch { expr { $col } } col] } {
+		set hl $RD(HV,$nod)
+		if { $col < [llength $hl] } {
+			set col [lindex $hl $col]
+		} else {
+			set col [format "#%06X" $col]
+		}
+	} else {
+		set col ""
+	}
+		
+	return [list $col $lab]
+}
+
+proc cassgn { cse ls ps } {
+#
+# Produces the list of color assignments based in the Geometry color pattern
+# cse and the led/pin value strings; cse is a list of items looking like this:
+# { { pin typ } offcolor oncolor }, where typ can be "led" or "pin"; the
+# resulting list consists of pairs { color blink }, where blink is 1, if the
+# color is supposed to blink
+#
+	set col ""
+
+	foreach it $cse {
+		set piv [lindex $it 0]
+		set pin [lindex $piv 0]
+		set typ [lindex $piv 1]
+		if { $typ == "led" } {
+			# this is a led
+			set dig [string index $ls $pin]
+		} else {
+			set dig [string index $ps $pin]
+		}
+		set b 0
+		if { $dig == "" || $dig == "0" } {
+			# off
+			set c [lindex $it 1]
+		} else {
+			# on
+			set c [lindex $it 2]
+			if { $dig != "1" } {
+				# blinking, LEDs only
+				set b 1
+			}
+		}
+		lappend col [list $c $b]
+	}
+
+	return $col
+}
+
+###############################################################################
+
+proc cvcalc_static { sid wi hi } {
+#
+# Calculate static canvas parameters for the non-resizable variant of ROAMER
+# window with a background image
+#
+	global RD CMARGIN
+
+	# the canvas size
+	lassign $RD($sid,NC) aw ah
+
+	# effective width and height
+	set cw [expr { $aw - $CMARGIN(L) - $CMARGIN(R) }]
+	set ch [expr { $ah - $CMARGIN(U) - $CMARGIN(D) }]
+
+	if { $cw < 10 || $ch < 10 } {
+		# to avoid problems
+		log "background image for roamer is too small"
+		return 1
+	}
+
+	# wi, hi are the width and height in meters; now calculate the
+	# effective coordinates in meters of the displayable area (after
+	# accounting for the margins)
+	set XL [expr { (double($CMARGIN(L)) * $wi) / $aw }]
+	set XH [expr { double($wi) - (double($CMARGIN(R)) * $wi) / $aw }]
+	set YL [expr { (double($CMARGIN(U)) * $hi) / $ah }]
+	set YH [expr { double($hi) - (double($CMARGIN(D)) * $hi) / $ah }]
+
+	set RD($sid,xl) $XL
+	set RD($sid,xh) $XH
+	set RD($sid,yl) $YL
+	set RD($sid,yh) $YH
+	
+	# effective width and height of the displayable area
+	set RD($sid,M,W) [expr { $XH - $XL }]
+	set RD($sid,M,H) [expr { $YH - $YL }]
+
+	# active width and height in canvas pixels
+	set RD($sid,M,w) $cw
+	set RD($sid,M,h) $ch
+
+	return 0
+}
+
+proc mv_xpand { min max D } {
+#
+# Expands MAX-MIN to at least D symmetrically, but such that MIN never gets
+# below 0
+#
+	upvar $min MIN
+	upvar $max MAX
+
+	# current span
+	set d [expr { $MAX - $MIN }]
+
+	if { $d >= $D } {
+		# forget it
+		return $d
+	}
+
+	# the deficit
+	set d [expr { $D - $d }]
+
+	# try symmetrically
+	set h [expr { $d / 2.0 }]
+
+	if { $h > $MIN } {
+		# cannot be symmetric
+		set MIN 0.0
+		set MAX $D
+	} else {
+		set MIN [expr { $MIN - $h }]
+		set MAX [expr { $MAX + $h }]
+	}
+
+	return [expr { $MAX - $MIN }]
+}
+
+proc cvcalc_dynamic { sid } {
+#
+# Recalculate canvas parameters based on current network bounds
+#
+	global RD CMARGIN
+
+	# calculate the minimum and maximum network coordinates; note: a
+	# "dynamic", i.e., resizable, window always includes all nodes, so
+	# this is almost as before
+	set XL ""
+	set XH ""
+	set YL ""
+	set YH ""
+
+	for { set n 0 } { $n < $RD(NN) } { incr n } {
+		lassign [lindex $RD(NL,$n) 0] x y
+		if { $XL == "" || $XL > $x } {
+			set XL $x
+		}
+		if { $XH == "" || $XH < $x } {
+			set XH $x
+		}
+		if { $YL == "" || $YL > $y } {
+			set YL $y
+		}
+		if { $YH == "" || $YH < $y } {
+			set YH $y
+		}
+	}
+
+	# make it at least one meter on each dimension
+	set W [mv_xpand XL XH 1.0]
+	set H [mv_xpand YL YH 1.0]
+
+	# absolute parameters of the canvas in pixels
+	lassign $RD($sid,NC) aw ah
+
+	# subtract the margins to obtain the active width and height
+	set cw [expr { $aw - $CMARGIN(L) - $CMARGIN(R) }]
+	set ch [expr { $ah - $CMARGIN(U) - $CMARGIN(D) }]
+
+	if { $cw < 10 || $ch < 10 } {
+		# now what? formally, this is impossible because the window
+		# has constrained minimum dimensions of 200x200
+		return
+	}
+
+	# make the coordinates fit
+
+	if { [expr { double ($ch) / double ($cw) }] >
+	     [expr { double ( $H) / double ( $W) }] } {
+		# constrained by width, calculate height
+		set D [expr { (double ($W) * double ($ch)) / double ($cw) }]
+		set H [mv_xpand YL YH $D]
+	} else {
+		# vice versa
+		set D [expr { (double ($H) * double ($cw)) / double ($ch) }]
+		set W [mv_xpand XL XH $D]
+	}
+
+	# network bounds
+	set RD($sid,xl) $XL
+	set RD($sid,xh) $XH
+	set RD($sid,yl) $YL
+	set RD($sid,yh) $YH
+	
+	# network width and height
+	set RD($sid,M,W) $W
+	set RD($sid,M,H) $H
+
+	# active canvas width and height
+	set RD($sid,M,w) $cw
+	set RD($sid,M,h) $ch
+}
+
+proc moveSNL { sid } {
+#
+# Save node locations
+#
+	global RD Stat
+
+	# a sanity check; we are called by an event, so it never hurts to check
+	# if the thing is still around
+
+	if ![info exists RD($sid,WN)] {
+		return
+	}
+
+	set w $RD($sid,WN)
+
+	set N $RD(NN)
+	set out "<locations>\n"
+
+	set fn [tk_getSaveFile \
+		-defaultextension ".xml" \
+		-initialfile "locations.xml" \
+		-parent $w \
+		-title "File to save node locations"]
+
+	if { $fn == "" } {
+		# cancelled
+		return
+	}
+
+	if [catch { open $fn "w" } fd] {
+		# failed
+		alert "Cannot open $fn: $fd"
+		return
+	}
+
+	# create the location list
+	for { set n 0 } { $n < $N } { incr n } {
+		set loc [lindex $RD(NL,$n) 0]
+		lassign $loc x y z
+		append out "    <location node=\"$n\"> [format %4.3f $x]\
+			[format %4.3f $y] "
+		if $Stat(TD) {
+			append out "[format %4.3f $z] "
+		}
+		append out "</location>\n"
+	}
+
+	append out "</locations>"
+
+	if [catch { puts $fd $out } err] {
+		alert "Cannot write to $fn: $err"
+	}
+
+	catch { close $fd }
+}
+
+proc drawNode { sid w n } {
+#
+# Draws, redraws, or erases a node, depending on whether it belongs to the
+# roamer now, belonged in the past, and so on
+#
+	global RD
+
+	# roamer-independent attributes of the node
+	set na $RD(NL,$n)
+
+	# index for the roamer-specific attributes
+	set lix "$sid,$n"
+
+	# the node's current location
+	set loc [lindex $na 0]
+
+	lassign $loc x y z
+	set bb $RD($sid,BB)
+	lassign $bb xp yp zp
+
+	# this checks if the node falls into the roamer's bounding box
+	if { $bb == "" || ( [lindex $xp 0] <= $x && [lindex $xp 1] >= $x &&
+			    [lindex $yp 0] <= $y && [lindex $yp 1] >= $y &&
+			  ( $zp == "" ||
+			    [lindex $zp 0] <= $z && [lindex $zp 1] >= $z  )) } {
+
+		# make sure the node is within canvas, do we need this?
+		if { $RD($sid,xl) > $x } {
+			log "Node $n, coordinates <$x,$y>: $x < left margin"
+			set x $RD($sid,xl)
+		} elseif { $x > $RD($sid,xh) } {
+			log "Node $n, coordinates <$x,$y>: $x > right margin"
+			set x $RD($sid,xh)
+		}
+		if { $RD($sid,yl) > $y } {
+			log "Node $n, coordinates <$x,$y>: $y < upper margin"
+			set y $RD($sid,yl)
+		} elseif { $y > $RD($sid,yh) } {
+			log "Node $n, coordinates <$x,$y>: $y > bottom margin"
+			set y $RD($sid,yh)
+		}
+
+		set cx [xtocv $sid $x]
+		set cy [ytocv $sid $y]
+
+		# bounding coordinates of the node circle
+		set cm $RD($sid,MN)
+		set cxl [expr { $cx - $cm }]
+		set cyl [expr { $cy - $cm }]
+		set cxh [expr { $cx + $cm }]
+		set cyh [expr { $cy + $cm }]
+		# override (highlight) color
+		lassign [lindex $na 4] vc vl
+		set c [lindex $na 2]
+		# color list
+		set cl [lindex $c 1]
+
+		if [info exists RD($lix)] {
+			# the node is present in the canvas -> redraw
+			lassign $RD($lix) o t
+			foreach ci $o co $cl {
+				$w coords $ci $cxl $cyl $cxh $cyh
+				colconf $sid $n $ci $co $vc
+			}
+			# the legend
+			lassign $t la bg
+			$w coords $la $cx [expr { $cy - $RD($sid,MT) }]
+			if { $bg != "" } {
+				# have to redraw the bounding box
+				$w delete $bg
+				set bg [$w create rectangle [$w bbox $la] \
+					-fill $RD(HB,$n) -outline ""]
+				$w raise $la
+				lset RD($lix) 1 [list $la $bg]
+				# previously, I would return this to the caller
+				# (see old moveNewLocation); it shouldn't be
+				# necessary now, because the static and dynamic
+				# attribute of the node are separated
+			}
+		} else {
+			# first time
+			set ns [lindex $c 0]
+			# initialize the list of canvas items
+			set o ""
+			if { $ns == 0 || $ns == 1 } {
+				# a single slice (note that 0 means fixed color)
+				set ci [$w create oval $cxl $cyl $cxh $cyh \
+					-fill gray]
+				colconf $sid $n $ci [lindex $cl 0] $vc
+				# bind the mouse events
+				$w bind $ci <B1-Motion> \
+					"moveMove $sid $n %x %y"
+				$w bind $ci <B1-ButtonRelease> \
+					"moveUpButton $sid $n"
+				$w bind $ci <Enter> "moveEnter $sid $n"
+				$w bind $ci <Leave> "moveLeave $sid"
+				$w bind $ci <B3-ButtonRelease> \
+					"moveNodeMenu $sid $n %X %Y"
+				lappend o $ci
+			} else {
+				# arcs
+				set ast 0
+				# degrees left to complete
+				set lef 360
+				foreach co $cl {
+					# degrees to cover
+					set ext [expr { $lef / $ns }]
+					set ci [$w create arc $cxl $cyl \
+						$cxh $cyh \
+			    			-extent $ext -start $ast \
+						-fill gray]
+					colconf $sid $n $ci $co $vc
+					# bind the mouse events
+					$w bind $ci <B1-Motion> \
+						"moveMove $sid $n %x %y"
+					$w bind $ci <B1-ButtonRelease> \
+						"moveUpButton $sid $n"
+					$w bind $ci <Enter> \
+						"moveEnter $sid $n"
+					$w bind $ci <Leave> "moveLeave $sid"
+					$w bind $ci <B3-ButtonRelease> \
+						"moveNodeMenu $sid $n %X %Y"
+					lappend o $ci
+					incr ast $ext
+					incr lef -$ext
+					incr ns -1
+				}
+			}
+			# the legend
+			set la [$w create text $cx \
+				[expr { $cy - $RD($sid,MT) }] \
+				-anchor s -text $RD(NH,$n) \
+				-state disabled -fill $RD(HF,$n)]
+
+			# highlight
+			if { $RD(HB,$n) != "" } {
+				set bg [$w create rectangle [$w bbox $la] \
+					-fill $RD(HB,$n) -outline ""]
+				$w raise $la
+			} else {
+				set bg ""
+			}
+			set RD($lix) [list $o [list $la $bg]]
+		}
+		drawNote $sid $w $n $cx $cy $vl
+		return
+	}
+
+	# the node does not qualify into this roamer, so remove it, if present
+	if [info exists RD($lix)] {
+		lassign $RD($lix) o t
+		lassign $t la bg
+		foreach ci $o {
+			$w delete $ci
+		}
+		$w delete $la
+		if { $bg != "" } {
+			$w delete $bg
+		}
+		unset RD($lix)
+		# check for highlight note
+		if [info exists RD($sid,HL,$n)] {
+			lassign $RD($sid,HL,$n) la bg
+			$w delete $la
+			if { $bg != "" } {
+				$w deleted $bg
+			}
+			unset RD($sid,HL,$n)
+		}
+	}
+}
+
+proc moveRedraw { sid } {
+#
+# Draw or redraw (after resize) the contents of ROAMER's window
+#
+	global RD CMARGIN
+
+	# the window (strictly speaking, the canvas)
+	set w "$RD($sid,WN).c"
+
+	# layer width and height
+	set W $RD($sid,M,W)
+	set H $RD($sid,M,H)
+	set dmsg [format "%4.3fm x %4.3fm" $W $H]
+
+	# canvas (full) width and height
+	lassign $RD($sid,NC) aw ah
+	# coordinates of the message
+	set ddx [expr { $aw - $CMARGIN(RX) }]
+	set ddy [expr { $ah - $CMARGIN(RY) }]
+
+	if ![info exists RD($sid,AX)] {
+		# dmsg widget doesn't exist, create it (clumsy, but only now
+		# we know where)
+		set tx [$w create text $ddx $ddy -anchor e \
+			-text $dmsg -state disabled]
+	} else {
+		# adjust the position of the widget
+		lassign $RD($sid,AX) tx bg
+		$w coords $tx $ddx $ddy
+		$w itemconfigure $tx -text $dmsg
+		# delete the background, because it will be re-created
+		$w delete $bg
+	}
+
+	set bg [$w create rectangle [$w bbox $tx] -fill lightgray \
+		-outline black]
+	tip_setc $w $bg "Click to save node positions in a file"
+	$w bind $bg <ButtonRelease-1> "moveSNL $sid"
+	$w raise $tx
+
+	set RD($sid,AX) [list $tx $bg]
+
+	for { set n 0 } { $n < $RD(NN) } { incr n } {
+		drawNode $sid $w $n
+	}
+}
+
+proc moveNodeMenu { sid n x y } {
+#
+# Called by a right-click in the node
+#
+	global RD MStatId Stat
+
+	# as with all event callbacks ...
+	if ![info exists RD($sid,WN)] {
+		return
+	}
+	# a way to communicate the node Id; the menu is shared, so, e.g., it
+	# cannot be torn off
+	set MStatId $n
+	# the menu
+	set men $RD($sid,WN).ncm
+	# the number of fixed items in the menu
+	set nit $RD($sid,MI)
+	# delete node-specific items inserted by previous popup
+	$men delete $nit end
+	if [info exists Stat(PNN,$n)] {
+		$men add separator
+		# the node status
+		if { $Stat(PNN,$n) == "F" } {
+			# the node is powered down
+			$men add command -label "Turn ON" -command\
+				"turnNode $n O"
+		} else {
+			# the node is powered up
+			$men add command -label "Turn OFF" -command\
+				"turnNode $n F"
+		}
+		$men add separator
+		$men add command -label "Reset" -command "turnNode $n R"
+	}
+			
+	tk_popup $men $x $y
+}
+
+proc moveNC { wh } {
+
+	global MStatId
+
+	doConnect $wh $MStatId
+}
+
+proc moveZC { } {
+
+	global MStatId RD Stat Rms P
+
+	if !$RD(NM,$MStatId) {
+		# not movable
+		alert "Node is not movable!"
+		return
+	}
+
+	set P(M0,NO) $MStatId
+
+	lassign [lindex $RD(NL,$MStatId) 0] P(M0,XC) P(M0,YC) P(M0,ZC)
+
+	set w [md_window "Move Node $MStatId"]
+
+	set tf [frame $w.tf]
+	pack $tf -side top -expand y -fill x
+
+	if $Stat(TD) {
+		set clist "X Y Z"
+	} else {
+		set clist "X Y"
+	}
+
+	foreach k $clist {
+		set f [frame $tf.f$k]
+		pack $f -side top -expand y -fill x
+		label $f.l -text "${k}: "
+		pack $f.l -side left -fill y
+		set P(M0,${k}V) [spinbox $f.b -from 0.0 -to 9999.9 \
+			-increment 0.1 -format %6.1f -width 10]
+		$f.b set [format "%6.1f" $P(M0,${k}C)]
+		pack $f.b -side left -expand y -fill x
+	}
+
+	set f [frame $w.bf]
+	pack $f -side top -expand n -fill x
+
+	button $f.b -text "Done" -command "md_click 1"
+	pack $f.b -side right -expand n -fill x
+
+	button $f.c -text "Cancel" -command "md_click -1"
+	pack $f.c -side left -expand n -fill x
+
+	bind $w <Destroy> "md_click -1"
+
+	while 1 {
+
+		set ev [md_wait]
+
+		if { $ev < 0 } {
+			# cancelled
+			md_stop
+			break
+		}
+
+		if { $ev == 1 } {
+			# accepted
+			set cos ""
+			foreach k $clist {
+				set c [string trim [$P(M0,${k}V) get]]
+				if { [catch { expr { $c } } c] || $c < 0.0 || \
+				    $c > 9999.9 } {
+					alert "Illegal value of $k coordinate"
+					continue
+				}
+				lappend cos $c
+			}
+			# check if the node falls into at least one bbox
+			lassign $cos x y z
+			set ok 0
+			foreach r $Rms {
+				set bb $RD([lindex $r 1],BB)
+				lassign $bb xp yp zp
+				if { $bb == "" ||
+			( [lindex $xp 0] <= $x && [lindex $xp 1] >= $x &&
+			  [lindex $yp 0] <= $y && [lindex $yp 1] >= $y &&
+		        ( $zp == "" ||
+			  [lindex $zp 0] <= $z && [lindex $zp 1] >= $z  )) } {
+					set ok 1
+					break
+				}
+			}
+
+			if !$ok {
+				alert "The coordinates do not fall into any of\
+					the currently active roamer windows"
+				continue
+			}
+
+			set no $P(M0,NO)
+
+			if ![info exists RD(NL,$no)] {
+				# a safety check
+				break
+			}
+
+			set pc [lindex $RD(NL,$no) 0]
+
+			# check if change
+			set ok 0
+			set ix 0
+			foreach k $clist {
+				if { [lindex $cos $ix] != [lindex $pc $ix] } {
+					lset pc $ix [lindex $cos $ix]
+					set ok 1
+				}
+				incr ix
+			}
+
+			if $ok {
+				lset RD(NL,$no) 0 $pc
+				after 0 "updateNode $no"
+			}
+			break
+		}
+	}
+
+	md_stop
+	return
+}
+
+proc updateNode { no } {
+
+	global Rms RD Stat
+
+	foreach r $Rms {
+		set xid [lindex $r 1]
+		drawNode $xid $RD($xid,WN).c $no
+	}
+
+	# notify the simulator
+	set pc [lindex $RD(NL,$no) 0]
+	set msg "M $no [lindex $pc 0] [lindex $pc 1]"
+	if $Stat(TD) {
+		append msg " [lindex $pc 2]"
+	}
+	append msg "\n"
+	sock_wr $RD(S) $msg
+}
+
+proc move_ninfo { n } {
+#
+# Node information line (showing up when the mouse enters the node)
+#
+	global RD Stat
+
+	if ![info exists RD(NL,$n)] {
+		# a precaution
+		return ""
+	}
+
+	lassign $RD(NL,$n) loc p
+	lassign $loc x y z
+
+	if $Stat(TD) {
+		set msg [format "<%4.3f,%4.3f,%4.3f>: %s" $x $y $z $p]
+	} else {
+		set msg [format "<%4.3f,%4.3f>: %s" $x $y $p]
+	}
+
+	append msg " $n/$RD(NH,$n)"
+
+	return $msg
+}
+
+proc show_ninfo { sid n } {
+
+	global RD CMARGIN
+
+	if ![info exists RD($sid,WN)] {
+		return
+	}
+
+	set w $RD($sid,WN)
+
+	if [info exists RD($sid,RC)] {
+		# previous info still being shown
+		foreach wi $RD($sid,RC) {
+			$w.c delete $wi
+		}
+	}
+
+	set tx [$w.c create text $CMARGIN(RX) \
+		[expr { [lindex $RD($sid,NC) 1] - $CMARGIN(RY) }] -anchor sw \
+			-text [move_ninfo $n] -state disabled]
+
+	set bg [$w.c create rectangle [$w.c bbox $tx] -fill lightgray \
+		-outline ""]
+
+	$w.c raise $tx
+
+	set RD($sid,RC) [list $tx $bg]
+}
+
+proc moveEnter { sid n } {
+#
+# Do the proper action from the callback. When I tried to do it directly from
+# this event handler, it would occasionally get into an infinite Enter-Exit
+# loop.
+#
+	after 1 "show_ninfo $sid $n"
+}
+
+proc moveLeave { sid } {
+
+	global RD
+
+	if ![info exists RD($sid,WN)] {
+		return
+	}
+
+	set w $RD($sid,WN)
+
+	if [info exists RD($sid,RC)] {
+		# clean the info
+		foreach wi $RD($sid,RC) {
+			$w.c delete $wi
+		}
+		unset RD($sid,RC)
+	}
+}
+
+proc moveMove { sid n nx ny } {
+#
+# Move one node (mouse action)
+#
+	global RD CMARGIN Stat
+
+	if ![info exists RD($sid,WN)] {
+		return
+	}
+
+	set w $RD($sid,WN)
+
+	if !$RD(NM,$n) {
+		# node not movable
+		return
+	}
+
+	# get network coordinates (x, y) from the canvas
+	set x [xfromcv $sid $nx]
+	set y [yfromcv $sid $ny]
+
+	if { $RD($sid,RE) == 0 } {
+		# not resizable
+		if { $x < $RD($sid,xl) } {
+			set x $RD($sid,xl)
+			set nx [xtocv $sid $x]
+		} elseif { $x > $RD($sid,xh) } {
+			set x $RD($sid,xh)
+			set nx [xtocv $sid $x]
+		}
+		if { $y < $RD($sid,yl) } {
+			set y $RD($sid,yl)
+			set ny [xtocv $sid $y]
+		} elseif { $y > $RD($sid,yh) } {
+			set y $RD($sid,yh)
+			set ny [xtocv $sid $y]
+		}
+	} else {
+		# LS is unset at the start of move and it gets set at the
+		# first coordinate change to the limits (twice the diameter)
+		# that remain in effect during the entire mouse drag; when the
+		# mouse button is released, LS becomes unset, so the limits
+		# for the next move will be set anew
+		if ![info exists RD($sid,LS)] {
+			# calculate limits for this move
+			set d $RD($sid,M,W)
+			set xl [expr { $RD($sid,xl) - $d }]
+			if { $xl < 0.0 } {
+				set xl 0.0
+			}
+			set xh [expr { $RD($sid,xh) + $d }]
+			set d $RD($sid,M,H)
+			set yl [expr { $RD($sid,yl) - $d }]
+			if { $yl < 0.0 } {
+				set yl 0.0
+			}
+			set yh [expr { $RD($sid,yh) + $d }]
+			set RD($sid,LS) [list $xl $xh $yl $yh]
+		} else {
+			lassign $RD($sid,LS) xl xh yl yh
+		}
+		if { $x < $xl } {
+			set x $xl
+			set nx [xtocv $sid $x]
+		} elseif { $x > $xh } {
+			set x $xh
+			set nx [xtocv $sid $x]
+		}
+		if { $y < $yl } {
+			set y $yl
+			set ny [ytocv $sid $y]
+		}
+		if { $y > $yh } {
+			set y $yh
+			set ny [ytocv $sid $y]
+		}
+	}
+
+	# replace node coordinates, x and y only
+	lset RD(NL,$n) 0 0 $x
+	lset RD(NL,$n) 0 1 $y
+
+	# move the node
+	drawNode $sid $w.c $n
+
+	# update running coordinate display
+	if [info exists RD($sid,RC)] {
+		lassign $RD($sid,RC) tx bg
+		$w.c itemconfigure $tx -text [move_ninfo $n]
+		$w.c delete $bg
+		set bg [$w.c create rectangle [$w.c bbox $tx] -fill lightgray \
+			-outline ""]
+		$w.c raise $tx
+		set RD($sid,RC) [list $tx $bg]
+	}
+
+	# move flag for up-button event
+	set RD($sid,MF) $n
+
+	# notify the simulator
+	set msg "M $n $x $y"
+	if $Stat(TD) {
+		append msg " [lindex $RD(NL,$n) 0 2]"
+	}
+	append msg "\n"
+	sock_wr $RD(S) $msg
+}
+
+proc moveShowDist { sid n0 n1 } {
+
+	global RD
+
+	if { ![info exists RD($sid,WN)] || ![info exists RD($sid,$n0)] || 
+	     ![info exists RD($sid,$n1)] } {
+		return
+	}
+
+	set w $RD($sid,WN)
+
+	lassign [lindex $RD(NL,$n0) 0] x0 y0 z0
+	lassign [lindex $RD(NL,$n1) 0] x1 y1 z1
+
+	set X0 [xtocv $sid $x0]
+	set Y0 [ytocv $sid $y0]
+	set X1 [xtocv $sid $x1]
+	set Y1 [ytocv $sid $y1]
+
+	set d [expr { sqrt (double ($x1 - $x0) * double ($x1 - $x0) + \
+			    double ($y1 - $y0) * double ($y1 - $y0) + \
+			    double ($z1 - $z0) * double ($z1 - $z0)   \
+		) }]
+
+	set XM [expr { round (($X0 + $X1) / 2.0) }]
+	set YM [expr { round (($Y0 + $Y1) / 2.0) }]
+
+	set la [$w.c create text $XM $YM -text [format "%4.3fm" $d] \
+		-state disabled]
+	set li [$w.c create line $X0 $Y0 $X1 $Y1 -state disabled \
+		-dash { 2 4 }]
+
+	set RD($sid,PU) [list $la $li]
+
+	after 2000 moveClearDist $sid
+}
+
+proc moveClearDist { sid } {
+
+	global RD
+
+	if ![info exists RD($sid,WN)] {
+		return
+	}
+
+	set w $RD($sid,WN)
+
+	if [info exists RD($sid,PU)] {
+		lassign $RD($sid,PU) la li
+		$w.c delete $la
+		$w.c delete $li
+		unset RD($sid,PU)
+	}
+}
+
+proc moveShowPos { sid x y } {
+
+	if [catch { 
+		set pos \
+		    [format "%1.2f %1.2f" [xfromcv $sid $x] [yfromcv $sid $y]]
+	} ] {
+		log "Node not available"
+	} else {
+		log "Position = <$x $y> ($pos)"
+	}
+}
+
+proc moveUpButton { sid n } {
+
+	global RD
+
+	if ![info exists RD($sid,WN)] {
+		return
+	}
+
+	if ![info exists RD($sid,MF)] {
+		# no move to complete
+		if [info exists RD($sid,PS)] {
+			# second leg of "show distance"?
+			if { $RD($sid,PS) == $n } {
+				# same node, ignore???
+				# unset RD($sid,PS)
+				return
+			}
+			# draw a line between the two nodes and display
+			# the distance
+			if [info exists RD($sid,PU)] {
+				# previous distance still displayed
+				unset RD($sid,PS)
+				return
+			}
+			moveShowDist $sid $RD($sid,PS) $n
+			unset RD($sid,PS)
+			return
+		}
+		# the first point
+		set RD($sid,PS) $n
+		return
+	}
+
+	# a move to complete
+	if [info exists RD($sid,PS)] {
+		# starting point for a line (should we reset it?)
+		unset RD($sid,PS)
+	}
+
+	if [info exists RD($sid,LS)] {
+		# window size at start of move
+		unset RD($sid,LS)
+	}
+
+	unset RD($sid,MF)
+
+	lassign [lindex $RD(NL,$n) 0] x y
+	moveRedim $sid $x $y
+}
+
+proc moveResize { sid nw nh } {
+
+	global RD
+
+
+	if ![info exists RD($sid,WN)] {
+		return
+	}
+
+	if ![info exists RD($sid,RM)] {
+		# this is a dummy first time after startup; we use it to
+		# determine the window margin size, i.e., the difference
+		# between the resized width and height and the actual
+		# canvas parameters
+		lassign $RD($sid,NC) aw ah
+		set RD($sid,RM) [list [expr { $nw - $aw }] [expr { $nh - $ah }]]
+		return
+	}
+
+	if { $RD($sid,RE) == 0 } {
+		# not resizable
+		return
+	}
+
+	if [info exists RD($sid,T)] {
+		# update timer running, kill it
+		after cancel $RD($sid,T)
+	}
+
+	set RD($sid,NC) [list $nw $nh]
+
+	# delay the actual action until we have stabilized
+	set RD($sid,T) [after 1000 moveDoResize $sid]
+
+	# FIXME: how to avoid shrinking the canvas below a minimum decent size
+}
+
+proc moveDoResize { sid } {
+
+	global RD
+
+	if ![info exists RD($sid,WN)] {
+		return
+	}
+
+	if [info exists RD($sid,T)] {
+		unset RD($sid,T)
+	}
+
+	# correct for the window boundary
+	lassign $RD($sid,NC) aw ah
+	lassign $RD($sid,RM) dw dh
+
+	set aw [expr { $aw - $dw }]
+	set ah [expr { $ah - $dh }]
+
+	set RD($sid,NC) [list $aw $ah]
+
+	cvcalc_dynamic $sid
+	moveRedraw $sid
+}
+
+proc moveUpd { Sok cmd } {
+#
+# receive location updates
+#
+	global Stat RD Rms
+
+	set upd [rdnupd $cmd]
+
+	if { $upd == "" } {
+		return
+	}
+
+	lassign $upd nod os nlc ls ps vc vn
+
+	if ![info exists RD(NL,$nod)] {
+		# just ignore
+		return
+	}
+
+	lassign $RD(NL,$nod) loc t c f v
+
+	set vic [vipars $vc $vn $nod]
+
+	# change flags: color, note
+	set cc 0
+	set lc 0
+
+	set b [string index $ls 0]
+	set ls [string range $ls 1 end]
+
+	# new blink rate
+	set f $b
+
+	# check for color update
+	set nc [lindex $c 0]
+	if $nc {
+		# pin-driven coloring
+		set col [lindex $c 1]
+		set cse [lindex $c 2]
+		set nco [cassgn $cse $ls $ps]
+		if { $col != $nco } {
+			# we have a color change
+			set cc 1
+			set c [list $nc $nco $cse]
+		}
+	}
+
+	if { $os == "F" } {
+		# the node is off, paint it dull gray
+		set vic [list "gray" ""]
+	}
+
+	if { $vic != $v } {
+		if { [lindex $vic 0] != [lindex $v 0] } {
+			# override color has changed
+			set cc 1
+		}
+		if { [lindex $vic 1] != [lindex $v 1] } {
+			# text label has changed
+			set lc 1
+		}
+		set v $vic
+	}
+
+	set RD(NL,$nod) [list $nlc $t $c $f $v]
+
+	if { $nlc != $loc } {
+		# just redraw the node
+		foreach r $Rms {
+			set xid [lindex $r 1]
+			if $RD($xid,RE) {
+				# resizable
+				if [moveRedim $xid [lindex $nlc 0] \
+				    [lindex $nlc 1]] {
+					# resized and accounted for
+					continue
+				}
+			}
+			drawNode $xid $RD($xid,WN).c $nod
+		}
+		return
+	}
+
+	if { !$cc && !$lc } {
+		# nothing to do at all
+		return
+	}
+
+	# just update what's needed
+	lassign $nlc x y
+	foreach r $Rms {
+		set xid [lindex $r 1]
+		if [info exists RD($xid,$nod)] {
+			lassign $RD($xid,$nod) o t
+			if $cc {
+				foreach ci $o co [lindex $c 1] {
+					colconf $xid $nod $ci $co [lindex $v 0]
+				}
+			}
+			if $lc {
+				drawNote $xid $RD($xid,WN).c $nod \
+					[xtocv $xid $x] [ytocv $xid $y] \
+					[lindex $v 1]
+			}
+		}
+	}
+}
+
+proc moveRedim { sid nx ny } {
+#
+# Checks if the location is out of present canvas bounds and optionally
+# redimensions the canvas; if that happens, the nodes are redrawn
+#
+	global RD
+
+	if { $RD($sid,RE) == 0 } {
+		# not resizable
+		return 0
+	}
+
+	# current network bounds
+	set XL $RD($sid,xl)
+	set XH $RD($sid,xh)
+	set YL $RD($sid,yl)
+	set YH $RD($sid,yh)
+
+	if { $nx < $XL || $nx > $XH || $ny < $YL || $ny > $YH } {
+		cvcalc_dynamic $sid
+		moveRedraw $sid
+		return 1
+	}
+
+	return 0
+}
+
+proc colconf { sid nod wg col cov } {
+#
+# Configure the color of a node or its fragment
+#
+	global RD
+
+	set w $RD($sid,WN)
+
+	if { $cov != "" } {
+		# temporary override; let's be careful, because the color
+		# spec is not reliable
+		if ![catch { $w.c itemconfigure $wg -fill $cov }] {
+			# we have succeeded, make sure there's no callback
+			# (if the previous state was blinking)
+			if [info exists RD($sid,$wg,X)] {
+				unset RD($sid,$wg,X)
+			}
+			return
+		}
+	}
+
+	set co [lindex $col 0]
+
+	if [lindex $col 1] {
+		# blinking, store the color for the callback
+		set RD($sid,$wg,C) $co
+		if ![info exists RD($sid,$wg,X)] {
+			# the blinker callback is not active, so have to start
+			# it (initially in the ON state)
+			set RD($sid,$wg,X) 1
+			colblink $sid $nod $wg
+		}
+	} else {
+		if [info exists RD($sid,$wg,X)] {
+			# this will tell the callback to go away
+			unset RD($sid,$wg,X)
+		}
+		$w.c itemconfigure $wg -fill $co
+	}
+}
+
+proc colblink { sid nod wg } {
+#
+# The blinker callback for colconf
+#
+	global RD
+
+	if { ![info exists RD($sid,WN)] || ![info exists RD($sid,$wg,X)] } {
+		return
+	}
+
+	set w $RD($sid,WN)
+
+	if $RD($sid,$wg,X) {
+		# turn on
+		$w.c itemconfigure $wg -fill $RD($sid,$wg,C)
+		set RD($sid,$wg,X) 0
+	} else {
+		$w.c itemconfigure $wg -fill gray
+		set RD($sid,$wg,X) 1
+	}
+
+	# when next?
+	if { [lindex $RD(NL,$nod) 3] != 0 } {
+		# fast
+		set del 128
+	} else {
+		set del 512
+	}
+	after $del "colblink $sid $nod $wg"
+}
+
+proc noteCoords { sid x y } {
+#
+# Compute the coordinates of a node "note"
+#
+	global RD CMARGIN
+
+	# this is the offset of the label box corner from the corner of the
+	# node's box; we still don't know the direction
+	set co [expr { $RD($sid,MN) + $CMARGIN(LO) }]
+
+	# determine the box's orientation; it is always in the direction of
+	# maximum space
+	lassign $RD($sid,NC) aw ah
+
+	# determine the text anchor
+	if { [expr { $ah - $y }] > $y } {
+		set dy 1
+		set anc "n"
+	} else {
+		set dy -1
+		set anc "s"
+	}
+	# anchor y coordinate
+	set yc [expr { $y + $dy * $co }]
+
+	if { [expr { $aw - $x }] > $x } {
+		set dx 1
+		append anc "w"
+		set jus "left"
+	} else {
+		set dx -1
+		append anc "e"
+		set jus "right"
+	}
+	# anchor x coordinate
+	set xc [expr { $x + $dx * $co }]
+
+	return [list $xc $yc $anc $jus]
+}
+
+proc drawNote { sid w n x y txt } {
+#
+# Draws a note box for the node $n at node coords x y
+#
+	global RD CMARGIN FONT
+
+	if [info exists RD($sid,HL,$n)] {
+		# previous note exists, remove
+		lassign $RD($sid,HL,$n) la bg
+		catch { $w delete $la }
+		if { $bg != "" } {
+			catch { $w delete $bg }
+		}
+		unset RD($sid,HL,$n)
+	}
+
+	if { $txt == "" } {
+		# that's it
+		return
+	}
+
+	# coordinates and anchor
+	lassign [noteCoords $sid $x $y] xc yc anc jus
+
+	# width taken by the text if not broken
+	set rw [font measure $FONT(L) $txt]
+	set rw [expr { $rw + 14 }]
+	if { $rw > $CMARGIN(LW) } {
+		# will break into multiple lines
+		set rw $CMARGIN(LW)
+	} else {
+		set rw 0
+	}
+
+	set la [$w create text $xc $yc -anchor $anc -text $txt \
+		-justify $jus -width $rw -fill $RD(HF,$n)]
+
+	if { $RD(HB,$n) != "" } {
+		set bg [$w create rectangle [$w bbox $la] \
+			-fill $RD(HB,$n) -outline ""]
+		$w raise $la
+	} else {
+		set bg ""
+	}
+
+	set RD($sid,HL,$n) [list $la $bg]
+}
+
+proc terminate_on_exit { } {
+#
+# Opens a socket to link udaemon to the model to be closed on exit, which will
+# tell the model to terminate.
+#
+	global TM
+
+	update
+	set TM [sock_conn "STOP"]
+	if { $TM == "" } {
+		# cannot fail
+		alex "Cannot connect to the model's STOP service"
+	}
+
+	vwait TM
+}
+
+###############################################################################
+###############################################################################
+###############################################################################
+
+proc log { txt } {
+#
+# Writes a line to log
+#
+	global Logger LogStat
+
+	if !$LogStat {
+		# logging switched off
+		return
+	}
+
+	while 1 {
+
+		set el [string first "\n" $txt]
+		if { $el < 0 } {
+			set el [string length $txt]
+		}
+		incr el -1
+		set out [string range $txt 0 $el]
+		incr el +2
+		set txt [string range $txt $el end]
+		addText "" $Logger "$out"
+		endLine "" $Logger
+		if { $txt == "" } {
+			update idletasks
+			return
+		}
+	}
+}
+
+proc conerror { code } {
+
+    switch -- $code {
+
+	0 { return "llegal magic code" }
+	1 { return "node number out of range" }
+	2 { return "unimplelented function" }
+	3 { return "already connected to this module" }
+	4 { return "timeout" }
+	5 { return "module has a non-socket interface" }
+        6 { return "unexpected disconnection" }
+        7 { return "request line too long" }
+        8 { return "invalid request" }
+      128 { return "node has no such module" }
+    }
+
+    return "error code $code (unknown)"
+}
+
+proc valsid { var } {
+
+	upvar $var v
+
+	if [catch { valnum $v 0 } num] {
+		log "request ignored: illegal node Id '$v'"
+		return 1
+	}
+	set v $num
+	return 0
+}
+
+proc doConnect { { opt "" } { nod "" } } {
+#
+# Handle a new connection request
+#
+	global OPT IDMode StatId AGENT_MAGIC
+
+	if { $opt != "" } {
+		# direct
+		set fg 0
+	} else {
+		# root window
+		if { $IDMode == "host" } {
+			set fg 1
+		} else {
+			set fg 0
+		}
+		set nod $StatId
+		set opt [$OPT(BUT) cget -text]
+	}
+
+	# check for roamer, it is kind of special
+	set rix [isroamlab $opt]
+	if { $rix != "" } {
+		# yep, this is a roamer
+		moveHandler $rix
+		return
+	}
+
+	switch $opt {
+
+		"UART (plug)"	{
+			if [valsid nod] { return }
+			uartHandler $nod p $fg
+		}
+
+		"UART (ascii)"	{
+			if [valsid nod] { return }
+			uartHandler $nod a $fg
+		}
+
+		"UART (hex)"	{
+			if [valsid nod] { return }
+			uartHandler $nod h $fg
+		}
+
+		"SENSORS"	{
+			if [valsid nod] { return }
+			sensorsHandler $nod $fg
+		}
+
+		"PINS"	{
+			if [valsid nod] { return }
+			pinsHandler $nod $fg
+		}
+
+		"LEDS"	{ 
+			if [valsid nod] { return }
+			ledsHandler $nod $fg
+		}
+
+		"EMUL"	{
+			if [valsid nod] { return }
+			emulHandler $nod $fg
+		}
+
+		"LCDG"	{ 
+			if [valsid nod] { return }
+			lcdgHandler $nod $fg
+		}
+
+		"PTRACKER" {
+			if [valsid nod] { return }
+			pwrtHandler $nod $fg
+		}
+
+		"PANEL" {
+
+			panelHandler 
+		}
+
+		"CLOCK"	{
+
+			clockHandler
+		}
+
+		default {
+			log "request ignored: $opt unimplemented"
+		}
+	}
+}
+
+proc change_tips_status { } {
+
+	global TIPSTAT
+
+	if $TIPSTAT {
+		log "Tips disabled"
+		tip_enable 0
+		set TIPSTAT 0
+		.top.tl configure -text "-"
+	} else {
+		log "Tips enabled"
+		tip_enable 1
+		.top.tl configure -text "+"
+		set TIPSTAT 1
+	}
+}
+	
+proc vplug_init { nn hn nt ta } {
+#
+# Default plugin
+#
+	return 0
+}
+
+proc make_root_window { } {
+
+	global OPT Stat IDMode TIPSTAT FONT Logger LogStat
+
+	wm title . "VUEE udaemon (ZZ000000A)"
+
+	frame .top -borderwidth 10
+	pack .top -side top -expand 0 -fill x
+	button .top.quit -text "Quit" -command { terminate }
+	button .top.connect -text "Connect" -command doConnect
+
+	tip_set .top.connect "Click to connect to the module selected by the\
+	widgets to the left. Note that you can also connect to node-specific\
+	modules from ROAMER windows by right-clicking on the nodes."
+
+	set OPT(OPS) [list "UART (ascii)" \
+		"UART (hex)" \
+		"SENSORS" \
+		"PINS" \
+		"LEDS" \
+		"EMUL" \
+		"LCDG" \
+		"PTRACKER" \
+		"ROAMER" \
+		"PANEL" \
+		"CLOCK" ]
+
+	if $Stat(P) {
+		set OPT(OPS) [linsert $OPT(OPS) 0 "UART (plug)"]
+	}
+
+	set OPT(BUT) ".top.select"
+	set OPT(MEN) "$OPT(BUT).m"
+
+	menubutton $OPT(BUT) -text "---" -direction right -menu $OPT(MEN) \
+		-relief raised
+	menu $OPT(MEN) -tearoff 0
+
+	tip_set .top.select "This is the menu of modules to connect to. Modules\
+		ROAMER, PANEL, and CLOCK are global (require no node number),\
+		so you can leave the \"number\" field empty.\
+		The remaining modules belong to nodes, so a node number is\
+		required."
+	
+	label .top.la -text "Node"
+	set IDMode "host"
+	tk_optionMenu .top.hs IDMode "serial" "host"
+
+	tip_set .top.hs "Select the way to interpret the node number (to the\
+		right). It can be Host Id (node address), or serial (SMURPH)\
+		node number (from zero up)."
+
+	label .top.lb -text "number:"
+	entry .top.stat -width 6 -relief sunken -textvariable StatId \
+		-validate key -vcmd {validSid %P} -invcmd bell
+
+	tip_set .top.stat "Enter the node number for those modules that belong\
+		to nodes, i.e., UART, SENSORS, PINS, LEDS, EMUL, LCDG, and\
+		PTRACKER. That number will be interpreted as the Host Id (node\
+		address within the network), or as the internal (SMURPH) serial\
+		number of the node (from zero up), depending on the selection\
+		in the menu to the left."
+
+	set TIPSTAT 1
+
+	label .top.tl -text "+" -font $FONT(D)
+
+	tip_set .top.tl "Click to switch the hover-over tips off. Click again\
+		to switch them back on"
+
+	bind .top.tl <ButtonRelease-1> change_tips_status
+
+	pack .top.quit .top.connect .top.tl .top.select -side right
+	pack .top.la .top.hs .top.lb .top.stat -side left
+
+	bind .top.stat <Return> doConnect
+	bind .top <Destroy> { alex }
+	bind . <Destroy> { alex }
+
+	focus .top.stat
+
+	frame .logger
+
+	set Logger [text .logger.t -width 64 -height 10 \
+		-borderwidth 2 -relief raised -setgrid true -wrap none \
+		-yscrollcommand {.logger.scrolly set} \
+		-xscrollcommand {.logger.scrollx set} \
+		-font $FONT(R) \
+		-exportselection 1 \
+		-state normal]
+
+	set LogStat 1
+
+	scrollbar .logger.scrolly -command {.logger.t yview}
+	scrollbar .logger.scrollx -orient horizontal -command {.logger.t xview}
+
+	pack .logger.scrolly -side right -fill y
+	pack .logger.scrollx -side bottom -fill x
+
+	pack .logger.t -side left -fill both -expand true
+
+	bind .logger.t <ButtonRelease-3> "cut_copy_paste %W %X %Y c"
+
+	pack .logger -side top -fill both -expand true
+
+	$Logger delete 1.0 end
+	$Logger configure -state disabled
+
+	bind . <Destroy> { terminate }
+}
+
+proc roamlab { { n "" } } {
+#
+# Produces a label for roamer numbed n; this label formally identifies the
+# roamer module and is also displayed as the first word of the roamer
+# identifier in menus
+#
+	if { $n == "" } {
+		return "ROAMER"
+	}
+	return "ROAMER_$n"
+}
+
+proc isroamlab { lab } {
+#
+# Extracts the roamer index from a roamer label
+#
+	if ![regexp "^ROAMER(.*)" $lab jnk rpm] {
+		# not a roamer
+		return ""
+	}
+	set rpm [string trimleft $rpm "_"]
+	if ![regexp {^[[:digit:]]+} $rpm inx] {
+		# single, standard, unindexed roamer has number 0
+		return 0
+	}
+
+	if [catch { expr { $inx } } inx] {
+		# a precaution
+		return ""
+	}
+
+	return $inx
+}
+
+proc make_option_list { } {
+#
+# Called when the list of roamers is known to build the option lists
+#
+	global Geometry OPT
+
+	set rlist ""
+	if { $Geometry(roamer) == "" } {
+		lappend rlist [roamlab]
+	} else {
+		set ix 0
+		foreach r $Geometry(roamer) {
+			set nam [lindex $r 0]
+			set lab [roamlab $ix]
+			if { $nam != "" } {
+				append lab " ($nam)"
+			}
+			lappend rlist $lab
+			incr ix
+		}
+	}
+
+	# the first option selected by default
+	$OPT(BUT) configure -text [lindex $OPT(OPS) 0]
+
+	set n 0
+	foreach e $OPT(OPS) {
+
+		if { $e == "ROAMER" } {
+			if { [llength $rlist] == 1 } {
+				# starightforward entry
+				$OPT(MEN) add command -label [lindex $rlist 0] \
+					-command "option_click $OPT(MEN) $n"
+			} else {
+				# create cascade menu of roamers
+				set sm "$OPT(MEN).rm"
+				menu $sm -tearoff 0
+				set nr 0
+				foreach r $rlist {
+					$sm add command -label $r \
+					    -command "option_click $sm $nr"
+					incr nr
+				}
+				$OPT(MEN) add cascade -label "ROAMERS..." \
+					-menu $sm
+			}
+		} else {
+			# regular option
+			$OPT(MEN) add command -label $e \
+				-command "option_click $OPT(MEN) $n"
+		}
+
+		incr n
+	}
+}
+
+proc option_click { men n } {
+#
+# Set connection option
+#
+	global OPT
+
+	$OPT(BUT) configure -text [$men entrycget $n -label]
+}
+
+###############################################################################
+###############################################################################
+
+parse_args
+
+plugin_check
+
+###############################################################################
+
+make_root_window
+
+if { [info tclversion] < 8.5 } {
+
+	alex "This program requires Tcl/Tk version 8.5 or higher!"
+}
+
+catch { close stdin }
+# stdout is needed by PIP (at least on Linux)
+# catch { close stdout }
+catch { close stderr }
+
+parse_geometry
+
+# past this point we have read the geometry data, so we know the dimensionality
+# and the list of roamers; now we can set up the OPT menu
+
+make_option_list
+
+if $TM {
+	terminate_on_exit
+}
+
+do_geometry . "root"
+
+panel_preconnect
+
+predisplay
+
+vwait forever

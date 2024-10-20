@@ -1,0 +1,1443 @@
+Version 0.9
+
+===============================================================================
+Quick start:
+
+1. Install SICLE. It can be fetched (cvs export SICLE) from the same repository
+   as VUEE. Read the README file in SICLE for hints. To check if SICLE works,
+   enter this simple Tcl program from a Cygwin terminal:
+
+                 tclsh
+                 package require siclef 1.0
+                 crypt abcde
+                 exit
+
+   If the call to crypt succeeds and produces some (random looking) output, it
+   means that the installation has been successful.
+
+2. Install PICOS. Make sure that VUEE is unpacked in the same directory as
+   PICOS, i.e., the two appear at the same level. This is needed because VUEE
+   links to PICOS.
+
+3. Install SIDE (wherever). It can be fetched (cvs export SIDE) from the same
+   repository as VUEE. Read file INSTALL.txt in SIDE's root directory. 
+   IMPORTANT: in response the the maker's question about include library (point
+   5.5 in INSTALL.txt), specify the full (or home-relative) path to
+   VUEE/PICOS (a subdirectory of VUEE).
+
+4. Go to VUEE/PICOS and execute ./mklinks . This will link VUEE to some files
+   in PICOS.
+
+5. Things are set. Go to VUEE/MODELS/RFPING and create the simulator. Execute
+   mks -W in that directory. mks is the SIDE compiler.
+
+6. In VUEE/UDAEMON, execute udaemon . This is a Tk script that emulates
+   multiple UARTs perceptible by nodes modeled in VUEE.
+
+7. Start the model. In VUEE/MODELS/RFPING, execute side data.txt . Two UART
+   terminal windows should pop up (for the two nodes described in the model).
+   Remember that diags are written to the emulator's stdout (such that they
+   show up even if the node has no UART).
+
+   Enjoy!!
+
+===============================================================================
+
+R061015A:
+
+   Original import. Lots of things to do: reset doesn't work, ways to initially
+   distribute ESN's, generic mobility engine driven by external programs. And
+   of course GUI, i.e., Tk interface. Wladek's stuff has to be accommodated.
+
+R061021A:
+
+    DIAG messages tagged with Node Id. This is the 'creation' Id corresponding
+    to the node number specified in the data file.
+    RESET implemented and tested on RFPing. TAGSANDPEGS modified to enable
+    reset (previously disabled). A few cosmetic changes.
+
+R061025A:
+
+    A few mods by Wlodek. udaemon patched a bit - to be slightly less stupid.
+    diag fixed to properly display formatted items. Segmentation errors on
+    reset eliminated.
+
+R061111A:
+
+    A few mods by Wlodek + cosmetics needed to make the stuff compile on 64-bit
+    Linux systems.
+
+R061115A:
+
+    Cosmetics. Added app to test LBT.
+
+R061208A:
+
+    NVRAM (EEPROM + FIM) model added.
+
+R061216B:
+
+    Lots of changes. It is now possible to keep a VUEE model and PICOS praxis
+    as the same set of sources.
+
+R061223A:
+
+    Agent connection paradigm revised, udaemon reimplemented. Now there is a
+    single socket set up by VUEE for all agent connections. Its number is 
+    4443 (can be made flexible later, e.g., definable in data). An agent, like
+    udaemon, connects to this socket and specifies the service type by sending
+    8 bytes with the following contents:
+
+    Bytes 0-1 - magic shortword 0xBAB4 in network format, i.e., MSB first;
+    Bytes 2-3 - the request code (a short int in network format):
+                    1 - UART
+                    2 - Pin control
+                    3 - LEDs display
+                    4 - mobility
+    Bytes 4-7 - the node number (according to the numeration in the data file).
+
+    VUEE responds with a single byte, which is 129 decimal if the request is OK.
+    Otherwise, it means that there was an error (see agent.h in VUEE/PICOS for
+    the current list of error codes.
+
+    For UART, things work pretty much as before. After the initial handshake,
+    the clien't (agent's) socket is directly connected to the UART. Note that,
+    unlike before, the connection is established after the VUEE model starts,
+    so some UART output can be potentially lost. This can be remedied as
+    follows.
+
+    The data format describing a UART has changed. See this for an example:
+
+	    <uart rate="9600" bsize="12">
+		<input source="socket" type="untimed"></input>
+		<output target="socket" type="held"></output>
+	    </uart>
+
+    Now there is no hostname/port specification (because the connection is
+    reversed). Type HELD for the output end of the socket means that any
+    UART output before the first connection is to be saved (it goes to a
+    temporary buffer in memory) and will be presented (immediately flushed
+    to the socket) on first connection. From then on, if the agent disconnects,
+    the output WILL NOT be saved. As soon as the agent connects again, the
+    new output will be showing up on the socket.
+
+    It is very easy to save the output always when the UART is disconnected.
+    Another option? I am not sure as this may put stress on memory requirements
+    of the simulator, when you abandon a UART with lots of output to come.
+
+    Udaemon's terminals have a HEX option to display and accept data in
+    hexadecimal.
+
+    Pin control, LEDs and mobility protocols still to be devised.
+
+--------:
+
+    Global HEX option added to udaemon.
+
+R070119A:
+
+    Lots of updates to VUEE. Agent protocol implemented. Udaemon extended by
+    CLOCK, PINS, LEDS, MOVER. Documentation coming up.
+
+R070203A:
+
+    EEPROM (FLASH) model brought up to date with recent changes in PicOS.
+    EETest revritten according to the compatibility rules and moved to
+    PICOS/Apps/VUEE.
+
+R070217A:
+
+    Udaemon polished up a bit, document added to VUEE/Doc, tested on Cygwin,
+    32-bit and 64-bit Linux.
+
+R070325A:
+
+    MOVER renamed ROAMER and made available from the input data. Random
+    way point mobility model implemented. Added preinits, RSSI and SETPOWER
+    conversion tables in the input data. Agent protocol poished up.
+
+R070402B:
+
+    Channel and random waypoint mobility models cleaned and moved to the
+    standard SMURPH library (IncLib) from where they can be used in non-PicOS
+    models. File chan_shadow.h need not be included by the praxis anymore.
+    The <cutoff> parameters is no longer the absolute distance, but the
+    signal level (factored by the receiver sensitivity) below which its impact
+    on the receiver is deemed irrelevant. It should be set at a fraction of
+    background noise. Operations running and killal implemented.
+
+R070718A:
+
+    Cosmetics to make VUEE compatible with the improved channel model in
+    SIDE.
+    
+R070818A:
+
+    ser_outb added and __outserial improved as per Wlodek's fixes. Also scan
+    fixed to use the proper operand size for accessing local word args.
+
+R070821A:
+
+    Fixed a bug in reset causing occasional SIGSEGVs. Redone reset to make
+    it ready for turning nodes on/off from the agent (should be next commit).
+    Manual to be updated (next commit?) as the init/reset declarations in
+    node.cc have been changed. Also NODENAME is no longer needed.
+
+R070822A:
+
+    It is now possible to start/stop/reset a node both from the data as well as
+    via udaemon. Changes to the praxis layout:
+
+	- node.cc, node.h (see Apps/VUE/[RFPing/TNP] in PicOS (R070822) and
+	  read pages 11 and 12 in the manual. Note: in TNP, see files 
+	  node_peg.cc, node_tag.cc, node_peg.h, node_tag.h.
+
+	- NODENAME no longer needed: file app.h [app_tag.h, app_peg.h] (just
+	  remove the definition)
+
+    A new component (PANEL) in udaemon, hopefully self explanatory.
+
+R070824A:
+
+    Deallocating NULL was illegal in VUEE (sorry about that). It is now.
+
+R070824B:
+
+    Added a few safety hatches (matching those in PicOS) accounting for various
+    NULLs (ser_in, ser_out, vscan, ...)
+
+R070830A:
+
+    Fixed a couple of minor problems in board.cc resulting in some data that
+    should be sent to the SMURPH output file being in fact writtent to standard
+    output.
+    Function seconds () after reset now starts from zero.
+    Fixed a minor problem in find_strpool (board.cc) resulting in unnecessary
+    allocation of duplicate strings.
+    Fixed initialization of EEPROF/IFLASH to make sure that all cases involving
+    defaults are handled properly.
+    
+R070917A:
+
+    Fixed a bug in rfmodule.cc causing delayed RX off, i.e., one packet after
+    RX off was received.
+
+R071031A:
+
+    Matching fix to PicOS (the same date): removal of TARP macros (defineable
+    by the praxis), which have been replaced by functions. Note that SIDE
+    R071028A is required to run this.
+
+R071114A:
+
+    Added ee_size, which was accidentally missing from the set of ee ops.
+
+R071206A:
+
+    Added a couple of links to PICOS. Had to split some includes to eliminate
+    complaints of the CYAN compiler. Matches PICOS R071206A.
+
+R071206C:
+
+    Added ldelay and lhold. Not added dleft, ldleft, lhleft (perhaps nobody
+    needs them, and they are a bit tricky)
+
+R071210A:
+
+    Added support for sensors and actuators.
+
+R071211A:
+
+    PHYSOPT_STATUS extended as per R071211A of PICOS.
+
+R080313A:
+
+    Fixed a problem with memfree.
+
+R080326A:
+
+    Using a receive buffer in rfmodule, instead of recycling the internal
+    "Packet" buffer. The way it was, the plugin could modify the internal copy
+    of the packet confusing receivers at other nodes.
+
+R080330A:
+
+    Changed (and debugged) the handling of the so-called pin (pulse) monitor,
+    aka counter and notifier. Read section 6.6 from the manual (version 0.65).
+
+R080412A:
+
+    Fixed a memory leak caused by not cleaned packet payloads. The argument of
+    udaemon now allows you to specify the host as well as the port, e.g.,
+
+		udaemon sheerness.cs.ualberta.ca:4431
+		udaemon sheerness.cs.ualberta.ca	(default port)
+		udaemon sheerness.cs.ualberta.ca:	(same thing)
+		udaemon 5533				(localhost)
+		udaemon :5533				(same thing)
+
+R080417A:
+
+    Fixed a bug in agent.cc causing that sensors initialized from <defaults>
+    were shared by all nodes.
+
+R080715A:
+
+    Added capability to have multiple channels and multiple rates with
+    different propagation properties.
+    Process number limit.
+    Note: the format of input file has changed slightly (old files won't work).
+    I have tried to modify all XML data sets. Look in Apps/VUEE/* for examples.
+    Requires SIDE R080714B.
+
+R080723A:
+
+    Added aliases: ptleft () for crunning (NULL), getcpid () for running (NULL).
+
+R080820A:
+
+    Added methods setseconds and sectomin to make things compatible with
+    PicOS R080820A. sectomin is a stub the minute clock will probably go.
+
+R081110A:
+
+    Cosmetic changes to agent.cc to appease new gcc on Linux.
+
+R090312A:
+
+    Cosmetics required to accommodate modifications to EEPROM driver in
+    PicOS (ee_open, ee_close - they are void in VUEE).
+
+R090519A:
+
+    The UART rate specified in the data file is now stored as a UART attribute
+    and sent to UDAEMON upon connection. The user-specified rate is verified by
+    VUEE against the standard set of values acceptable by PicOS.
+
+    The UDAEMON protocol has been modified a bit, such that the status code
+    returned by VUEE agent after a connection is now one word, instead of one
+    byte (as it used to be). This way, more info can be returned by the agent,
+    notably the bit rate for UART, which is needed by the U-U feature of
+    UDAEMON's UART window. This feature is described in the updated document.
+    See also R090519A in PICOS.
+
+R090526A:
+
+    It is now possible to have radio-less nodes (see the document). The format
+    of input data has changed slightly (I have modified all the relevant data
+    files in PicOS praxes) by including a new <radio> element encapsulating
+    all the radio related parameters of a node.
+
+    By the same token the <channel> specification in the data set is now
+    optional, e.g., you can set up the model of a single node not interfaced
+    to a radio channel.
+
+    PHY interface for UART added (mode 'N' described in Serial.pdf in PicOS).
+    This interface is selected by using the mode attribute of <uart>, e.g.,
+    <uart rate="9600" bsize="12" mode="packet"> (see Apps/VUEE/XRSTest for
+    an illustration).
+
+    XRS (aka AB) protocol included. You can use it with any PHY, e.g., with
+    the packet mode of UART (see Serial.pdf in PicOS).
+
+    Lots of cosmetics. Not everything has been tested yet. I am planning to
+    add LCDG, OEP, and the functions operating on images (libLCDG), so this
+    is just a snapshot.
+
+R090528A:
+
+    EEPROM/IFLASH model redone and greatly enhanced. Main features:
+
+	- preinitialization from the data set and from files
+	- backing files (i.e., the storage can be directly mirrored to/from
+	  a file)
+	- it is possible to change the default "erase byte" (from 0xFF) to
+	  anything
+
+    Read the red parts from VUE_doc.pdf.
+
+R090529A:
+
+    Fixed a problem with UDAEMON's UART U-U connection. The selection didn't
+    work sometimes (you needed a second click) because "button release" in
+    tk_optionMenu (which I originally used) is not the right event for the
+    occasion.
+
+R090609A:
+
+    Removed node type NNode and TNode. Added a model for Nokia LCDG.
+    Lots of cosmetics and re-shuffling. Read RTAGS from PICOS for details.
+    Changes to the document are forthcoming.
+
+R090629A:
+
+    Fixed a bug in board.cc causing segmentation faults when the data file
+    didn't include <eeprom> at all.
+
+    Manual updated, the recommended conversion procedure significantly
+    simplified. Requires PICOS R090629A.
+
+R090719A:
+
+    Added lcdg_end () to the library of LCDG driver functions to indicate
+    the end of image rendering (the end of an lcdg_render sequence). This
+    operation is void in PicOS, but in VUEE it reduces the update overhead.
+    Requires PicOS R090719B.
+
+R090720A:
+
+    udaemon now accepts a geometry file specifying locations for its windows.
+    By default, the file is assumed to be geometry.xml and sought in the
+    directory in which udaemon is called. You can say:
+
+	udaemon -G filename
+
+    to point to it explicitly. If no geometry file is provided, the script
+    will position windows as before.
+
+    A sample geometry.xml file is provided in PICOS/Apps/VUE/SEAWOLF/YEP.
+    I will document it soon.
+
+    When LCDG is displayed and the node goes off, the display is cleared, i.e.,
+    forced into the off state.
+
+R090809B:
+
+    Power tracker added. XML data files now accept <include>s (this really
+    belongs to SIDE).
+
+R090905A:
+
+    Line mode (UART_TCV_MODE_L) for UART added. See Apps/VUEE/XRSTest for a
+    clumsy example (this is all very simple, so a trivial example will do).
+
+    VUEE version shows up in the header of SMURPH output.
+
+    The document updated (look for text in blue).
+
+R091128A:
+
+    Fixed the definitions of dbg_x macros; pinopts.h link added.
+
+R091202A:
+
+    Binary variant of XRS incorporated.
+
+R091212A:
+
+    Lots of things redone (use with care). Note that from now on, a PicOS
+    process model MUST be declared with threadhdr or strandhdr (this is how
+    we have been doing it recently, so no big deal). Old declarations, like:
+
+	process something (Node) {
+
+    will not work any more. One important thing that has been redone is the
+    handling of PicOS process IDs. That was needed to properly implement such
+    operations as dleft, ldleft, lhold, join, joinall, etc.
+
+    I have an old comment that says that ldelay/ldleft will go. Do we need
+    those operations?
+
+    I have checked (all?) old examples and made sure they compile and work
+    (or so I think).
+
+    Fixed a few missing items signaled by Wlodek. Any more?
+
+R091222A:
+
+    The range of PicOS process ID's restricted to PicOS's int range.
+    The type of process ID changed to sint to improve PicOS-VUEE compatibility.
+    Udaemon fixed to work correctly under Linux. In particular, it can set up
+    null modem links (to real OSS) using pseudo tty's. A simple program to set
+    up such links is in nullmodem.c in PICOS/Linux. This program is briefly
+    documented in VUE_doc.pdf.
+
+    The persistent mode of packet UART incorporated into VUEE. Description of
+    UART modes in XML data has changed (see VUE_doc.pdf). What matters is the
+    first letter of the mode specifier:
+
+	mode="n"   N (required for XRS, previous "packet")
+	mode="p"   P (persistent, previous "packet" selects this incorrectly!)
+	mode="l"   L (line mode)
+	mode="d"   Direct, i.e., traditional (the default)
+
+    Wlodek, make sure to fix it in your data sets!
+
+R100217A:
+
+    Included a simple generic model of RTC (no udaemon interface required).
+
+    Added ion as a shortcut for io.
+
+    UART_SETRATE/UART_GETRATE io CONTROL requests are now implemented.
+
+    Macro __sinit modified to allow for structure initialization (this requires
+    a corresponding change in PicOS).
+
+R100226B:
+
+    Significant parts of "Board" and "Agent" interfaces redone, as to simplify
+    things and (possibly) facilitate adding new node "modules".
+
+    Power Tracker can now be zeroed from the praxis. The generic tool looks
+    like this:
+
+	void vuee_control (int what, ...);
+
+    At present, a single usage for this function has been implemented, namely:
+
+	vuee_control (VCTRL_PTRCK_CLEAR);
+
+    with the obvious meaning. Note that Power Tracker can also be zeroed from
+    its udaemon window.
+
+    Also note that PicOS (as of R100226A) is aware of vuee_control calls, which
+    are ignored (expanded into CNOPs).
+
+R100315A:
+
+    Added a stub for PHYSOPT_ERROR to match the respective modification to
+    PICOS, such that a praxis using PHYSOPT_ERROR will compile. This stub
+    zeroes out the argument (if not NULL) and returns zero.
+
+R100329A:
+
+    Matching modifications to PICOS R100329A: removed sectomin, ldelay, ldleft,
+    lhold; added hold.
+
+R100405A:
+
+    An option to specify a background image for ROAMER added to udaemon (see
+    the last section of the Doc).
+
+R100411A:
+
+    PicOS compatibility mods: snooze removed, watchdog operations added. Note
+    that VUEE's watchdog model won't detect a hard CPU loop in the praxis. May
+    try to do something about it later.
+
+R100423A:
+
+    The capabilities of "geometry" description for udaemon extended by
+    making it possible to specify windows that should be displayed
+    automatically when the script starts (see the last section of the
+    document).
+
+R100427A:
+
+    Fixed a bug in udaemon causing misparsing of geometry specifications
+    containing newlines.
+
+R100508A:
+
+    Fixed the overrestrictive limit for packet length in the RF PHY model.
+    A few cleanups (minor, but required by RFTEST, so you should be using
+    this version with PICOS R100508A).
+
+R100509A:
+
+    Added PHYSOPT_RESET to rfmodule.cc (with void action) for compatibility
+    with the cleaned-up CC1100 driver.
+
+R100602A:
+
+    Fixed a bug causing segmentation faults on udaemon's attempts to connect
+    to already active SENSORS and PINS modules.
+
+R100609A:
+
+    Minor tweaks for PiComp compatibility.
+
+PG100629A:
+
+    Fixed file permissions for git.
+
+PG100630A:
+
+    Fixed crunning to accept and properly handle NULL as an argument.
+
+PG100705A:	SIDE >= PG100705A
+
+    Accommodated Nick's fixes to the problems he saw on his 64-bit system.
+    Introduced type lint (see PICOS, PG100705). Requires new SIDE (with the
+    same release number).
+
+    Note: I am not sure if Nick's second problem has been fixed (I don't have
+    a 64-bit machine handy). Nick, please let me know.
+
+PG100706A:	SIDE >= PG100706A, PICOS >= PG100706A
+
+    README replaced with RTAGS for uniformity, deploy/cleanup scripts added.
+    Read RTAGS_PG at PICOS.
+
+PG100716A:	PICOS >= PG100716A
+
+    Names of "hidden" variables and functions changed to begin with __pi_ in
+    accord with similar changes in PICOS. This cleanup is in preparation for
+    the upcoming revision of PICOS's implementation of strands.
+
+    Removed some IPC tools and simplified some system calls (see
+    PICOS/RTAGS_PG).
+
+PG100721A:	PICOS >= PG100721A
+
+    Requisite mods for hooks and timers in PICOS. Fixed a bug in rfmodule.cc
+    which might cause crashes under heavy (emulated) traffic.
+
+PG100727A:	PICOS >= PG100727A
+
+    Three new functions added to TCV/VNETI, see PICOS. Also, the size of the
+    array returned by PHYSOPT_ERROR increased (see the respective mod in
+    PICOS). The new entries are not used by VNETI yet, but they will be.
+
+PG100729A:
+
+    Constant DUMP_MEMORY added to sysio.h.
+
+PG100806A:	PICOS >= PG100806A
+
+    Requisite modifications for the new version of PicOS. Not much.
+
+PG100827A:	PICOS >= PG100827A
+
+    Modified VUE_doc.
+
+    Changed the way a strand gets hold of its data pointer.
+
+    udaemon.tcl is now called udaemon and will run on its own as long as wish85
+    is somewhere in PATH.
+
+PG100915A:
+
+    Added two constants that can be reset from options.sys. Here are their
+    default settings:
+
+	#define VUEE_RESYNC_INTERVAL	500
+	#define	VUEE_SLOMO_FACTOR	1.0
+
+    They translate into the parameters of setResync (see section 7.10 of SMURPH
+    manual) describing the mapping of virtual time into real time. This is how
+    setResync is called:
+
+	setResync (VUEE_RESYNC_INTERVAL,
+		(VUEE_RESYNC_INTERVAL * 0.001)/VUEE_SLOMO_FACTOR);
+
+    Thus, the first parameter specifies the granularity of synchronization to
+    real time in milliseconds, while the second is the slow motion factor. For
+    example, with this setting:
+
+	#define	VUEE_RESYNC_ITERVAL	50
+	#define	VUEE_SLOMO_FACTOR	3
+
+    SMURPH will resynchronize every 50 milliseconds, and 1 second of virtual
+    time will be stretched into 3 seconds of real time.
+
+    Note that you can always call setResync from the praxis, e.g., if you want
+    to change the resync parameters on the fly.
+
+PG100921A:
+
+    The UART window in udaemon allows you now to save the session in a file.
+
+PG101019A:	PICOS >= PG101019A
+
+    Fixed a problem with process termination resulting in a memory corruption
+    after reset.
+
+PG101021A:
+
+    Nick's fix for a problem with timed UART. The automaton's state was not
+    initialized. Sometimes it was found to be zero, which was OK, but, as Nick
+    has noticed, not always.
+
+PG110226A:
+
+    Nodes displayed in the ROAMER window can now be colored according to
+    specification in the geometry file. Read section 8.10 of the doc,
+    especially "Coloring nodes". You may also want to have a look at the
+    example in PICOS/Apps/VUEE/RFPing (read README_PG.txt).
+
+    Modified mkexe.sh in UDAEMON to use "fullwrap" (tkwrap-8.5.6, see:
+    http://wintcltk.sourceforge.net/tkwrap.html) instead of freewrap, because
+    tkwrap includes the Img package which became needed to accomodate
+    background pictures in ROAMER (as of R100405A).
+
+    Fixed a small error in the doc signalled by Nick.
+
+PG110227A:
+
+    Right click inside a node circle in ROAMER brings up a pop-up menu with the
+    list of node interfaces.
+
+    Cleanups in the document.
+
+PG110316A:
+
+    Node coloring in the ROAMER window can now be also driven by LEDs. Note
+    that this obvious extension of pin-driven coloring (PG110226A) basically
+    supersedes the LEDS module/interface, but there's no harm in keeping it
+    around (and it still may be useful, e.g., for very large networks). Read
+    section 8.10 of the document, especially the "node coloring" part.
+
+PG110328A:
+
+    In consequence of PG110226A, geometry spec for absolute windows (i.e., ones
+    not tagged with node IDs) was ignored by udaemon. Fixed.
+
+PG110529A:	PICOS >= PG110529A
+
+    Operation emul (requested by Wlodek) added to provide for a naive generic
+    handling of output devices that have no specific VUEE models (read the
+    document, sections 4.6, 7.6, 8.5).
+
+PG110919A:
+
+    Inconsequential cosmetics related to the introduction of emul (PG110529A).
+    I would not think of committing it, if not for the fact that I have just
+    committed an equally serious (albeit truly needed) modification to SIDE.
+
+PG111013A:
+
+    VUEE version of killall fixed not to return when the issuing process is
+    included among those killed.
+
+    Udaemon should now properly set up U-U links to COM ports numbered 10 and
+    higher.
+
+    Clipboard selection in udaemon's logger and UART windows now works. Just
+    drag the text with the left button (as in X-Windows). The same applies to
+    the line input area at the bottom of a UART window. Additionally, the
+    middle button in the line input area does the paste (as for X-Windows).
+
+PG111029A:
+
+    Keep stdout open in udaemon, which is needed py PIP (on Linux) to correctly
+    perceive that udaemon is still there.
+
+PG111129A:
+
+    Fixed a bug in udaemon causing problems with ROAMER when nodes were moved
+    outside the canvas. Imposed a limit on how far you can move a node outside
+    the canvas with a single mouse drag - to one current network diameter,
+    i.e., the network width and/or height cannot grow by more than its last
+    width/height.
+
+PG111208A:
+
+    After upgrading Cygwin, I have witnessed the same kind of errors I used to
+    see a couple of years ago when working on eco_net GUI: the last argument
+    passed to a Tcl script from Cygwin would have a CR appended to it. WTF?
+    Oh, well, I know, I know, this is the notorious problem of line ending
+    mismatch between Cygwin and Windows which comes and goes. Had to fix
+    udaemon, because it stopped to work for me.
+
+PG120210A:	PICOS >= PG120210A
+
+    Change in the signature of these plugin functions: xmt, out, tmt matching
+    the change in PicOS.
+
+PG120215A:	PICOS >= PG120215A
+
+    Accommodating the BOSS plugin. A few cosmetics.
+
+PG120221A:
+
+    Define SYSVER_B if BOARD_TYPE is defined.
+
+    Irrelevant cosmetics in udaemon: unifying the ranges of ports to scan
+    with piter (for not much needed consistency).
+
+PG120223A:	PICOS >= PG120223A
+
+    Accommodates negatively numbered sensors/actuators. The document updated.
+    Some minor cosmetics in udaemon (on top of the changes required to
+    accommodate the negatively numbered sensors/actuators, that is).
+    Version number bumped to 0.94.
+
+PG120226A:
+
+    The transmitter (of the RF module model) now checks the transmitted packet
+    length against the maximum packet size declared for the module. Previously
+    the length was only checked at the reception which was confusing.
+
+PG120320A:
+
+    A few cleanups in udaemon in preparation for more additions. LEDs colors
+    (for the LEDS module) are now borrowed from the geometry description (for
+    ROAMER), if the node falls under some pin coloring scheme described there.
+
+PG120323A:
+
+    Fixed a bug in board.cc causing segmentation faults when parsing null
+    EEPROM declarations in the data set.
+
+PG120324A:
+
+    Fixed a couple of small (but nasty) typos causing misinterpretation of the
+    input specification describing EEPROM and IFLASH when the definitions were
+    split between defaults and individual nodes.
+
+    Fixed PTRACKER to correctly show zero power usage by a switched off node.
+    This one was unexpectedly tricky due to the logarithmic scale of PTRACKER's
+    meter.
+
+PG120409A:	PICOS >= PG120409A
+
+    Many serious cleanups in udaemon: some parts completely rewritten (please
+    keep your eyes opened). No new functionality yet, but I am clearing the
+    ground.
+
+    Note that the SENSORS window now offers a button at each sensor (labeled
+    E!) to make it possible to trigger sensor events.
+
+    Function wait_sensor implemented (see PG120409A in PicOS).
+
+PG120421A:	PICOS >= PG120421A
+
+    I have removed the dependence of udaemon on the Img package, which was
+    needed for the sole purpose of accommodating background images for ROAMER,
+    so you could specify them, e.g., as jpeg files. That was extravagant and,
+    with the recent upgrade of Cygwin's Tcl to 8.5, became the only serious
+    obstacle to running udaemon with Cygwin's native Tcl. When you convert your
+    backgorund (jpeg) image to GIF or PPM/PGM, you can use without the Img
+    package. This is what I did to the background image in ils_demo (see
+    PICOS/Apps/PROPRIETARY/ils_demo).
+
+PG120422A:
+
+    Updated the document to reflect PG120409A and PG120421A. If the Img package
+    happens to be available, udaemon will use it automatically thus increasing
+    the pool of image formats acceptable as backgrounds for the ROAMER window.
+
+PG120425A:	PICOS >= PG120425A
+
+    Fixed udaemon to operate correctly under Cygwin's native Tcl/Tk (see
+    PG120425A in PICOS).
+
+PG120502A:	PICOS >= PG120502A
+
+    Added highlighting as a simple "visualization" feature. Read the last
+    section from the doc.
+
+PG120605A:	SIDE >= PG120605A, PICOS >= PG120605B, PIP >= PG120605A
+
+    All programs and (serious) scripts now show the version number which
+    always includes at least the last RTAG of the respective package. For
+    command line programs, the version number can be obtained by specifying
+    the -V option. GUI scripts include the tag number in the title of the
+    main window.
+
+PG120614A:
+
+    Udaemon outfitted with the new version of unames (see the corresponding
+    RTAG in PICOS).
+
+    Fixed a minor (harmless) format inconsistency in agent.cc spotted by Wlodek.
+
+PG120626A:
+
+    Nick's fix to eliminate compiler warnings on 64-bit machines:
+
+    Nicholas Boers <boersn@macewan.ca>: On 64-bit machines, SIDE uses the C
+    type 'int' for its type 'Long'. The code then proceeded to use the "%ld"
+    format specifier, which caused warning messages.
+
+PG120724A:	PICOS >= PG120724A
+
+    ROAMER protocol changed to (additionally) send to the agent:
+
+	1. the host id of the node (derived from the host_id constant/variable
+	   declared by the praxis)
+
+	2. the "movability" flag of the node
+
+    If the praxis declares this variable:
+
+	lword host_id = ...;
+
+    possibly preceded by const, VUEE (udaemon) will use the lower half of the
+    contents of that variable as the node identifier (displayed in the ROAMER
+    window). Note that this feature requires a collaboration from PiComp.
+
+    Nodes can be declared as non-moveable. You can do it this way:
+
+	<location movable="no"> ... </location>
+
+    The default is movable="yes", but you can change it by putting this:
+
+	<location movable="no"/>
+
+    into <default>.
+
+    A non-movable node is nailed down, so it cannot be moved from udaemon (or
+    from anywhere else).
+
+PG120726A:	PICOS >= PG120726A
+
+    I have redone the handling of local_host. See RTAGS_PG in PICOS and the
+    doc.
+
+PG120728A:	PICOS >= PG120728A
+
+    Modified rfmodule to match PG120728A in PICOS.
+
+PG120803A:	PICOS >= PG120803A
+
+    Introduced definable labels for pins, leds, sensors, actuators. Read
+    the doc (especially the last sections), also see
+    PICOS/Apps/PROPRIETARY/eco_demo/large_eco.geo. The agent protocol
+    considerably revised as part of the SEDATIVE project.  
+
+    Fixed a bug in udaemon causing errors when a highlighted node was moved
+    by the ROAMER.
+
+PG120814A:	PICOS >= PG120814A, SIDE >= PG120814A
+
+    Extensive modifications to the agent protocol and udaemon. The so-called
+    "geometry data" for udaemon is now included in the data set for the model.
+    This is explained in the document which has been updated and largely
+    rewritten.
+
+    Fixed a bug in udaemon causing spin hangups when the model was aborted
+    while udaemon was listening.
+
+PG120827A:
+
+    Several modifications to the agent protocol and enhancements to udaemon:
+
+	- it is now possible to use local host ID (instead of serial [SMURPH]
+	  node number) in the root window
+
+	- the piece of text you see when you hover the mouse over a node in the
+	  ROAMER window now includes the node's serial number and its local
+	  host ID
+
+	- a frame has been added to the above text (as well as to the
+	  dimensions text shown in the lower right corner) to make the
+	  characters better visible against a background image
+
+	- PTRACKER windows are now correctly labeled with host ID's (rather
+	  than serial ID's); I overlooked PTRACKER in the previous set of
+	  modifications).
+
+PG120828A:
+
+    Fixed a bug introduced along with the features in PG120827A consisting in
+    non-responsive SENSORS module.
+    
+PG120917A:	SIDE >= PG120917A
+
+    The model's resync interval and the slo-mo factor are now settable when
+    the simulator is called, e.g.,
+
+	side data_file.xml output_file.txt -- 2.0
+
+    sets the the slo-mo factor to 2.0 (the default is 1.0) retaining the
+    default setting of the resync interval (500 msec). This:
+
+	side data_file.xml output_file.txt -- 0.25 125
+
+    sets both the slo-mo factor (to 1/4, i.e., four times faster than RT) and
+    the resync interval to 125 msec. This:
+
+	side data_file.xml output_file.txt -- 0
+
+    will run the model in pure simulation mode, i.e., full speed, no sync to
+    real time.
+
+    This new handy feature was suggested (and partially implemented) by Nick.
+
+    Note that the extra arguments (following --) are interpreted by VUEE. This
+    requires a modification to SIDE whereby -- terminates the list of arguments
+    interpreted by the simulator's kernel and passess the remaining arguments
+    to the model.
+
+    The model of UART PHY now matches the new modified version of the PicOS
+    driver.
+
+PG121113A:	PICOS >= PG121113A, SIDE >= PG121113A, PIP >= PG121113A
+
+    A few rather messy changes in the way VUEE gets its options. Read RTAGS_PG
+    in PICOS, as well as the blue bits in the doc.
+
+PG121216A:	PICOS >= PG121216A
+
+    Changes in some headers to match the VNETI upgrade in PicOS. Fixed a bug in
+    program call argument processing causing errors when multiple boards of the
+    project's set provided node.xml data.
+
+PG121220A:	PICOS >= PG121220A
+
+    Added a few definitions to modsyms.h that should have been put there when
+    the file was created (at PG121113A). Basically, that file should contain
+    all the definitions from options.h (in PICOS/PicOS) that may be relevant to
+    modules compiled for VUEE.
+
+PG121225A:	PICOS >= PG121225A
+
+    Unified modsyms.h with options.h in PicOS (read RTAGS_PG in PICOS).
+
+    Signal level calculation for LBT in the RF model now involves the maximum
+    (rather than the average), which makes better sense and provides for a more
+    realistic behavior.
+
+    The PANEL window in udaemon now shows host ID's (as well as serial node
+    IDs).
+
+PG121229A:
+
+    Moved all (internal) process definitions to board.h to make them available
+    to (future) observers.
+
+    Now I see that using observers for the kind of testing that we discussed
+    with Wlodek the other day is probably not a good idea (some other tool is
+    needed). I will think a bit more about it.
+    
+PG130122A:	SIDE >= PG130122A
+
+    Matching modification to SIDE PG130122A. Do not reference SEther in the
+    model (which points to the specific shadowing link model - RFShadow), but
+    Ether (pointing to the underlying generic link type - RadioChannel). The
+    VUEE model has to be independent of the channel type.
+
+PG130211A:	SIDE >= PG130211A, PICOS >= PG130211A
+
+    Sampled channel model added. Data format (channel specification) slightly
+    changed. Owing to the introduction of a global repository for XML data
+    snippets (aka the Data Library), the direct data access option for udaemon
+    is now even more pointless than before and has been removed. Note that now,
+    when you start udaemon ahead of the simulator, it will wait for the master
+    socket to come up, so it can get the "geometry" data from the simulator.
+
+PG130214A:	SIDE >= PG130214A
+
+    The sampled channel model now offers the option to specify sigma on a
+    per-distance basis. This is described in the VUEE doc (see page 15).
+
+PG130311A:
+
+    Added an option to udaemon (-R) to invert the y-coordinate in the ROAMER
+    window.
+
+PG130606A:	PICOS >= PG130606A
+
+    dbg_level added to modsyms to make the definitions of dbg_x(...) consistent
+    across program and library files (in VUEE models).
+
+    New service (STOP) added to agent.cc and udaemon to provide for terminating
+    the model from udaemon (on exit). To be documented soon.
+
+PG130724A:	PICOS >= PG130724A
+
+    Matching PICOS PG130724A. You can now switch off CRC calculation/checking
+    for UART_TCV_MODE_N by setting UART_TCV_MODE_NOCHECKSUM to 1.
+
+    Minor fixes in the doc.
+
+PG130822A:
+
+    Made sure that PicOS versions of string functions, notably strncpy are used
+    with praxis files, instead of libc versions.
+
+    Fixed a problem with channel-less models that would cause errors on failed
+    exposures of the non-existent "Ether" channel.
+
+PG131017A:
+
+    The UART model made more flexible. By setting bsize (in XML node data), you
+    can now affect the mailbox size for the UART (not only the [pretty much
+    irrelevant] size of the circular [timing] buffer, as before). By increasing
+    the mailbox size above the previously hardwired 64 bytes, you will greatly
+    improve UART performance for higher rates/volume, which will, e.g., prevent
+    the model from choking up under the strain of a large number of
+    simultaneous events.
+
+    In a nutshell:
+
+	<uart rate="115200" bsize="12,2048">
+	...
+
+    The first number applies to the input end, and the second number applies to     the input end. The above may be a recommended setting for a high rate/high
+    (output) volume scenario. If there is a single number, then it applies to
+    both ends at the same time.
+
+PG131030A:	SIDE >= PG131030A
+
+    The first cut of the neutrino propagation model (read the doc, the blue
+    parts). Tested very superficially, so be careful. I will be testing more in
+    the next few days.
+
+PG131031A:
+
+    Fixed a problem with the neutrino channel model causing SIGSEGV when a node
+    tried to change the transmit power.
+
+    A few cleanups in the doc.
+
+PG131107A:
+
+    If a single buffer length is specified in UART parameters, then that length
+    is applied to both buffers, not just to the input buffer, as before.
+
+    The doc updated and cleaned up a bit.
+
+PG131205A:
+
+    An option (-p) to change the default port number for agent connections.
+    Note that when this option is used, any attempt to change the port number
+    from the data set is void. This is intended to be used by PIP.
+
+PG131212A:
+
+    Fixed udaemon to work with Tcl8.6 (from ActiveState). Cleanups in the
+    document.
+
+PG140109A:	PICOS >= PG140109A
+
+    The E mode of UART PHY included in VUEE. Use mode="e" in the <uart> tag.
+
+PG140119A:	SIDE >= PG140119A
+
+    The sidemon script included. Read SIDEMON.pdf in Doc.
+
+PG140121A:
+
+    The introduction of global "no linger" for SIDE sockets (PG140118A) made it
+    impossible to retrieve the data set by udaemon, if the connection was
+    non-local. I have fixed that by emulating a short linger in the application
+    (i.e., VUEE). The problem concerned one request only (DATA) where VUEE
+    would write the data set to the socket and immediately close it. In all
+    remaining requests, the idea to close the connection (explicit or implicit)
+    always originates in the client, which makes it compatible with no linger
+    (the socket option) on the server's side.
+
+PG140218A:
+
+    Improved the LBT model by introducing one more parameter, tries, to limit
+    the number of LBT attempts. This is in line with the default configuration
+    of the real-life CC1100 driver. By default, the limit is 5. You can use
+    the new third (optional) parameter of <lbt>, e.g.,
+
+	    	<lbt>
+			delay			8msec
+			threshold		-109.0dBm
+			tries			2
+	    	</lbt>
+
+    to change the default. When the number of tries is reached, the packet is
+    unconditionally transmitted without listening to the channel. That is, if
+    tries is 5, the transmitter will back off up to five times and then (after
+    the fifth backoff) transmit the packet without employing the LBT scheme.
+    Note that setting tries to zero is one more way to disable LBT. In fact,
+    it is even stronger, because with LBT disabled by setting delay to zero,
+    still no packet will be transmitted, if a packet is currently being
+    received. On the other hand, when the tries counter reaches zero, the
+    outgoing packet is expedited regardless of the receiver's state.
+
+    Note that in the real-life CC1100 driver, if the channel acquisition still
+    fails with LBT switched off completely, the seventh attempt is forced even
+    if the chip says that it is currently receiving a packet. So perhaps the
+    setting tries = 7 best approximates what happens in real life, although
+    personally, I would recommend to set tries lower than 7 (perhaps the LBT
+    model is still too sensitive).
+
+PG140220A:
+
+    Fixed a bug causing that a disconnected and held EMUL session couldn't be
+    reestablished.
+
+PG140306A:
+
+    Fixed a bug (or rather a collections of bugs) causing
+
+	1. model aborts on undefined UARTs (reversed default)
+	2. model aborts on udaemon connection attempts to absent UARTs
+
+PG140314A:
+
+    Implemented a simple idea of plugins for udaemon's UARTs. Note: first I
+    tried to make them compatible with piter's plugins, but that wasn't as
+    natural as it might seem at first sight.
+
+PG140321A:
+
+    Fixed a bug in agent.cc causing aborts when connecting to a non-existent
+    EMUL module.
+
+PG140406A:	PICOS >= PG140406A
+
+    PicOS header files bma250.h and bmp085.h are now included by the model
+    providing tweaks for accessing sensor specific operations. They can also
+    be used as illustrations how to handle such operations for other sensors.
+	
+PG140414A:
+
+    Fixed a glitch in udaemon rendering plugin output (to the model) incorrect.
+    Cosmetics in board.cc.
+
+PG140416A:
+
+    Node locations can now be specified (alternatively) in a separate
+    <locations> element. When you click in the network dimension in the right
+    bottom corner of the ROAMER window, you will get a dialog to save the
+    current layout of nodes into a file as a <locations> element. That file
+    can be included in the data set, thus making the network layout modifiable
+    in a non-volatile way. See section 4.4.5, 7.6 from the VUEE doc.
+
+PG140418A:
+
+    Fixed a bug in uart_phys causing missing escapes in 'E' mode under heavy
+    traffic to the UART.
+
+    When a node is powered down and its UART is interfaced to a socket, any
+    input from that socket is now absorbed and ignored. Note that this only
+    happens for socket interface (and if the UART is not "timed", which we
+    never use anyway).
+
+    I believe the same now holds for pins and sensors. Note, however, that
+    when you power down a node, its pins are shown as they were before the node
+    went down. I guess I should bring them all down, but there is no consistent
+    reference (and it doesn't even always have to be the case in real life).
+    When you power the node up again, the pins will revert to reset values.
+
+    Is there still any problem with EMUL? I couldn't see any.
+
+PG140423A:
+
+    The agent protocol and udaemon modified to make sure that when a node is
+    powered down, its interface does not continue to work. In most cases, the
+    behavior is natural, e.g., LEDS and PINS go down, LCDG grays out, pin and
+    sensor values cannot be changed, and so on. UART and EMUL windows become
+    gray. The UART behaves as described at PG140418A. The document has been
+    updated.
+
+PG140424A:
+
+    Tips added to udaemon. I mean little snippets of text popping up when you
+    hover the mouse over a widget. This is the first version, anyway. Ideas are
+    welcome.
+
+    A few cosmetic fixes to the agent protocol.
+
+PG140425A:
+
+    Fixed a bug in udaemon causing that node color in ROAMER derived from a
+    LED was sometimes not updated correctly.
+
+    Added tips for the root window.
+
+PG140425B:
+
+    A few more cosmetics related to tips in udaemon.
+
+PG140702A:
+
+    Fixed a bug causing that the "Movable" attribute of some nodes might not
+    be set correctly.
+
+    A few more cosmetics related to tips in udaemon.
+
+PG150514A:	PICOS >= P150514A
+
+    RADIO_OPTION_PXOPTIONS is interpreted in the VUEE's model of the RF driver
+    (see PG150514A in PICOS).
+
+PG150530A:	PICOS >= PG150530A
+
+    Added the F-mode to UART, see PICOS PG150530A. The snapshot tagged for
+    Alphanet 1.5 separation.
+
+PG150611A:	PICOS >= PG150611A
+
+    Renamed UART plugin functions to make it possible to share plugins between
+    piter and udaemon.
+
+PG150612A:
+
+    Fixed udaemon to automatically accept shared_plug.tcl as an alternative
+    standard plugin file name. Updated the doc accordingly.
+
+PG150616A:
+
+    Added maxfree (which was missing). It is a stub which returns memfree and
+    1 chunk, but perhaps better than nothing. It cannot be done right in VUEE
+    without complicating things beyond reasonable.
+
+PG150703A:
+
+    Implemented Windows-style Cut-Copy-Paste for UART and EMUL windows.
+
+PG150705A:
+
+    A few fixes to udaemon. In particular, one more UART window type (plug)
+    is now available. This windows should be selected if you want to use the
+    plugin, otherwise, the plugin is disabled, so you can, e.g., connect to
+    the window an external device, without the plugin being in the way.
+
+PG150706A:
+
+    For a virtual UART connected to a real COM port, udaemon now shows (in hex)
+    both streams of data, i.e., input as well as output, rather than merely
+    output, as before.
+
+PG151023A:
+
+    The right-click menu in UART and EMUL now includes Clear to erase the
+    window. I like this better than a separate button which would take up
+    space.
+
+    A minor and irrelevant fix in board.cc.
+
+PG151025A:	PICOS >= PG151025A
+
+    I have extended the <lbt> specification in the data set to provide for
+    multiple thresholds corresponding to the way LBT is handled in the
+    real-life CC1100 driver. The specification is a bit clumsy, because I
+    wanted to avoid looking up and modifying all old data sets. So it is
+    downward compatible with the old sets.
+
+PG151204A:
+
+    Fixed a bug in udaemon causing that the initial "off" status of a node
+    wasn't reflected correctly in the node's color.
+
+PG160124A:	PICOS >= PG160124A, SIDE >= PG160124A, PIP >= PG1601224A
+
+    Added the 3d option. RTFM (the red bits). Also, you may want to look at
+    the Alpha setup model in locaspot (with the present project VUEE config).
+
+PG160310A:	PICOS >= PG160310A
+
+	
+    A few symbols shared between PICOS and VUEE integrated into modsyms.h.
+
+PG160318A:
+
+    Entropy handling fixed. Entropy is now properly collected in the model.
+
+PG160602A:
+
+    Fixed a bug in udaemon introduced by my seemingly innocent attempt at
+    optimizing some arithmetic expressions (around PG160124A) and causing
+    that sensor status (as perceived by udaemon) wasn't updated correctly.
+
+PG160704A:	SIDE >= PG160704A, PICOS >= PG160704A
+
+    The sampled channel model redone. The doc updated. Fixed a bug in udaemon
+    causing that new node coordinates entered via a node's popup window were
+    not conveyed to the simulator until the node was subsequently moved with
+    the mouse.
+
+PG160721A:	PICOS >= PG160721B
+
+    Added CC2420 to the model. It is pretty equivalent to CC1100 except for
+    the larger maximum packet length.
+
+PG170312A:	PICOS >= PG170312A
+
+    Compatibility mods for CC1350.
+
+PG170413A:
+
+    Added the new operation setpowermode replacing powerup and powerdown.
+
+PG170812A:
+
+    Fixed udaemon to prevent attempts to move non-movable nodes.
+
+PG170818A:	PICOS >= PG170818A
+
+    See PG170818A in PICOS.
+
+PG170906A:	PICOS >= PG170906A
+
+    Added the new "standard" type wint (see PICOS).
+
+    Removed the call macro and replaced with a picomp-generated sequence (also
+    see PICOMP).
+
+PG171029A:	SIDE >= PG171029A
+
+    Mandatory cosmetics required for compatibility with new overloads of
+    signal (for Process and Monitor) in SMURPH/SIDE. A couple of other
+    (important) cosmetics thrown in.
+
+PG180504A:	SIDE >= PG180504A
+
+    SIR values in the sir-to-ber array in the generic wchan.h/wchan.cc model
+    in SMURPH are now specified in dB, rather than linearly. This requires a
+    matching update in VUEE, so here it is.
+
+PG190129A:
+
+    Fixed the reference to setTRate (to setXRate) to match the recent
+    "cosmetic" change in SMURPH/SIDE.
+
+    The node menu that pops up in udaemon's roamer window now allows you to
+    power the node up and down, as well as to reset it.
+
+PG191108A:
+
+    Fixed mklinks/rmlinks to cover hdc1000 and opt3001 needed for CC1350.
+
+PG200109A:	PICOS >= PG200109A
+
+    Added PHYSOPT_REVOKE to rfmodule, to mirror the change in PicOS.
+
+PG200111A:
+
+    Fixed a bug in processing the input to the shadowing channel model causing
+    that the SIR-to-BER table was truncated sometimes. The shadowing model
+    hasn't been used in a while.
+
+PG200127A:
+
+    It is now possible to declare groups of nodes to be easily controlled
+    en bloc from the PANEL, e.g., you can switch them all on, off, and reset
+    with a single click.
+
+    Cleaned up the mess with inheriting node defaults when both board defaults
+    and in-data defaults were available.
+
+PG200509A:
+
+    A few functions were not returning the status properly. By tradition that
+    status was always ignored, so nobody cared. These days gcc/g++ complains
+    about non-void functions returning no values.
+
+PG200926A:
+
+    Extended the LBT specification for the wireless interface to provide for a
+    one-shot, zero LBT option which I am going to use for experiments. This
+    doesn't affect previous models. A few additional cosmetics in rfmodule.
+
+PG201004A:
+
+    Added a standard copyright notice in front of every source file. A few
+    updates to the documentation.
+
+PG210804A:	PICOS >= PG210804A
+
+    Button interface (the button_down function was missing). A few other minor
+    cleanups.
+
+    Made the RF headers in PicOS usable by VUEE.
+
+    Irrelevant cosmetics.
+
+PG231206A:
+
+    Fixed a race condition in RM_ADC in rfmodule.cc and a bug in PXOPTIONS
+    power setting (introduced with 200926A). Fixed a minor bug in udaemon.
+    A few cosmetics.
+
+PG240421A:	SIDE >= PG240421A
+
+	Cooked option added to RFSampled. This option is selected by setting
+	sthreshold to 1 (this value was previously illegal)
+
+PG240621A:
+
+	Settable power offset added to node attributes to define node-specific
+	power bias to the radio module.
+	Doc updated accordingly.
