@@ -1,1 +1,0 @@
-../../PICOS/PicOS/CC13XX/cc1350.h

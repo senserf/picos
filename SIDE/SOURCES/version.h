@@ -164,10 +164,10 @@ typedef void (*SIGARG) (int);
 
 /* The following defs are inserted by maker. Everything starting with the */
 /* next line will be removed and written from scratch.                    */
-#define  ZZ_SOURCES      "/home/mini/LOCAL/SOFTWARE/SIDE/SOURCES"
-#define  ZZ_LIBPATH      "/home/mini/LOCAL/SOFTWARE/SIDE/LIB"
-#define  ZZ_INCPATH      "-I /home/mini/LOCAL/SOFTWARE/SIDE/Examples/IncLib -I /home/mini/LOCAL/SOFTWARE/VUEE/PICOS"
-#define  ZZ_XINCPAT      {"/home/mini/LOCAL/SOFTWARE/PICOS/Apps/DataLib", NULL}
+#define  ZZ_SOURCES      "/home/mini/LOCAL/SOFTWARE/PICOS/SIDE/SOURCES"
+#define  ZZ_LIBPATH      "/home/mini/LOCAL/SOFTWARE/PICOS/SIDE/LIB"
+#define  ZZ_INCPATH      "-I /home/mini/LOCAL/SOFTWARE/PICOS/SIDE/Examples/IncLib -I /home/mini/LOCAL/SOFTWARE/PICOS/VUEE/PICOS"
+#define  ZZ_XINCPAT      {"/home/mini/LOCAL/SOFTWARE/PICOS/PICOS/Apps/DataLib", NULL}
 #define  ZZ_MONHOST      "localhost"
 #define  ZZ_MONSOCK      4442
 #define  ZZ_RTAG	"PG240621A"

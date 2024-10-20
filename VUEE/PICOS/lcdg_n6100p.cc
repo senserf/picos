@@ -1,1 +1,0 @@
-../../PICOS/PicOS/PLibs/LCD/lcdg_n6100p.c

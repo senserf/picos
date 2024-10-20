@@ -271,7 +271,9 @@ void highlight_set (lword color, double duration, const char *fmt, ...) {
 	highlight_supplement_t *vp;
 	char *lb;
 
-	if (fmt != "" ) {
+	if (fmt && fmt != "" ) {
+		// 241020: added 'fmt' as the first part of the condition; I have no clue why
+		// it worked before with the fmt argument equal NULL
 		va_start (ap, fmt);
 		lb = ::vform (fmt, ap);
 	} else
@@ -3979,7 +3981,7 @@ void MoveHandler::fill_buffer (Long NN, char cmd) {
 #endif
 	char cp [MAX_PINS+1];
 	char cl [MAX_LEDS+2];
-	char ch [8];
+	char ch [10];
 	char *lb, *sg;
 
 	pn = (PicOSNode*) idToStation (NN);
