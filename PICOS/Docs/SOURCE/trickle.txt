@@ -1,0 +1,49 @@
+Application: dissemination of knowledge.
+
+Packets are globally broadcast, i.e., never directed to specific destinations.
+
+Nodes periodically, albeit irregularly, broadcast their data (as in hello messages or beacons). The rate is (dynamically, automatically, and quite trivially - see below) adjusted as to try to maintain something like a per-neighborhood, constant rate regardless of the local density of nodes.
+
+A node may learn that an update is needed in the neighborhood in one of two ways:
+
+1. having received a packet indicating that a neighbor has obsolete data
+
+2. having received a packet indicating that a neighbor has newer data
+
+Both cases fall under the same label (event) which we will call ID (inconsistent data). In the latter case, the node will absorb the neighbor's data. In the former case, it will know that the neighbor needs an update. The third case (and second event type) is receiving a beacon with consistent (same) data (SD).
+
+There is some minimum rate at which a node will broadcast its beacon. Say, a detached (orphaned) node will send its beacon at that rate. One way of looking at the goal of this simple scheme is to try to maintain the same rate of one beacon in the neighborhood regardless of the neighborhood's density.
+
+Each node maintains:
+
+- a counter C
+- a timer T
+- a threshold K
+
+The timer is basically a settable alarm clock within some range [0, D], where D is some global parameter representing the target per-neighborhood rate. Like, in our case, it would be the master beacon rate. Also note that in our case, a node becoming the new master is (also) a source of new data. So ID events can materialize internally, not only by receiving packets from the neighborhood.
+
+Node algorithm (same for all nodes, including the master):
+
+Start:
+
+Set the timer T = rnd (D/2, D) and C = 0
+
+When the timer T goes off:
+
+	if (C < K) send beacon;
+	
+	Set the timer for D-T (to monitor D intervals);
+
+When the D timer goes off AND ALSO upon ID event:
+
+	goto Start;
+	
+Upon SD event:
+
+	C++;
+	
+
+	
+A natural option:
+
+Increasing (doubling) D up to a Dmax, if nothing happened within previous D, and resetting back to Dmin on ID event. This way Dmax becomes the target master beacon rate, while Dmin is the update interval for disseminating changes whose role is to speed up the notifications while eliminating broadcast storms.

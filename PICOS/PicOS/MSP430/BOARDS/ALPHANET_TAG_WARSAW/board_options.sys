@@ -1,0 +1,42 @@
+#define	MALLOC_SINGLEPOOL	1
+#define DIAG_MESSAGES		0
+
+#define	TCV_PRESENT		1
+#define	TCV_TIMERS		0
+#define	TCV_HOOKS		0
+
+#define	CODE_LONG_INTS		1	/* 'ld' 'lu' 'lx' in formats */
+
+#define	MALLOC_SAFE		1
+#define	MALLOC_STATS		1
+#define STACK_GUARD		1
+
+#define	RANDOM_NUMBER_GENERATOR	2
+#define ENTROPY_COLLECTION	1
+
+#define LEDS_DRIVER		1
+#define LEDS_BLINKING		1
+
+#define UART_DRIVER		0
+
+#define	RADIO_USE_LEDS		7
+
+#define CC1100			1
+
+#define CRYSTAL_RATE		32768
+//#define	CRYSTAL2_RATE		6000000
+
+#define STORAGE_AT45XXX		0
+#define	STORAGE_SDCARD		0
+#define	INFO_FLASH		1
+
+#define RESET_ON_SYSERR		1
+#define RESET_ON_MALLOC		1
+
+// 868 MHz adjusted for the discrepancy noted in Alphatronics boards
+#define	CC1100_FREQ_FREQ2_VALUE	0x21
+#define	CC1100_FREQ_FREQ1_VALUE	0x62
+#define	CC1100_FREQ_FREQ0_VALUE	0xC2
+
+// RF rate = 38400
+#define	RADIO_DEFAULT_BITRATE	2

@@ -1,0 +1,22 @@
+D A R Z Z P P P C C C C C C C C
+l [mindel [maxdel [minpl [maxpl [ackto]]]]]
+s [ncount [Burgent [PMSrxofftime [PMSpredelay]]]] - START SND
+q STOP SND
+g RECEIVER ON
+f [Bwor] RECEIVER OFF
+r [Bclear] REPORT
+c CLEAR STATS
+v [0,1,2,3] VERBOSE off, out, inc, both
+n EQUIV v 0
+d POWER DOWN MODE
+u POWER UP MODE
+p xp SET XMIT POWER (0-7)
+S node REMOTE COMMAND
+
+P PMSinterval cmd REPEAT COMMAND AT INTERVAL
+Q CANCEL P
+
+m reg val ... MODIFY REGS (POWER LEVELS ON CC1350)
+w ... MODIFY WOR
+t PATABLE STATS
+

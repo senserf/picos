@@ -1,0 +1,28 @@
+#define	STORAGE_MX25R8035	1
+#define	MALLOC_SINGLEPOOL	1
+
+#ifndef DIAG_MESSAGES
+#define DIAG_MESSAGES		0
+#endif
+
+#define	TCV_PRESENT		1
+#define	TCV_TIMERS		0
+#define	TCV_HOOKS		0
+#define	CODE_LONG_INTS		1	/* 'ld' 'lu' 'lx' in formats */
+#define	MALLOC_SAFE		1
+#define	MALLOC_STATS		1
+#define	STACK_SIZE		1024	/* This is in bytes */
+#define STACK_GUARD		1
+#define ENTROPY_COLLECTION	1
+#define	RANDOM_NUMBER_GENERATOR	2
+
+#define LEDS_DRIVER		1
+#define LEDS_BLINKING		1
+
+#define UART_DRIVER		0
+#define UART_TCV		1
+#define UART_RATE		115200
+#define	UART_RATE_SETTABLE	0
+
+// The radio
+#define	CC1350_RF		1
