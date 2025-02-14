@@ -876,7 +876,7 @@ static int rfm_option (int opt, address val) {
 
 	    case PHYSOPT_GETRATE:
 
-		ret = Ether->tagToRI (rfi->getTag ());
+		ret = RF_TAG_GET_RINDEX (rfi->getTag ());
 		if (val != NULL)
 			*val = ret;
 		break;
@@ -895,7 +895,7 @@ static int rfm_option (int opt, address val) {
 
 	    case PHYSOPT_GETCHANNEL:
 
-		ret = Ether->tagToCh (rfi->getTag ());
+		ret = RF_TAG_GET_CHANNEL (rfi->getTag ());
 		if (val != NULL)
 			*val = ret;
 		break;

@@ -113,15 +113,17 @@ void hdc1000_on (word wmode) {
 // #define	HDC1000_MODE_HR11	0x0100
 // #define	HDC1000_MODE_HR8	0x0200
 //
-	if (hstatus)
+	if (hstatus == 0)
+		// We are powered down
 		hdc1000_bring_up;
 
-	if ((hstatus = wmode & 0x3) == 0)
-		// The default
+	if ((hstatus = (wmode & (HDC1000_STATUS_HUMID | HDC1000_STATUS_TEMP))) == 0)
+		// None selected, humidity selected by default; note that hstatus is
+		// never zero after 'on', so it can be used as a flag to tell we are on
 		hstatus = HDC1000_STATUS_HUMID;
 
 	wmode &= 0x2700;
-	if (hstatus == 3)
+	if (hstatus == (HDC1000_STATUS_HUMID | HDC1000_STATUS_TEMP))
 		// Both
 		wmode |= HDC1000_MODE_BOTH;
 
@@ -143,17 +145,17 @@ void hdc1000_read (word st, const byte *junk, address val) {
 	byte select;
 	sint nw;
 
-	if ((select = hstatus & 0x03) == 0)
+	if ((select = (hstatus & (HDC1000_STATUS_HUMID | HDC1000_STATUS_TEMP))) ==
+		0)
 		// Off
 		return;
 
 	// Data length 1 or 2
-	nw = (select == 3) ? 2 : 1;
-
+	nw = (select == (HDC1000_STATUS_HUMID | HDC1000_STATUS_TEMP)) ? 2 : 1;
 	if ((hstatus & HDC1000_STATUS_PENDING) == 0) {
 		// Have to start it
-		start_measurement ((select == 1) ? HDC1000_REG_HUMID :
-			HDC1000_REG_TEMP);
+		start_measurement ((select == HDC1000_STATUS_HUMID) ?
+			HDC1000_REG_HUMID : HDC1000_REG_TEMP);
 		hstatus |= HDC1000_STATUS_PENDING;
 		if (st != WNONE) {
 			// Safe conversion time
@@ -164,7 +166,7 @@ void hdc1000_read (word st, const byte *junk, address val) {
 	}
 
 	// Try it
-	while (get_data (val, nw)) {
+	while (get_data (val, nw)) { 
 		// Still busy
 		if (st != WNONE) {
 			delay (1, st);
@@ -178,8 +180,9 @@ void hdc1000_read (word st, const byte *junk, address val) {
 	nw--;
 	if (select & 1)
 		// Convert humid to tenths of percent
-		val [nw] = (word)(((lint) (val [nw]) * 10000) / 0x10000);
-	if (select & 2)
+		val [nw] = (word)(((lint) (val [nw]) * 1000) / 0x10000);
+	if (select & 2) {
 		// Convert temp to tenths of degrees
 		val [0] = (word)((((lint) (val [0]) * 1650) / 0x10000) - 400);
+	}
 }

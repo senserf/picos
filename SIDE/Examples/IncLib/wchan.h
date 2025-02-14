@@ -29,11 +29,38 @@
 #define	trc(a, ...)
 #endif
 
-// Standard indexes into the XVMapper table
-#define	XVMAP_RATES	0
+// Standard indexes into the XVMapper table; we keep here the tally of all
+// entries over all channel types
+#define	XVMAP_RATES		0
 #define	XVMAP_RBOOST	1
-#define	XVMAP_RSSI	2
-#define	XVMAP_PS	3
+#define	XVMAP_RSSI		2
+#define	XVMAP_PS		3
+#define	XVMAPP_ATT		4
+#define	XVMAP_SIGMA		5
+#define	XVMAP_MODE		6	// Not used yet
+#define	XVMAP_SIZE		7
+
+// ===========================================================================
+// PG 250214
+// The partitioning of the Tag values:
+//		bits  0- 7:	channel
+//		bits  8-15:	rate index
+//		bits 16-24:	mode (position)
+
+#define RF_MAX_N_CHANNELS	256
+#define	RF_MAX_N_RATES		256
+#define	RF_MAX_N_MODES		256
+
+#define	RF_TAG_GET_CHANNEL(tag)	((tag) & 0xff)
+#define	RF_TAG_GET_RINDEX(tag)	(((tag) >> 8) & 0xff)
+#define	RF_TAG_GET_MODE(tag)	(((tag) >> 16) & 0xff)
+
+#define	RF_TAG_SET_CHANNEL(tag,v)	(((tag) & ~0xff) | (RF_TAG_TYPE)(v))
+#define	RF_TAG_SET_RINDEX(tag,v)	(((tag) & ~0xff00) | \
+													((RF_TAG_TYPE)(v) << 8))
+#define	RF_TAG_SET_MODE(tag,v)		(((tag) & ~0xff0000) | \
+													((RF_TAG_TYPE)(v) << 16))
+// ===========================================================================
 
 typedef struct {
 	// This structure represents a single entry mapping SIR (Signal to
@@ -315,20 +342,10 @@ rfchannel RadioChannel {
 
 	double ber (double);		// Converts SIR to BER
 
-	inline unsigned short tagToCh (IPointer tag) {
-		// Tag to channel number
-		return (unsigned short) (tag & 0xffff);
-	};
-
-	inline unsigned short tagToRI (IPointer tag) {
-		// Tag to rate index
-		return (unsigned short) ((tag >> 16) & 0xffff);
-	};
-
-	inline double rateBoost (IPointer tag) {
+	inline double rateBoost (RF_TAG_TYPE tag) {
 		// Rate-index-specific boost for BER assessment
 		return RBoost == NULL ? 1.0 :
-			RBoost->setvalue ((unsigned short) (tag >> 16));
+			RBoost->setvalue (RF_TAG_GET_RINDEX (tag));
 	};
 
 	void setup (

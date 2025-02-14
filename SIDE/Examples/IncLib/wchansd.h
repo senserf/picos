@@ -26,10 +26,6 @@
 #define	RFSMPL_HASHSIZE		8192
 #define	RFSMPL_HASHMASK		(RFSMPL_HASHSIZE - 1)
 
-// Indexes into the XVMapper table
-#define	XVMAP_ATT		4
-#define	XVMAP_SIGMA		5
-
 // ============================================================================
 
 typedef	struct {

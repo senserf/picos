@@ -36,9 +36,9 @@ double RFShadow::RFC_add (int n, int own, const SLEntry **sl,
 	double tsl;
 
 	if ((tsl = xmt->Level) != 0.0)
-		tsl *= Channels->ifactor (tagToCh (TheTransceiver->getRTag ()),
-			tagToCh (TheTransceiver->getXTag ()));
-
+		tsl *= Channels->ifactor (RF_TAG_GET_CHANNEL (
+			TheTransceiver->getRTag ()),
+				RF_TAG_GET_CHANNEL (TheTransceiver->getXTag ()));
 	while (n--)
 		if (n != own)
 			tsl += sl [n] -> Level;
@@ -56,8 +56,8 @@ double RFShadow::RFC_att (const SLEntry *xp, double d, Transceiver *src) {
 	double res;
 
 	// Channel crosstalk
-	res = Channels->ifactor (tagToCh (xp->Tag),
-		tagToCh (TheTransceiver->getRTag ()));
+	res = Channels->ifactor (RF_TAG_GET_CHANNEL (xp->Tag),
+		RF_TAG_GET_CHANNEL (TheTransceiver->getRTag ()));
 	trc ("RFC_att (ct) = %g [%08x %08x]", res, xp->Tag,
 		TheTransceiver->getRTag ());
 

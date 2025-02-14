@@ -324,7 +324,7 @@ Opened:
 }
 
 // ============================================================================
-	
+
 void RFSampled::setup (
 
 	Long nt,		// The number of transceivers
@@ -554,8 +554,9 @@ double RFSampled::RFC_add (int n, int own, const SLEntry **sl,
 	double tsl;
 
 	if ((tsl = xmt->Level) != 0.0)
-		tsl *= Channels->ifactor (tagToCh (TheTransceiver->getRTag ()),
-			tagToCh (TheTransceiver->getXTag ()));
+		tsl *= Channels->ifactor (RF_TAG_GET_CHANNEL (
+			TheTransceiver->getRTag ()),
+				RF_TAG_GET_CHANNEL (TheTransceiver->getXTag ()));
 
 	while (n--)
 		if (n != own)
@@ -570,8 +571,8 @@ double RFSampled::RFC_att (const SLEntry *xp, double d, Transceiver *src) {
 	unsigned short pow, cha;
 
 	// Channel crosstalk
-	res = Channels->ifactor (cha = tagToCh (xp->Tag),
-		tagToCh (TheTransceiver->getRTag ()));
+	res = Channels->ifactor (cha = RF_TAG_GET_CHANNEL (xp->Tag),
+		RF_TAG_GET_CHANNEL (TheTransceiver->getRTag ()));
 	trc ("RFC_att (ct) = %g [%08x %08x]", res, xp->Tag,
 		TheTransceiver->getRTag ());
 

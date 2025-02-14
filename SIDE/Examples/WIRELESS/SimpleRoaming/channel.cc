@@ -29,7 +29,7 @@ void initChannel (Long &NS, Long &PRE) {
 	double g, psir, pber, BN, AL, Beta, RD, Sigma, LossRD, COFF;
 	sir_to_ber_t *STB;
 	int i;
-	IVMapper *ivc [4];
+	IVMapper *ivc [XVMAP_SIZE] = {};
 	unsigned short rix;
 
 	// Grid: the granularity of position data.
@@ -119,7 +119,6 @@ void initChannel (Long &NS, Long &PRE) {
 	rix = 0;
 	g = (double) BitRate;
 	ivc [0] = new IVMapper (1, &rix, &g);
-	ivc [1] = ivc [2] = ivc [3] = NULL;
 
 	create RFShadow (NS, STB, STBL, RD, LossRD, Beta, Sigma, BN, AL, COFF,
 		MPR, BPB, EFB, ivc, NULL, NULL);

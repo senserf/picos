@@ -552,7 +552,7 @@ void rfm_intd_t::setrfrate (word ix) {
 
 	rate = m->setvalue (ix);
 	RFInterface->setXRate ((RATE) round ((double)etuToItu (1.0) / rate));
-	RFInterface->setTag ((RFInterface->getTag () & 0xffff) | (ix << 16));
+	RFInterface->setTag (RF_TAG_SET_RINDEX (RFInterface->getTag (), ix));
 }
 
 void rfm_intd_t::setrfchan (word ch) {
@@ -564,8 +564,7 @@ void rfm_intd_t::setrfchan (word ch) {
 	m = Ether -> Channels;
 
 	assert (ch <= m->max (), "RFInt->setrfchan: illegal channel %1d", ch);
-
-	RFInterface->setTag ((RFInterface->getTag () & ~0xffff) | ch);
+	RFInterface->setTag (RF_TAG_SET_CHANNEL (RFInterface->getTag (), ch));
 }
 
 void rfm_intd_t::abort () {
@@ -1672,7 +1671,7 @@ int BoardRoot::initChannel (sxml_t data, int NN, Boolean nc) {
 	sxml_t prp, cur;
 	sir_to_ber_t	*STB;	// SIR to BER table
 	int		NB;	// Number of entries in SIR to BER
-	IVMapper	*ivc [6];
+	IVMapper	*ivc [XVMAP_SIZE] = {};
 	MXChannels	*mxc;
 	word wn, *wt;
 	Boolean rmo, symm;
@@ -1686,8 +1685,8 @@ int BoardRoot::initChannel (sxml_t data, int NN, Boolean nc) {
 
 	sptypes (np, TYPE_double);
 
-	// Preset this to NULL
-	memset (ivc, 0, sizeof (ivc));
+	// Preset this to NULL (not needed anymore, see init above)
+	// memset (ivc, 0, sizeof (ivc));
 
 	if ((data = sxml_child (data, "channel")) == NULL) {
 		if (nc)
