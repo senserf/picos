@@ -1441,3 +1441,8 @@ PG240621A:
 	Settable power offset added to node attributes to define node-specific
 	power bias to the radio module.
 	Doc updated accordingly.
+
+PG250505A:
+
+	A few cleanups and additions, e.g., matching the mods in SIDE channel
+	models.

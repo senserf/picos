@@ -474,6 +474,7 @@ rfm_intd_t::rfm_intd_t (const data_no_t *nd) {
 	rfmc.DefRPower   = dBToLin (rf->Boost);		// Value in dB
 	rfmc.DefRate     = rf->Rate;			// Index
 	rfmc.DefChannel  = rf->Channel;
+	rfmc.DefMode	 = rf->Mode;
 
 	// trace ("strpool cpars");
 	cpars = (rfm_const_t*) find_strpool ((const byte*)&rfmc,
@@ -491,6 +492,7 @@ rfm_intd_t::rfm_intd_t (const data_no_t *nd) {
 						   );
 	setrfrate (cpars->DefRate);
 	setrfchan (cpars->DefChannel);
+	setrfmode (cpars->DefMode);
 
 	Ether->connect (RFInterface);
 
@@ -507,6 +509,7 @@ void rfm_intd_t::init () {
 
 	setrfrate (cpars->DefRate);
 	setrfchan (cpars->DefChannel);
+	setrfmode (cpars->DefMode);
 	
 	statid = 0;
 
@@ -552,7 +555,8 @@ void rfm_intd_t::setrfrate (word ix) {
 
 	rate = m->setvalue (ix);
 	RFInterface->setXRate ((RATE) round ((double)etuToItu (1.0) / rate));
-	RFInterface->setTag (RF_TAG_SET_RINDEX (RFInterface->getTag (), ix));
+	Ether->set_r_rindex (RFInterface, ix);
+	Ether->set_x_rindex (RFInterface, ix);
 }
 
 void rfm_intd_t::setrfchan (word ch) {
@@ -564,7 +568,24 @@ void rfm_intd_t::setrfchan (word ch) {
 	m = Ether -> Channels;
 
 	assert (ch <= m->max (), "RFInt->setrfchan: illegal channel %1d", ch);
-	RFInterface->setTag (RF_TAG_SET_CHANNEL (RFInterface->getTag (), ch));
+	Ether->set_r_channel (RFInterface, ch);
+	// 250216: previously we would set only RX (!)
+	Ether->set_x_channel (RFInterface, ch);
+}
+
+void rfm_intd_t::setrfmode (word mo) {
+//
+// Set the mode
+//
+	DVNdexer *m;
+
+	if ((m = Ether->Modes) == NULL)
+		// Can be absent
+		return;
+
+	assert (mo < m->size (), "RFInt->setrfchan: illegal mode %1d", mo);
+	Ether->set_r_mode (RFInterface, mo);
+	Ether->set_x_mode (RFInterface, mo);
 }
 
 void rfm_intd_t::abort () {
@@ -1667,8 +1688,8 @@ int BoardRoot::initChannel (sxml_t data, int NN, Boolean nc) {
 	const char *sfname, *att, *xnam;
 	double bn_db, beta, dref, sigm, loss_db, psir, pber, cutoff;
 	nparse_t np [NPTABLE_SIZE];
-	int K, nr, i, j, syncbits, bpb, frml;
-	sxml_t prp, cur;
+	int K, nr, i, j, syncbits, bpb, frml, rnd_off;
+	sxml_t prp, mds, cur;
 	sir_to_ber_t	*STB;	// SIR to BER table
 	int		NB;	// Number of entries in SIR to BER
 	IVMapper	*ivc [XVMAP_SIZE] = {};
@@ -1714,6 +1735,25 @@ int BoardRoot::initChannel (sxml_t data, int NN, Boolean nc) {
 	else
 		xeai ("type", "<propagation>", att);
 
+	// Assume that <modes> is generic; we may want to use it in SHADOWING
+	// as well as in SAMPLED; it is optional, anyway
+	if ((mds = sxml_child (data, "modes"))) {
+		// Not null; this is just a bunch of values in dB; their count
+		// determines the number of modes; np types set to double
+		nr = parseNumbers (sxml_txt (mds), NPTABLE_SIZE, np);
+		if (nr > RF_MAX_N_MODES)
+			excptn ("Root: too many <modes>, %1d is the max", RF_MAX_N_MODES);
+		if (nr == 0)
+			excptn ("Root: empty <modes> illegal");
+		dta = new double [nr];
+		for (j = 0; j < nr; j++) {
+			// Specified in dB, stored as linear
+			dta [j] = dBToLin (np [j] . DVal);
+		}
+		// If this is null, it means there are no modes
+		ivc [XVMAP_MODES] = (IVMapper*) new DVNdexer (nr, dta);
+	}
+
 	if (__pi_channel_type != CTYPE_NEUTRINO) {
 
 		// Some "common" attributes are ignored for neutrino type
@@ -1722,6 +1762,17 @@ int BoardRoot::initChannel (sxml_t data, int NN, Boolean nc) {
 		if (__pi_channel_type == CTYPE_SAMPLED)
 			// We need this one in advance, can be NULL
 			sfname = sxml_attr (prp, "samples");
+
+		// The rndoff kludge
+		rnd_off = 0;
+		if ((att = sxml_attr (data, "rndoff")) != NULL) {
+			// This must be an integer
+			np [0].type = TYPE_int;
+			if (parseNumbers (att, 1, np) != 1)
+				xeai ("rndoff", "<channel>", att);
+			rnd_off = np [0].IVal;
+			np [0].type = TYPE_double;
+		}
 
 		bn_db = -HUGE;
 		// The default value for background noise translating into
@@ -1746,6 +1797,7 @@ int BoardRoot::initChannel (sxml_t data, int NN, Boolean nc) {
 			xenf ("<ber>", "<channel>");
 
 		att = sxml_txt (cur);
+
 		NB = parseNumbers (att, NPTABLE_SIZE, np);
 		if (NB > NPTABLE_SIZE)
 			excptn ("Root: <ber> table too large, "
@@ -1991,7 +2043,7 @@ PTErr3:
 							dtb [i], i,
 							dtb [i - 1], i - 1);
 				    }
-			        }
+				}
 			}
 
 			ivc [XVMAP_SIGMA] =
@@ -2211,6 +2263,10 @@ RVErr:
 				mxc, NULL);
 	else if (__pi_channel_type == CTYPE_NEUTRINO)
 		create RFNeutrino (NN, dref, bpb, frml, ivc, mxc);
+
+	if (rnd_off)
+		// derandomize
+		Ether->rndoff (rnd_off);
 
 	// Packet cleaner
 	Ether->setPacketCleaner (packetCleaner);
@@ -3019,7 +3075,7 @@ data_no_t *BoardRoot::readNodeParams (sxml_t data, int nn, const char *lab,
 
 		RF = ND->rf = new data_rf_t;
 		RF->Boost = RF->POffset = HUGE;
-		RF->Power = RF->Rate = RF->Channel = RF->Pre = RF->LBTDel =
+		RF->Power = RF->Rate = RF->Channel = RF->Mode = RF->Pre = RF->LBTDel =
 			RF->BCMin = RF->BCMax = WNONE;
 		// LBTDel == WNONE implies that LBTThs is irrelevant
 		RF->LBTThs = NULL;
@@ -3092,6 +3148,22 @@ data_no_t *BoardRoot::readNodeParams (sxml_t data, int nn, const char *lab,
 					"illegal (see <channel><channels>)",
 						RF->Channel, xname (nn, lab));
 			print (form ("  Channel:    %1d\n", RF->Channel));
+			RF->absent = NO;
+		}
+
+		/* MODE */
+		if ((cur = sxml_child (mai, "mode")) != NULL) {
+			if (parseNumbers (sxml_txt (cur), 1, np) != 1)
+				xesi ("<channel>", xname (nn, lab));
+			RF->Channel = (word) (np [0].LVal);
+			// Check if the mode number is legit
+			if (Ether->Modes == NULL)
+				excptn ("Root: 'mode' illegal for this channel type");
+			if (Ether->Modes->size () < RF->Mode) 
+				excptn ("Root: mode %1d (in %s) is "
+					"illegal (see <channel><modes>)",
+						RF->Mode, xname (nn, lab));
+			print (form ("  Mode:       %1d\n", RF->Mode));
 			RF->absent = NO;
 		}
 
@@ -4800,6 +4872,9 @@ void BoardRoot::initNodes (sxml_t data, int NT, int NN, const char *BDLB [],
 			if (NRF->Channel == WNONE)
 				NRF->Channel = DRF->Channel;
 
+			if (NRF->Mode == WNONE)
+				NRF->Mode = DRF->Mode;
+
 			if (NRF->BCMin == WNONE) {
 				NRF->BCMin = DRF->BCMin;
 				NRF->BCMax = DRF->BCMax;
@@ -4977,6 +5052,9 @@ void BoardRoot::initNodes (sxml_t data, int NT, int NN, const char *BDLB [],
 			if (NRF->Channel == WNONE)
 				// And so does this
 				NRF->Channel = 0;
+
+			if (NRF->Mode == WNONE)
+				NRF->Mode = 0;
 
 			if (NRF->BCMin == WNONE) 
 				excptn ("Root: backoff for node %1d is "

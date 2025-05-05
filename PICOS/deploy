@@ -33,6 +33,16 @@ if [catch { exec uname } ST(SYS)] {
 set TCLVER [info tclversion]
 set TCL85 [list "85" "86" "8.5" "8.6"]
 
+if { [string first "-l" $argv] >= 0 } {
+	puts "=================================================================="
+	puts "The -l option no longer works; native Tcl is used for all scripts!"
+	puts "=================================================================="
+}
+
+set TCL85 ""
+
+### dead code ###
+if 0 {
 if { 1 || $ST(SYS) == "L" } {
 	if { [string first "-l" $argv] < 0 && $TCLVER >= 8.5 } {
 		set TCL85 ""
@@ -48,6 +58,8 @@ if { $TCL85 == "" } {
 	puts "Using native Tcl (version $TCLVER) for all scripts!"
 	puts "==============================================="
 }
+}
+### end dead code ###
 
 ###############################################################################
 

@@ -904,3 +904,7 @@ PG240621A:
 	setBN added to RadioChannel to set/modify the background noise level.
 	-s added to mks to compile statically-linked executable of the siulator.
 
+PG250505A:
+
+	A few modifications to the sampled channel model. For example, sampled
+	attenuation is now determined from 4 closest samples rather than all.

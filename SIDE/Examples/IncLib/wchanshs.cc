@@ -60,8 +60,7 @@ double RFShadow::RFC_att (const SLEntry *xp, double d, Transceiver *src) {
 	if (d < RDist)
 		d = RDist;
 
-	res = xp->Level * LFac * dBToLin (dRndGauss (0.0, Sigma)) *
-		pow (d, NBeta);
+	res = xp->Level * LFac * dBToLin (dgauss (Sigma)) * pow (d, NBeta);
 
 	if (gain)
 		res *= gain (src, TheTransceiver);
@@ -108,7 +107,7 @@ Long RFShadow::RFC_erb (RATE tr, const SLEntry *sl, const SLEntry *rs,
 
 	trc ("RFC_erb (sl) = %g", sl->Level);
 	res = (ir == 0.0) ? 0 :
-		lRndBinomial (ber ((sl->Level * rs->Level) / ir), nb);
+		lbinomial (ber ((sl->Level * rs->Level) / ir), nb);
 
 	trc ("RFC_erb (nb) = %1d/%1d", res, nb);
 	return res;
@@ -134,7 +133,7 @@ Long RFShadow::RFC_erd (RATE tr, const SLEntry *sl, const SLEntry *rs,
 	er = ber ((sl->Level * rs->Level) / ir);
 	trc ("RFC_erd (be) = %g", er);
 
-	er = dRndPoisson (1.0/er);
+	er = dpoisson (1.0/er);
 
 	res = (er > (double) MAX_Long) ? MAX_Long : (Long) er;
 	trc ("RFC_erd (nb) = %1d/%1d", res, nb);

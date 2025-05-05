@@ -53,8 +53,8 @@ double RFNeutrino::RFC_add (int n, int own, const SLEntry **sl,
 	double tsl;
 
 	if ((tsl = xmt->Level) != 0.0 &&
-		TheTransceiver->getRTag () !=
-			TheTransceiver->getXTag ())
+		get_cnr (TheTransceiver->getRTag ()) !=
+			get_cnr (TheTransceiver->getXTag ()))
 				tsl = 0.0;
 	while (n--)
 		if (n != own)
@@ -65,8 +65,9 @@ double RFNeutrino::RFC_add (int n, int own, const SLEntry **sl,
 
 double RFNeutrino::RFC_att (const SLEntry *xp, double d, Transceiver *src) {
 
-	if (xp->Tag != TheTransceiver->getRTag () || d >= Range)
-		return 0.0;
+	if (get_cnr (xp->Tag) != get_cnr (TheTransceiver->getRTag ()) ||
+		d >= Range)
+			return 0.0;
 
 	return 1.0;
 }
@@ -83,24 +84,24 @@ double RFNeutrino::RFC_cut (double xp, double rp) {
 
 Long RFNeutrino::RFC_erb (RATE tr, const SLEntry *sl, const SLEntry *rs,
 							double ir, Long nb) {
-	return (sl->Tag == rs->Tag) ? 0 : nb;
+	return (get_cnr (sl->Tag) == get_cnr (rs->Tag)) ? 0 : nb;
 }
 
 Long RFNeutrino::RFC_erd (RATE tr, const SLEntry *sl, const SLEntry *rs,
 							double ir, Long nb) {
-	return (sl->Tag == rs->Tag) ? MAX_Long : 0;
+	return (get_cnr (sl->Tag) == get_cnr (rs->Tag)) ? MAX_Long : 0;
 }
 
 Boolean RFNeutrino::RFC_bot (RATE r, const SLEntry *sl, const SLEntry *sn,
 	const IHist *h) {
 
-	return (sl->Tag == sn->Tag);
+	return (get_cnr (sl->Tag) == get_cnr (sn->Tag));
 }
 
 Boolean RFNeutrino::RFC_eot (RATE r, const SLEntry *sl, const SLEntry *sn,
 	const IHist *h) {
 
-	return (sl->Tag == sn->Tag);
+	return (get_cnr (sl->Tag) == get_cnr (sn->Tag));
 }
 
 #endif

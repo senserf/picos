@@ -193,6 +193,7 @@ typedef struct {
 	word	DefXPower,	// These are indices
 			DefRate,
 			DefChannel,
+			DefMode,
 			min_backoff,
 			max_backoff,
 			lbt_nthrs,
@@ -241,6 +242,7 @@ class rfm_intd_t {
 	void setrfpowr (word);
 	void setrfrate (word);
 	void setrfchan (word);
+	void setrfmode (word);
 
 	// After reset
 	void init ();
@@ -865,13 +867,13 @@ process p_uart_xmt_e : _PP_ (PicOSNode) {
 
 // Uncomment this to make LBT threshold an average over the interval (as it
 // used to be) rather than the maximum
-// #define LBT_THRESHOLD_IS_AVERAGE
+#define LBT_THRESHOLD_IS_AVERAGE
 
 process RM_Receiver : _PP_ (PicOSNode) {
 
 	rfm_intd_t *rf;
 
-	states { RCV_GETIT, RCV_START, RCV_RECEIVE, RCV_GOTIT };
+	states { RCV_GETIT, RCV_START, RCV_BERROR, RCV_RECEIVE, RCV_GOTIT };
 
 	byte get_rssi (byte&);
 

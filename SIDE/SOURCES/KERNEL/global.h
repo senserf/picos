@@ -17,6 +17,7 @@
 */
 
 //#define	ZZ_RF_DEBUG
+//#define	ZZ_RF_TRACING
 
 /* --- */
 
@@ -2020,10 +2021,9 @@ extern  int                    zz_dispfound;    // A flag for screen exposures
 extern	Mailbox 	       *zz_socket_list; // List of connected mailboxes
 #endif
 
-/* ---------------------------------------------------------- */
-/* Random   number  generators  (made  inline  for  increased */
-/* efficiency)                                                */
-/* ---------------------------------------------------------- */
+// ============================================================================
+// Random number generators
+// ============================================================================
 #if     ZZ_R48
 
 extern  unsigned  short  zz_Seeds [ZZ_N_SEEDS] [ 3 ];
@@ -3063,14 +3063,21 @@ class	zz_monitor : public AI {
 #else
 	void wait (void*, int);
 #endif
-	int signal (void*);
+	int signal (void *ev, void *va = (void*)TheProcess);
 	int signalP (void*);
 
-	inline int signal (IPointer p) { return signal ((void*)p); };
+	inline int signal (IPointer p) {
+		return signal ((void*)p);
+	};
+	inline int signal (IPointer p, IPointer v) {
+		return signal ((void*)p, (void*)v);
+	};
 	inline int signalP (IPointer p) { return signalP ((void*)p); };
 
 #if PTRBITS != INTBITS
-	inline int signal (int p) { return signal ((IPointer)p); };
+	inline int signal (int p) {
+		return signal ((IPointer)p);
+	};
 	inline int signalP (int p) { return signalP ((IPointer)p); };
 #endif
 
@@ -6748,6 +6755,13 @@ inline	double linTodB (double v) {
 	return log10 (v) * 10.0;
 };
 
+inline	double linTodBs (double v) {
+	// This is 'safe' linTodB (added 250418 for debugging)
+	if (v <= 0.0)
+		return -999.0;
+	return log10 (v) * 10.0;
+};
+
 inline double dist (	double x0, double y0,
 #if ZZ_R3D
   double z0,
@@ -6849,22 +6863,23 @@ extern	const char *DataLibDirs [];
 
 #if	ZZ_NOC
 
-#define         TheTraffic              __cpint (Info02)
-#define         ThePacket               ((Packet*)(Info01))
-#define         ThePort                 ((Port*)(Info02))
-#define         TheMessage              ((Message*)(Info01))
+#define         TheTraffic      __cpint (Info02)
+#define         ThePacket       ((Packet*)(Info01))
+#define         ThePort         ((Port*)(Info02))
+#define         TheMessage      ((Message*)(Info01))
 
 #endif
 
-#define         TheEvent                __cpint (Info02)
-#define         TheCount                __cpint (Info01)
-#define         TheItem                 Info01
-#define         TheMailbox              ((Mailbox*)(Info02))
-#define         TheExitCode             __cpint (Info01)
-#define         TheSender               ((Process*)(Info02))
-#define         TheSignal               Info01
-#define         TheBarrier              __cpint (Info01)
-#define		TheEnd			((Boolean)__cpint (Info01))
+#define         TheEvent        __cpint (Info02)
+#define         TheCount        __cpint (Info01)
+#define         TheItem         Info01
+#define         TheMailbox      ((Mailbox*)(Info02))
+#define         TheExitCode     __cpint (Info01)
+#define         TheSender       ((Process*)(Info02))
+#define         TheSignal       Info01
+#define         TheBarrier      __cpint (Info01)
+#define			TheEnd			((Boolean)__cpint (Info01))
+#define			TheValue		Info02
 
 /* ---------------------------------------------------------- */
 /* One  more  alias of the same type, but for something else. */

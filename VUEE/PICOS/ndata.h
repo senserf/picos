@@ -31,6 +31,7 @@ typedef	struct {
 	word	Rate,		// Rate select
 			Power,		// Power select
 			Channel,	// Channel number
+			Mode,		// Mode (antenna position?)
 			BCMin, BCMax,	// Minimum and maximum backoff
 			LBTDel,		// LBT delay
 			LBTTries,	// Maximum number of attempts

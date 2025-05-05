@@ -36,9 +36,9 @@ double RFShadow::RFC_add (int n, int own, const SLEntry **sl,
 	double tsl;
 
 	if ((tsl = xmt->Level) != 0.0)
-		tsl *= Channels->ifactor (RF_TAG_GET_CHANNEL (
-			TheTransceiver->getRTag ()),
-				RF_TAG_GET_CHANNEL (TheTransceiver->getXTag ()));
+		tsl *= Channels->ifactor (get_r_channel (TheTransceiver),
+			get_x_channel (TheTransceiver));
+
 	while (n--)
 		if (n != own)
 			tsl += sl [n] -> Level;
@@ -56,8 +56,8 @@ double RFShadow::RFC_att (const SLEntry *xp, double d, Transceiver *src) {
 	double res;
 
 	// Channel crosstalk
-	res = Channels->ifactor (RF_TAG_GET_CHANNEL (xp->Tag),
-		RF_TAG_GET_CHANNEL (TheTransceiver->getRTag ()));
+	res = Channels->ifactor (get_channel (xp->Tag),
+		get_r_channel (TheTransceiver));
 	trc ("RFC_att (ct) = %g [%08x %08x]", res, xp->Tag,
 		TheTransceiver->getRTag ());
 
@@ -68,8 +68,7 @@ double RFShadow::RFC_att (const SLEntry *xp, double d, Transceiver *src) {
 	if (d < RDist)
 		d = RDist;
 
-	res = res * xp->Level * LFac * dBToLin (dRndGauss (0.0, Sigma)) *
-		pow (d, NBeta);
+	res = res * xp->Level * LFac * dBToLin (dgauss (Sigma)) * pow (d, NBeta);
 
 	if (gain)
 		res *= gain (src, TheTransceiver);
@@ -111,7 +110,7 @@ Long RFShadow::RFC_erb (RATE tr, const SLEntry *sl, const SLEntry *rs,
  */
 	Long res;
 
-	if (sl->Tag != rs->Tag) {
+	if (get_cnr (sl->Tag) != get_cnr (rs->Tag)) {
 		trc ("RFC_erb (nb) = %1d [%08x != %08x]", nb, sl->Tag, rs->Tag);
 		// Different channels or rates, nothing is receivable
 		return nb;
@@ -128,7 +127,7 @@ Long RFShadow::RFC_erb (RATE tr, const SLEntry *sl, const SLEntry *rs,
 	trc ("RFC_erb (sl) = [%08x %08x] %g %g", sl->Tag, rs->Tag,
 		sl->Level, rateBoost (sl->Tag));
 
-	res = (ir == 0.0) ? 0 : lRndBinomial (ber ((sl->Level * rs->Level *
+	res = (ir == 0.0) ? 0 : lbinomial (ber ((sl->Level * rs->Level *
 		rateBoost (sl->Tag)) / ir), nb);
 
 	trc ("RFC_erb (nb) = %1d/%1d", res, nb);
@@ -146,7 +145,7 @@ Long RFShadow::RFC_erd (RATE tr, const SLEntry *sl, const SLEntry *rs,
 	double er;
 	Long res;
 
-	if (sl->Tag != rs->Tag) {
+	if (get_cnr (sl->Tag) != get_cnr (rs->Tag)) {
 		// Nothing is receivable
 		trc ("RFC_erd (nb) = 0 [%08x != %08x]", sl->Tag, rs->Tag);
 		return 0;
@@ -163,7 +162,7 @@ Long RFShadow::RFC_erd (RATE tr, const SLEntry *sl, const SLEntry *rs,
 	trc ("RFC_erd (be) = [%08x %08x] %g -> %g", sl->Tag, rs->Tag,
 		rateBoost (sl->Tag), er);
 
-	er = dRndPoisson (1.0/er);
+	er = dpoisson (1.0/er);
 
 	res = (er > (double) MAX_Long) ? MAX_Long : (Long) er;
 	trc ("RFC_erd (nb) = %1d/%1d", res, nb);

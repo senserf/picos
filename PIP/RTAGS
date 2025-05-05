@@ -993,3 +993,8 @@ PG240621A:
 	VUEE configuration window redone. Cleaned the way to specify additional
 	compilation/execution options which can now include "--" to separate, 
 	e.g., pciomp options from mks options.
+
+PG250505A:
+
+	A few cleanups. For example, packages are now auto-pulled from Scripts/
+	Packages in PICOS.

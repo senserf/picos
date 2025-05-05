@@ -6214,7 +6214,7 @@ It looks like this:
 or
 {\tt\begin{tabbing}
 12345678\=1234\=1234\=1234\=1234\=1234\=1234\=1234\=1234\kill
-\>Timer->wait ({\em event}, {\em where}, {\em order});
+\>Monitor->wait ({\em event}, {\em where}, {\em order});
 \end{tabbing}}
 \noindent
 depending on whether the program has been compiled without or with {\tt -p}
@@ -6258,22 +6258,33 @@ The operation of triggering a monitor event looks like sending a signal to
 a process, except that the signal is addressed to the monitor.
 This is accomplished by calling:
 \begin{verbatim}
-        Monitor->signal (event);
+        Monitor->signal (event, value);
 \end{verbatim}
 \noindent
-where the type of {\tt event} is {\tt void*} (it matches the {\em event\/}
-argument of {\tt wait}---\sect{rm_mo_wr}).
+where the type of both arguments is {\tt void*}.
+The first argument matches the {\em event\/} argument of
+{\tt wait}---\sect{rm_mo_wr}), and the second argument is the value to be
+returned to the awakened process in {\tt Info02} (see below).
 All the processes waiting for the specified event number will be restarted
-within the current {\em ITU\/}.
+within the current {\em ITU}.
 The method returns an {\tt int} number of processes that have been waiting
 for the signal.
 In particular, the value 0 means that the operation was void.
 
+The second argument can be absent and it then defaults to {\tt TheProcess},
+i.e., the awakened process will receive in {\tt Info02} the identity of the
+process sending the signal.
+
 When a process is resumed due to the occurrence of a monitor event, its
 environment variable {\tt TheSignal} (an alias for
-{\tt Info02}---\sect{rm_pr_en}) returns the event number, while
-{\tt TheSender} ({\tt Info01}) points to the process that has sent the
-signal (executed the {\tt signal} operation).
+{\tt Info01}---\sect{rm_pr_en}) returns the event number, while
+{\tt Info02} returns the value passed by the signaling process as the
+second argument of {\tt signal}.
+The alias {\tt TheSender} can be used to reference the signaling process
+if the single-argument variant of {\tt signal} was used.
+Also, {\tt TheValue} is a generic (type {\tt void*}) alias for
+{\tt Info02} that may be handy if an explicit {\tt value} argument was
+provided to {\tt signal}.
 
 Similar to priority signals for processes (\sect{rm_pr_sp_ps}), this operation:
 \begin{verbatim}

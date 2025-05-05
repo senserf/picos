@@ -584,7 +584,7 @@ INLINE double dRndGauss (double mean, double sigma) {
 			r = -1.0 + 2.0 * rnd (SEED_toss);
 			extra = -1.0 + 2.0 * rnd (SEED_toss);
 			t = (r * r + extra * extra);
-		} while (t > 1.0 || t == 0.0);
+		} while (t >= 1.0 || t == 0.0);
 
 		t = sqrt (-2.0 * log (t) / t);
 

@@ -1,0 +1,5 @@
+#!/bin/sh
+########\
+exec tclsh "$0" "$@"
+
+pkg_mkIndex .  autoconnect.tcl boss.tcl fesc.tcl log.tcl noss.tcl oep.tcl oss_u.tcl oss_u_xrs.tcl sdb.tcl snippets.tcl tooltips.tcl uartpoll.tcl unames.tcl vuart.tcl xml.tcl

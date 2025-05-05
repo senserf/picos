@@ -5656,3 +5656,8 @@ PG231206A:
 
 	Updated mksvm.tcl and runmodel.tcl for the revived interest in
 	VUEE-packing. A few cosmetics.
+
+PG250505A:
+
+	Cleanups. Quite a few. Time to stash this all to the attic and stop
+	poking.

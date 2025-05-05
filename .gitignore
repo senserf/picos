@@ -1,1 +1,6 @@
+liblock
 WORKING
+*.swp
+a.out
+junk*
+*.bin

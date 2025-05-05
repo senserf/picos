@@ -53,7 +53,7 @@ void RadioChannel::setup (
 	print ("RFChannel:\n\n");
 
 	RFChannel::setup (nt);
-
+	RndOff = 0;
 	setBN (no);
 	STB = st;
 	STBL = sl;
@@ -65,6 +65,9 @@ void RadioChannel::setup (
 	RBoost = ivcc [XVMAP_RBOOST];
 	RSSIC = ivcc [XVMAP_RSSI];
 	PS = ivcc [XVMAP_PS];
+
+	// This is optional
+	Modes = (DVNdexer*) ivcc [XVMAP_MODES];
 
 	Channels = mxc;
 	Ether = this;

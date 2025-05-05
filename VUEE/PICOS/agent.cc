@@ -4359,8 +4359,11 @@ Illegal_crd:
 				TR = pn->RFInt->RFInterface;
 				// Cancel any present movement
 				rwpmmStop (TR);
-				TR -> setLocation (NP [0].DVal, NP [1].DVal,
-								NP [2].DVal);
+				TR -> setLocation (NP [0].DVal, NP [1].DVal, NP [2].DVal);
+#ifdef	RF_MOVEMENT_EVENT
+				if (RF_MOVEMENT_EVENT)
+					Monitor->signal (RF_MOVEMENT_EVENT, TR);
+#endif
 			}
 #else
 			// ====================================================
@@ -4388,6 +4391,10 @@ Illegal_crd:
 				// Cancel any present movement
 				rwpmmStop (TR);
 				TR -> setLocation (NP [0].DVal, NP [1].DVal);
+#ifdef	RF_MOVEMENT_EVENT
+				if (RF_MOVEMENT_EVENT)
+					Monitor->signal (RF_MOVEMENT_EVENT, TR);
+#endif
 			}
 
 			// ====================================================

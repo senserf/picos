@@ -23,11 +23,18 @@
 // General framework for a wireless channel model (version V - used in VUEE)
 // =========================================================================
 
-// #define	trc(a, ...)	trace (a, ## __VA_ARGS__)
+#ifdef ZZ_RF_TRACING
+#define	trc(a, ...)	trace (a, ## __VA_ARGS__)
+#endif
 
 #ifndef trc
 #define	trc(a, ...)
 #endif
+
+// For switchng off randomness
+#define	RND_OFF_ATTENUATION	0
+#define	RND_OFF_ERRORS		1
+#define	RND_OFF_CHOICE		2
 
 // Standard indexes into the XVMapper table; we keep here the tally of all
 // entries over all channel types
@@ -35,9 +42,9 @@
 #define	XVMAP_RBOOST	1
 #define	XVMAP_RSSI		2
 #define	XVMAP_PS		3
-#define	XVMAPP_ATT		4
+#define	XVMAP_ATT		4
 #define	XVMAP_SIGMA		5
-#define	XVMAP_MODE		6	// Not used yet
+#define	XVMAP_MODES		6	// Not used yet
 #define	XVMAP_SIZE		7
 
 // ===========================================================================
@@ -50,16 +57,6 @@
 #define RF_MAX_N_CHANNELS	256
 #define	RF_MAX_N_RATES		256
 #define	RF_MAX_N_MODES		256
-
-#define	RF_TAG_GET_CHANNEL(tag)	((tag) & 0xff)
-#define	RF_TAG_GET_RINDEX(tag)	(((tag) >> 8) & 0xff)
-#define	RF_TAG_GET_MODE(tag)	(((tag) >> 16) & 0xff)
-
-#define	RF_TAG_SET_CHANNEL(tag,v)	(((tag) & ~0xff) | (RF_TAG_TYPE)(v))
-#define	RF_TAG_SET_RINDEX(tag,v)	(((tag) & ~0xff00) | \
-													((RF_TAG_TYPE)(v) << 8))
-#define	RF_TAG_SET_MODE(tag,v)		(((tag) & ~0xff0000) | \
-													((RF_TAG_TYPE)(v) << 16))
 // ===========================================================================
 
 typedef struct {
@@ -72,6 +69,47 @@ typedef struct {
 	// multiplication/division
 } sir_to_ber_t;
 
+template <class RType> class XVNdexer {
+
+	// This is an indexer, i.e., basically, an array. Added it on 250215
+	// to account for "modes" implementing my idea of orientation-dependent
+	// propagation features.
+
+	unsigned short NL;	// Number of elements
+	RType *VLV;			// The values
+
+	public:
+
+	XVNdexer (unsigned short n, RType *wt) {
+		VLV = wt;
+		NL = n;
+	};
+
+	inline unsigned short size () { return NL; };
+
+	// These stupid and doubly confusing names are for compatypility with
+	// XVMapper
+	inline int getvalue (RType w) {
+	//
+	// Returns the index of the value
+	//
+		int ix;
+		for (ix = 0; ix < NL; ix++)
+			if (VLV [ix] == w)
+				// Must be found exactly to succeed
+				return ix;
+		return -1;
+	};
+
+	inline RType setvalue (int ix) {
+	//
+	// Returns the value given an index
+	//
+		assert (ix >= 0 && ix < NL, "XVNdexer: index out of range");
+		return VLV [ix];
+	};
+};
+		
 template <class RType> class XVMapper {
 
 	// This is a generic converter between model parameters (like signal
@@ -81,6 +119,7 @@ template <class RType> class XVMapper {
 	// FP multipliers. The converter is able to do it both ways, i.e.,
 	// convert discrete representations to the actual values, as well
 	// as convert the values to their discrete representations.
+	// As the converter uses interpolation, the values must be monotonic.
 
 	Boolean Dec,		// Decreasing order of values
 		Log;		// Logarithmic
@@ -278,7 +317,9 @@ template <class RType> class XVMapper {
 };
 
 typedef	XVMapper<unsigned short>	IVMapper;
-typedef	XVMapper<double>		DVMapper;
+typedef	XVMapper<double>			DVMapper;
+typedef	XVNdexer<unsigned short>	IVNdexer;
+typedef	XVNdexer<double>			DVNdexer;
 
 class MXChannels {
 
@@ -324,7 +365,7 @@ rfchannel RadioChannel {
  *
  */
 	const sir_to_ber_t	*STB;	// SIR to BER conversion table
-	int			STBL;	// Table length
+	int					STBL;	// Table length
 
 	double	BNoise;			// Background noise level (linear)
 
@@ -332,20 +373,88 @@ rfchannel RadioChannel {
 		PacketFrameLength;	// Extra bits (physical)
 
 	IVMapper	*Rates,		// Selection of xmit rates
-			*RBoost,	// Rate-related receiver sensitivities
-			*PS,		// Power setter
-			*RSSIC;		// RSSI converter
+				*RBoost,	// Rate-related receiver sensitivities
+				*PS,		// Power setter
+				*RSSIC;		// RSSI converter
 
 	MXChannels	*Channels;	// Available channels
+	DVNdexer	*Modes;		// Available modes (this is optional)
+
+	// 0 - normal, 1 - attenuation, 2 - errors
+	FLAGS	RndOff;
 
 	virtual TIME RFC_xmt (RATE, Packet*);
 
 	double ber (double);		// Converts SIR to BER
 
+	// Access to Tag components ===============================================
+	inline unsigned short get_x_channel (Transceiver *t) {
+		return t->getXTag () & 0xff;
+	};
+	inline unsigned short get_r_channel (Transceiver *t) {
+		return t->getRTag () & 0xff;
+	};
+	inline unsigned short get_channel (RF_TAG_TYPE t) {
+		return t & 0xff;
+	};
+	inline void set_x_channel (Transceiver *t, unsigned short ch) {
+		assert (ch < RF_MAX_N_CHANNELS,
+			"set_x_channel: channel number too big");
+		t->setXTag ((t->getXTag () & ~0xff) | (RF_TAG_TYPE) ch);
+	};
+	inline void set_r_channel (Transceiver *t, unsigned short ch) {
+		assert (ch < RF_MAX_N_CHANNELS,
+			"set_r_channel: channel number too big");
+		t->setRTag ((t->getRTag () & ~0xff) | (RF_TAG_TYPE) ch);
+	};
+	// ==
+	inline unsigned short get_x_rindex (Transceiver *t) {
+		return (t->getXTag () >> 8) & 0xff;
+	};
+	inline unsigned short get_r_rindex (Transceiver *t) {
+		return (t->getRTag () >> 8) & 0xff;
+	};
+	inline unsigned short get_rindex (RF_TAG_TYPE t) {
+		return (t >> 8) & 0xff;
+	};
+	inline void set_x_rindex (Transceiver *t, unsigned short ri) {
+		assert (ri < RF_MAX_N_RATES, "set_x_rindex: rate index too big");
+		t->setXTag ((t->getXTag () & ~0xff00) | (((RF_TAG_TYPE) ri) << 8));
+	};
+	inline void set_r_rindex (Transceiver *t, unsigned short ri) {
+		assert (ri < RF_MAX_N_RATES, "set_r_rindex: rate index too big");
+		t->setRTag ((t->getRTag () & ~0xff00) | (((RF_TAG_TYPE) ri) << 8));
+	};
+	// ==
+	inline unsigned short get_cnr (RF_TAG_TYPE t) {
+		// Extract channel and rate index; they determine compatibility for
+		// reception; the modes are allowed to differ
+		return (t & 0x0ffff);
+	};
+	// ==
+	inline unsigned short get_x_mode (Transceiver *t) {
+		return (t->getXTag () >> 16) & 0xff;
+	};
+	inline unsigned short get_r_mode (Transceiver *t) {
+		return (t->getRTag () >> 16) & 0xff;
+	};
+	inline unsigned short get_mode (RF_TAG_TYPE t) {
+		return (t >> 16) & 0xff;
+	};
+	inline void set_x_mode (Transceiver *t, unsigned short mo) {
+		assert (mo < RF_MAX_N_MODES, "set_x_mode: mode too big");
+		t->setXTag ((t->getXTag () & ~0xff0000) | (((RF_TAG_TYPE) mo) << 16));
+	};
+	inline void set_r_mode (Transceiver *t, unsigned short mo) {
+		assert (mo < RF_MAX_N_MODES, "set_r_mode: mode too big");
+		t->setRTag ((t->getRTag () & ~0xff0000) | (((RF_TAG_TYPE) mo) << 16));
+	};
+	// ========================================================================
+
 	inline double rateBoost (RF_TAG_TYPE tag) {
 		// Rate-index-specific boost for BER assessment
 		return RBoost == NULL ? 1.0 :
-			RBoost->setvalue (RF_TAG_GET_RINDEX (tag));
+			RBoost->setvalue (get_rindex (tag));
 	};
 
 	void setup (
@@ -361,7 +470,37 @@ rfchannel RadioChannel {
 
 	void setBN (double);
 	double getBN ();
-		
+
+	FLAGS rndoff (FLAGS f) {
+		FLAGS prev = RndOff;
+		RndOff = f;
+		return prev;
+	};
+
+	inline double dgauss (double sm) {
+		if (flagSet (RndOff, RND_OFF_ATTENUATION))
+			return 0.0;
+		return dRndGauss (0.0, sm);
+	};
+
+	inline Long lbinomial (double er, Long cn) {
+		if (flagSet (RndOff, RND_OFF_ERRORS))
+			return 0;
+		return lRndBinomial (er, cn);
+	};
+
+	inline double dpoisson (double d) {
+		if (flagSet (RndOff, RND_OFF_ERRORS))
+			return (double) MAX_Long;
+		return dRndPoisson (d);
+	};
+
+	inline unsigned short stoss (Long n) {
+		if (flagSet (RndOff, RND_OFF_CHOICE))
+			return 0;
+		return (unsigned short) toss (n);
+	};
+
 };
 
 extern RadioChannel *Ether;

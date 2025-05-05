@@ -31,18 +31,18 @@ proc unames_init { dtype { stype "" } } {
 		# real ttys
 		if { $Dev(SYS) == "L" } {
 			# actual Linux
-			set Dev(RRT) "/dev/ttyUSB%"
+			set Dev(RRT) { "/dev/ttyUSB%" "/dev/ttyACM%" }
 		} else {
 			# Cygwin
 			set Dev(RRT) "/dev/ttyS%"
 		}
 		# and their bounds
-		set Dev(RRB) { 0 255 }
+		set Dev(RRB) { 0 31 }
 	} else {
 		set Dev(PRT) { "CNCA%" "CNCB%" }
 		set Dev(PRB) { 0 3 }
 		set Dev(RRT) "COM%:"
-		set Dev(RRB) { 1 256 }
+		set Dev(RRB) { 1 32 }
 	}
 
 	unames_defnames

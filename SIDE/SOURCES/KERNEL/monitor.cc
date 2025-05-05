@@ -94,20 +94,20 @@ void    zz_monitor::wait (void *ev, int pstate) {
 	zz_c_other -> other = zz_c_whead;
 }
 
-int zz_monitor::signal (void *ev) {
-
+int zz_monitor::signal (void *ev, void *val) {
+//
+// Set Info02 to the specified value
+//
 	ZZ_REQUEST *rq;
 	ZZ_EVENT *e;
 	int na;
 #if ZZ_TAG
 	int q;
 #endif
-
 	for (na = 0, rq = WList [hash (ev)]; rq != NULL; rq = rq->next) {
 		if (rq->event_id == (LPointer) ev) {
 			na++;
-			// TheSender
-			rq->Info02 = (void*) TheProcess;
+			rq->Info02 = val;
 #if ZZ_TAG
 			rq->when . set (Time);
 			if ((q = (e = rq->event)->waketime . cmp (rq->when)) >

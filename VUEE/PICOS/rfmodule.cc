@@ -109,8 +109,10 @@ double RM_ADC::sigLevel () {
 	DT = (double)(Time - Last);
 	NA = ATime + DT;
 	res = ((Average * ATime) / NA) + (CLevel * DT) / NA;
+	// trace ("ADC-A (F): %f %f", linTodBs (Average), linTodBs (res));
 	return res;
 #else
+	// trace ("ADC-M (F): %f", linTodBs (Maximum));
 	return Maximum;
 #endif
 }
@@ -137,28 +139,30 @@ void RM_ADC::stop () {
 
 RM_ADC::perform {
 
-    state ADC_WAIT:
+  state ADC_WAIT:
 
 	if (!On) {
 		this->wait (SIGNAL, ADC_WAIT);
 		sleep;
 	}
 
-    transient ADC_RESUME:
+  transient ADC_RESUME:
 
 #ifdef LBT_THRESHOLD_IS_AVERAGE
 	ATime = 0.0;
 	Average = 0.0;
 	Last = Time;
 	CLevel = rfi->sigLevel ();
+	// trace ("ADC-A (R): %f", linTodBs (CLevel));
 #else
 	Maximum = rfi->sigLevel ();
+	// trace ("ADC-M (R): %f", linTodBs (Maximum));
 #endif
 	// In case something is already pending
 	rfi->wait (ANYEVENT, ADC_UPDATE);
 	this->wait (SIGNAL, ADC_WAIT);
 
-    state ADC_UPDATE:
+  state ADC_UPDATE:
 
 	// Calculate the average signal level over the sampling
 	// period
@@ -171,10 +175,12 @@ RM_ADC::perform {
 	Average = ((Average * ATime) / NA) + (CLevel * DT) / NA;
 	Last = Time;
 	ATime = NA;
+	// trace ("ADC-A (U): %f %f", linTodBs (CLevel), linTodBs (Average));
 #else
 	double DT;
 	if ((DT = rfi->sigLevel ()) > Maximum)
 		Maximum = DT;
+	// trace ("ADC-M (U): %f", linTodBs (Maximum));
 #endif
 	// Only new events, no looping!
 	rfi->wait (ANYEVENT, ADC_UPDATE);
@@ -420,7 +426,11 @@ RM_Receiver::perform {
 
     _pp_enter_ ();
 
-    state RCV_GETIT:
+  state RCV_BERROR:
+
+	// trace ("RCV BERROR");
+
+  transient RCV_GETIT:
 
 	if (rcvg) {
 		rcvg = NO;
@@ -437,7 +447,7 @@ RM_Receiver::perform {
 	rfi->wait (BOT, RCV_START);
 	when (rxe, RCV_GETIT);
 
-    state RCV_START:
+  state RCV_START:
 
 	if (xmtg) {
 		when (rxe, RCV_GETIT);
@@ -449,7 +459,7 @@ RM_Receiver::perform {
 	rfi->follow (ThePckt);
 	skipto RCV_RECEIVE;
 
-    state RCV_RECEIVE:
+  state RCV_RECEIVE:
 
 #if (RADIO_OPTIONS & RADIO_OPTION_STATS)
 	if (rerr [RERR_RCPA] == MAX_WORD)
@@ -458,12 +468,13 @@ RM_Receiver::perform {
 	rerr [RERR_RCPA] ++;
 #endif
 	rfi->wait (EOT, RCV_GOTIT);
-	rfi->wait (BERROR, RCV_GETIT);
+	rfi->wait (BERROR, RCV_BERROR);
 	rfi->wait (BOT, RCV_START);
 
-    state RCV_GOTIT:
+  state RCV_GOTIT:
 
 	rssi = get_rssi (qual);
+	// trace ("RCV GOTIT: %u", rssi);
 
 	packet = ThePckt -> Payload;
 	pktlen = ThePckt -> PaySize;
@@ -876,7 +887,7 @@ static int rfm_option (int opt, address val) {
 
 	    case PHYSOPT_GETRATE:
 
-		ret = RF_TAG_GET_RINDEX (rfi->getTag ());
+		ret = Ether->get_r_rindex (rfi);
 		if (val != NULL)
 			*val = ret;
 		break;
@@ -895,7 +906,7 @@ static int rfm_option (int opt, address val) {
 
 	    case PHYSOPT_GETCHANNEL:
 
-		ret = RF_TAG_GET_CHANNEL (rfi->getTag ());
+		ret = Ether->get_r_channel (rfi);
 		if (val != NULL)
 			*val = ret;
 		break;

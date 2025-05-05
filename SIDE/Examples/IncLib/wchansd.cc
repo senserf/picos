@@ -1,5 +1,5 @@
 /*
-	Copyright 1995-2023 Pawel Gburzynski
+	Copyright 1995-2025 Pawel Gburzynski
 
 	This file is part of SMURPH/SIDE.
 
@@ -32,6 +32,8 @@
 #define	__nrof (__ndim + __ndim)
 #define	__ntrd (__nrof + 2)
 
+void *trigger_mode_switch = NULL;
+
 typedef struct {
 //
 // A sample being read from the input data file
@@ -63,6 +65,28 @@ static inline double vlength (sdpair_t &sdp) {
 			   + z * z
 #endif
 					) / Du;
+};
+
+process ModeSwitcher {
+//
+// Switching the transmit and receive modes of a moved node
+//
+	RFSampled *TheChannelModel;
+
+	states { Hibernate, DoIt };
+
+	void setup (RFSampled *cm) {
+		TheChannelModel = cm;
+		trigger_mode_switch = (void*)TheProcess;
+	};
+
+	perform {
+		state Hibernate:
+			Monitor->wait (RF_MOVEMENT_EVENT, DoIt);
+		state DoIt:
+			TheChannelModel->switch_mode ((Transceiver*)TheValue);
+			sameas Hibernate;
+	};
 };
 
 // ============================================================================
@@ -365,6 +389,9 @@ void RFSampled::setup (
 				"with 'symmetric'");
 
 	ATTB = (DVMapper*)(ivcc [XVMAP_ATT]);
+	if (ATTB == NULL)
+		excptn ("RFSampled: attenuation table not specified");
+	// SIGMA is optional
 	SIGMA = (DVMapper*)(ivcc [XVMAP_SIGMA]);
 
 	print (MinPr, 		"  Minimum preamble:", 10, 26);
@@ -377,7 +404,17 @@ void RFSampled::setup (
 
 	for (i = 0; i < ATTB->size (); i++) {
 		r = ATTB->row (i, v);
-		print (form ("  %11.3f       %8g %8g\n", r, v, sigma (r)));
+		print (form ("  %11.3f         %8g %8g\n", r, v, sigma (r)));
+	}
+
+	if (Modes) {
+		create ModeSwitcher (this);
+		print ("\n     ModeDiff         Loss(dB)\n");
+		for (i = 0; i < Modes->size (); i++) {
+			// This is specified as linear, print in dB
+			r = linTodB (Modes->setvalue (i));
+			print (form ("  %11d         %8g\n", i, r));
+		}
 	}
 
 	NSamples = 0;
@@ -402,13 +439,12 @@ double RFSampled::attenuate (sdpair_t &sdp) {
 
 	dict_item_t	*di, *dh;
 	Long		rss, ix;
-	double 		res, d;
+	double 		res, d, dm;
 
 	if (HTable == NULL) {
 		// No sampled data, fallback to the table
 		d = vlength (sdp);
-		res = dBToLin (ATTB->setvalue (d, NO) +
-			dRndGauss (0.0, sigma (d)));
+		res = dBToLin (ATTB->setvalue (d, NO) + dgauss (sigma (d)));
 		trc ("attenuate: no sampled data %g %g", res, sigma (d));
 		return res;
 	}
@@ -471,17 +507,23 @@ double RFSampled::attenuate (sdpair_t &sdp) {
 #endif
 	}
 
-	res = dBToLin (di->Attenuation + dRndGauss (0.0, di->Sigma));
+	res = dBToLin (di->Attenuation + dgauss (di->Sigma));
 	trc ("attenuate: %g", res);
 	return res;
 }
 
+// 250501: redone this to use k-closest SD pairs; the algorithm is substandard
+// let's see how it fares
+#define	N_BEST_MATCHES	4
+
 dict_item_t *RFSampled::interpolate (sdpair_t &sdp) {
 
 	rss_sample_t	*s;
-	dict_item_t	*di;
-	double 		l, d, A, S, L, W;
-	int		i;
+	dict_item_t		*di;
+	double			l, d, dmax, A, S, L, W;
+	double			ks_d [N_BEST_MATCHES];
+	rss_sample_t	*ks_s [N_BEST_MATCHES];
+	int				i, j, nbm, dmix;
 
 	l = vlength (sdp);
 
@@ -493,35 +535,55 @@ dict_item_t *RFSampled::interpolate (sdpair_t &sdp) {
 		sdp.YB, l);
 #endif
 
-	A = S = L = W = 0.0;
-
-	for (i = 0; i < NSamples; i++) {
-
+	// Select k best matches
+	dmax = 0.0;
+	for (nbm = i = 0; i < NSamples; i++) {
 		s = Samples + i;
-
-		if ((d = sdpdist (s->SDP, sdp)) < 0.5) {
-			// This means exact match with a generous provision
-			// for any rounding errors (which will never happen)
-			A = s->Attenuation;
-			S = s->Sigma;
-#if ZZ_R3D
-			trc ("interpolate: exact <%1d,%1d,%1d> - <%1d,%1d,%1d>",
-				s->SDP.XA, s->SDP.YA, s->SDP.ZA,
-				s->SDP.XB, s->SDP.YB, s->SDP.ZB);
-#else
-			trc ("interpolate: exact <%1d,%1d> - <%1d,%1d>",
-				s->SDP.XA, s->SDP.YA,
-				s->SDP.XB, s->SDP.YB);
-#endif
-			goto Ready;
+		d = sdpdist (s->SDP, sdp);
+		if (d < 0.5)
+			// This means exact match
+			goto Exact;
+		ks_d [nbm] = d;
+		ks_s [nbm] = s;
+		if (d > dmax) {
+			// Keep track of the maximum and its index
+			dmix = nbm;
+			dmax = d;
 		}
+		if (++nbm == N_BEST_MATCHES)
+			// This will never happen, but let's be safe
+			break;
+	}
+	// Keep going for the remaining samples
+	for (++i; i < NSamples; i++) {
+		s = Samples + i;
+		d = sdpdist (s->SDP, sdp);
+		if (d < 0.5)
+			// Exact match preempts everything
+			goto Exact;
+		// Check if should be included in the min set
+		if (d < dmax) {
+			// Yep
+			ks_d [dmix] = d;
+			ks_s [dmix] = s;
+			// Find the new max
+			dmax = ks_d [dmix = 0];
+			for (j = 1; j < nbm; j++)
+				if (ks_d [j] > dmax)
+					dmax = ks_d [dmix = j];
+		}
+	}
 
-		d = 1.0 / d;
-
+	A = S = L = W = 0.0;
+	for (i = 0; i < nbm; i++) {
+		s = ks_s [i];
+		d = 1.0 / ks_d [i];
 		A += s->Attenuation * d;
 		S += s->Sigma * d;
 		L += s->Distance * d;
 		W += d;
+		trc ("in add: ATT=%g -> %g, dst=%g, %g", s->Attenuation, A/W, ks_d [i],
+			d);
 	}
 
 	A /= W;
@@ -529,23 +591,36 @@ dict_item_t *RFSampled::interpolate (sdpair_t &sdp) {
 	L /= W;
 
 	// Adjust for distance difference, use dB values
+	trc ("in adj: ATT=%g = A + AS=%g - AD=%g", A,
+		ATTB->setvalue (l, NO), ATTB->setvalue (L, NO));
+
 	A = A + ATTB->setvalue (l, NO) - ATTB->setvalue (L, NO);
 
 Ready:
+
 	di = (dict_item_t*) malloc (sizeof (dict_item_t));
 	assert (di != NULL, "RFSampled: out of memory for dictionary items");
-
-	// Normalize
 	di->SDP = sdp;
 	di->Attenuation = (float) A;
 	di->Sigma = (float) S;
-
-	trc ("in ad: ATT=%g = A + AS=%g - AD=%g", di->Attenuation,
-		ATTB->setvalue (l, NO), ATTB->setvalue (L, NO));
-
 	return di;
-}
 
+Exact:
+	A = s->Attenuation;
+	S = s->Sigma;
+
+#if ZZ_R3D
+	trc ("interpolate: exact <%1d,%1d,%1d> - <%1d,%1d,%1d>",
+		s->SDP.XA, s->SDP.YA, s->SDP.ZA,
+		s->SDP.XB, s->SDP.YB, s->SDP.ZB);
+#else
+	trc ("interpolate: exact <%1d,%1d> - <%1d,%1d>",
+		s->SDP.XA, s->SDP.YA,
+		s->SDP.XB, s->SDP.YB);
+#endif
+	goto Ready;
+}
+	
 // ============================================================================
 
 double RFSampled::RFC_add (int n, int own, const SLEntry **sl,
@@ -554,9 +629,8 @@ double RFSampled::RFC_add (int n, int own, const SLEntry **sl,
 	double tsl;
 
 	if ((tsl = xmt->Level) != 0.0)
-		tsl *= Channels->ifactor (RF_TAG_GET_CHANNEL (
-			TheTransceiver->getRTag ()),
-				RF_TAG_GET_CHANNEL (TheTransceiver->getXTag ()));
+		tsl *= Channels->ifactor (get_r_channel (TheTransceiver),
+			get_x_channel (TheTransceiver));
 
 	while (n--)
 		if (n != own)
@@ -568,13 +642,20 @@ double RFSampled::RFC_att (const SLEntry *xp, double d, Transceiver *src) {
 
 	double att, res;
 	sdpair_t SDP;
-	unsigned short pow, cha;
+
+#ifdef ZZ_RF_TRACING
+	int sid, rid;
+	// Get the identity of the two parties
+	rid = TheTransceiver->getSID ();
+	sid = src->getSID ();
+#endif
 
 	// Channel crosstalk
-	res = Channels->ifactor (cha = RF_TAG_GET_CHANNEL (xp->Tag),
-		RF_TAG_GET_CHANNEL (TheTransceiver->getRTag ()));
-	trc ("RFC_att (ct) = %g [%08x %08x]", res, xp->Tag,
-		TheTransceiver->getRTag ());
+	res = Channels->ifactor (get_channel (xp->Tag),
+		get_r_channel (TheTransceiver));
+	trc ("@(%1d->%1d) RFC_att XT: xf = %g, tg = [%08x/%08x]", sid, rid,
+		linTodB (res),
+		xp->Tag, TheTransceiver->getRTag ());
 
 	if (res == 0.0)
 		// No need to worry
@@ -582,26 +663,41 @@ double RFSampled::RFC_att (const SLEntry *xp, double d, Transceiver *src) {
 #if ZZ_R3D
 	src->getRawLocation (SDP.XA, SDP.YA, SDP.ZA);
 	TheTransceiver->getRawLocation (SDP.XB, SDP.YB, SDP.ZB);
-	trc ("RFC_att (sd) = <%1d,%1d,%1d> - <%1d,%1d,%1d>",
+	trc ("RFC_att SD (%1d->%1d): <%1d,%1d,%1d>-<%1d,%1d,%1d> %g", sid, rid,
 		SDP.XA, SDP.YA, SDP.ZA,
-		SDP.XB, SDP.YB, SDP.ZB);
+		SDP.XB, SDP.YB, SDP.ZB, d);
 #else
 	src->getRawLocation (SDP.XA, SDP.YA);
 	TheTransceiver->getRawLocation (SDP.XB, SDP.YB);
-	trc ("RFC_att (sd) = <%1d,%1d> - <%1d,%1d> %g",
+	trc ("RFC_att SD (%1d->%1d): <%1d,%1d>-<%1d,%1d> %g", sid, rid,
 		SDP.XA, SDP.YA,
 		SDP.XB, SDP.YB, d);
 #endif
 	att = attenuate (SDP);
 	res = res * xp->Level * att;
+	trc ("RFC_att AT (%1d->%1d): %g, %g, %g", sid, rid,
+		linTodB (att), linTodB (xp->Level), linTodB (res));
 
-	if (gain)
+	if (gain) {
 		res *= gain (src, TheTransceiver);
+		trc ("RFC_att GA (%1d->%1d): %g", sid, rid, linTodB (res));
+	}
 
-	trc ("RFC_att (sl) = [%u->%u](%g), %g->%g->%g",
-		src->getSID (), TheTransceiver->getSID (), d,
-			linTodB (xp->Level), linTodB (att), linTodB (res));
-
+	if (Modes) {
+		// Orientation mode correction
+#ifdef ZZ_RF_TRACING
+		unsigned short smo, rmo;
+		double fac;
+		smo = get_mode (xp->Tag);
+		rmo = get_r_mode (TheTransceiver);
+		fac = mode (smo - rmo);
+		res *= fac;
+		trc ("RFC_att MD (%1d->%1d) = (%d %d) -> %g -> %g", sid, rid,
+			smo, rmo, linTodB (fac), linTodB (res));
+#else
+		res *= mode (get_mode (xp->Tag) - get_r_mode (TheTransceiver));
+#endif
+	}
 	return res;
 }
 
@@ -639,7 +735,7 @@ Long RFSampled::RFC_erb (RATE tr, const SLEntry *sl, const SLEntry *rs,
  */
 	Long res;
 
-	if (sl->Tag != rs->Tag) {
+	if (get_cnr (sl->Tag) != get_cnr (rs->Tag)) {
 		trc ("RFC_erb (nb) = %1d [%08x != %08x]", nb, sl->Tag, rs->Tag);
 		// Different channels or rates, nothing is receivable
 		return nb;
@@ -655,7 +751,7 @@ Long RFSampled::RFC_erb (RATE tr, const SLEntry *sl, const SLEntry *rs,
 
 	trc ("RFC_erb (sl) = [%08x %08x] %g %g", sl->Tag, rs->Tag,
 		sl->Level, rateBoost (sl->Tag));
-	res = (ir == 0.0) ? 0 : lRndBinomial (ber ((sl->Level * rs->Level *
+	res = (ir == 0.0) ? 0 : lbinomial (ber ((sl->Level * rs->Level *
 		rateBoost (sl->Tag)) / ir), nb);
 
 	trc ("RFC_erb (nb) = %1d/%1d", res, nb);
@@ -673,7 +769,7 @@ Long RFSampled::RFC_erd (RATE tr, const SLEntry *sl, const SLEntry *rs,
 	double er;
 	Long res;
 
-	if (sl->Tag != rs->Tag) {
+	if (get_cnr (sl->Tag) != get_cnr (rs->Tag)) {
 		// Nothing is receivable
 		trc ("RFC_erd (nb) = 0 [%08x != %08x]", sl->Tag, rs->Tag);
 		return 0;
@@ -689,7 +785,7 @@ Long RFSampled::RFC_erd (RATE tr, const SLEntry *sl, const SLEntry *rs,
 	trc ("RFC_erd (be) = [%08x %08x] %g -> %g", sl->Tag, rs->Tag,
 		rateBoost (sl->Tag), er);
 
-	er = dRndPoisson (1.0/er);
+	er = dpoisson (1.0/er);
 
 	res = (er > (double) MAX_Long) ? MAX_Long : (Long) er;
 	trc ("RFC_erd (nb) = %1d/%1d", res, nb);

@@ -1,5 +1,5 @@
 /*
-	Copyright 1995-2020 Pawel Gburzynski
+	Copyright 1995-2025 Pawel Gburzynski
 
 	This file is part of SMURPH/SIDE.
 
@@ -25,6 +25,7 @@
 
 #define	RFSMPL_HASHSIZE		8192
 #define	RFSMPL_HASHMASK		(RFSMPL_HASHSIZE - 1)
+#define	RF_MOVEMENT_EVENT	trigger_mode_switch
 
 // ============================================================================
 
@@ -38,17 +39,17 @@ typedef	struct {
 #if ZZ_R3D
 		   , ZB
 #endif
-			;
+	;
 } sdpair_t;
 
 typedef struct {
 //
 // A merged sample stored in the runtime database
 //
-	sdpair_t	SDP;		// S-D pair
+	sdpair_t	SDP;			// S-D pair
 	float		Attenuation,	// in dB, derived from RSS and power
-			Distance,	// Distance in meters between S and D
-			Sigma;		// Standard deviation of Attenuation
+				Distance,		// Distance in meters between S and D
+				Sigma;			// Standard deviation of Attenuation
 } rss_sample_t;
 
 typedef struct {
@@ -70,16 +71,16 @@ rfchannel RFSampled : RadioChannel {
 //
 	double	BThrs,	// Channel busy signal threshold
 	      	COSL,	// Cut-off signal level
-		Sigma;	// Default lognormal random component of attenuation
+			Sigma;	// Default lognormal random component of attenuation
 
 	Long  	MinPr;	// Minimum number of preamble bits for reception
 
-	int	K;	// Minimum number of merged samples for sampled sigma
+	int	K;			// Minimum number of merged samples for sampled sigma
 
 	DVMapper	*ATTB,	// Attenuation table
-			*SIGMA;	// Sigma table
+				*SIGMA;	// Sigma table
 
-			// Optional gain function (e.g., for directional ant.)
+	// Optional gain function (e.g., for directional ant.)
 	double 	(*gain) (Transceiver*, Transceiver*);
 
 	Boolean	Symmetric;
@@ -94,12 +95,32 @@ rfchannel RFSampled : RadioChannel {
 	Long    RFC_erb (RATE, const SLEntry*, const SLEntry*, double, Long);
 	Long    RFC_erd (RATE, const SLEntry*, const SLEntry*, double, Long);
 
-	dict_item_t	**HTable;
+	dict_item_t		**HTable;
 	rss_sample_t	*Samples;
-	Long		NSamples;
+	Long			NSamples;
 
 	inline double sigma (double d) {
 		return (SIGMA == NULL) ? Sigma : SIGMA->setvalue (d);
+	};
+
+	inline double mode (int ix) {
+		if (ix < 0)
+			// Take the absolute value
+			ix = -ix;
+		// Should we check for illegal value and return something? I
+		// don't think so, let's abort, the table should be complete.
+		return Modes->setvalue (ix);
+	};
+
+	inline void switch_mode (Transceiver *tcv) {
+		// Switch both modes at random
+		unsigned short mo;
+		assert (Modes, "switch_mode: Modes is not defined for this model");
+		// pick any at random (for now)
+		mo = stoss (Modes->size ());
+		set_x_mode (tcv, mo);
+		set_r_mode (tcv, mo);
+		trc ("MODE (c) = %d -> %d", tcv->getOwner ()->getId (), mo);
 	};
 
 	inline Long hash (sdpair_t &sdp) {
@@ -219,23 +240,25 @@ rfchannel RFSampled : RadioChannel {
 	dict_item_t *interpolate (sdpair_t&);
 
 	void setup (
-		Long,			// The number of transceivers
+		Long,					// The number of transceivers
 		const sir_to_ber_t*,	// SIR to BER conversion table
-		int,			// Length of the conversion table
-		int,			// Sampled sigma K threshold
-		double,			// Gaussian lognormal component
-		double,			// Background noise (dBm)
-		double,			// Channel busy signal threshold dBm
-		double,			// Cut off signal level
-		Long,			// Minimum received preamble length
-		int,			// Bits per byte
-		int,			// Packet frame (extra physical bits)
-		IVMapper **ivcc, 	// Value converters
-		const char *sfname,	// File with sampled RSSI data
-		Boolean symm,		// Symmetric flag
+		int,					// Length of the conversion table
+		int,					// Sampled sigma K threshold
+		double,					// Gaussian lognormal component
+		double,					// Background noise (dBm)
+		double,					// Channel busy signal threshold dBm
+		double,					// Cut off signal level
+		Long,					// Minimum received preamble length
+		int,					// Bits per byte
+		int,					// Packet frame (extra physical bits)
+		IVMapper **ivcc,		// Value converters
+		const char *sfname,		// File with sampled RSSI data
+		Boolean symm,			// Symmetric flag
 		MXChannels *mxc = NULL,	// Channels
 		double (*g) (Transceiver*, Transceiver*) = NULL
 	);
 };
+
+extern	void	*trigger_mode_switch;
 
 #endif

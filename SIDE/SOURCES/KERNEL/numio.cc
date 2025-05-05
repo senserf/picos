@@ -77,11 +77,18 @@ int parseNumbers (const char *txt, int max, nparse_t *res) {
 
 	while (1) {
 
-		while (	*txt != '\0' &&
-				*txt != '+' &&
-					*txt != '-' &&
-						!isdigit (*txt))
-							txt++;
+		while (1) {
+			// Skip until the next number
+			if (*txt == '*' || *txt == '#') {
+				// Skip until newline
+				while (*txt != '\0' && *txt != '\n')
+					txt++;
+			}
+			if (*txt == '\0' || *txt == '+' || *txt == '-' || isdigit (*txt))
+				break;
+			txt++;
+		}
+
 		if (*txt == '\0')
 			// We are done
 			break;

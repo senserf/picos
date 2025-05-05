@@ -183,6 +183,10 @@ inline void ZZ_RSCHED::initAct () {
 	// And transform it into perceived signal level
 	RSS.Level = Destination->RFC->RFC_att (&RSS, ituToDu (Distance),
 		RFA->Tcv);
+#ifdef	ZZ_RF_TRACING
+	trace ("@(%1d->%1d) INI: lvl = %g", TheTransceiver->getSID (),
+		RFA->Tcv->getSID ());
+#endif
 
 	// This is the moment the activity becomes visible to the transceiver
 	pool_in (this, Destination->Activities);
@@ -368,6 +372,10 @@ void Transceiver::reassess () {
 		xm.Tag = a->RSS.Tag;
 		a->RSS.Level = RFC->RFC_att (&xm, ituToDu (a->Distance),
 			a->RFA->Tcv);
+#ifdef	ZZ_RF_TRACING
+		trace ("@(%1d->%1d) REA: lvl = %g", TheTransceiver->getSID (),
+			a->RFA->Tcv->getSID ());
+#endif
 	}
 	updateIF ();
 
