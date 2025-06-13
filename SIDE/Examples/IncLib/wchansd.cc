@@ -308,15 +308,17 @@ Opened:
 		SSMP.Attenuation = (float)(RSMP->Attenuation);
 		SSMP.Distance = (float)(d = vlength (SSMP.SDP));
 		if (K == 1) {
-			// The cooked case; the Sigma is ready
-			SSMP.Sigma = RSMP->Sigma;
+			// The cooked case; the Sigma is ready; unless it is zero, in
+			// which case we fall back as for the raw case
+			if (RSMP->Sigma == 0.0)
+				SSMP.Sigma = (SIGMA == NULL) ? Sigma : SIGMA->setvalue (d);
+			else
+				SSMP.Sigma = RSMP->Sigma;
 		} else if (K == 0 || RSMP->NS < K) {
 			// Below threshold, use the default Sigma
-			SSMP.Sigma = (SIGMA == NULL) ? Sigma :
-				SIGMA->setvalue (d);
+			SSMP.Sigma = (SIGMA == NULL) ? Sigma : SIGMA->setvalue (d);
 		} else {
-			SSMP.Sigma = (float) sqrt (RSMP->Sigma /
-				(RSMP->NS - 1));
+			SSMP.Sigma = (float) sqrt (RSMP->Sigma / (RSMP->NS - 1));
 		}
 		memcpy (SMP, &SSMP, sizeof (rss_sample_t));
 

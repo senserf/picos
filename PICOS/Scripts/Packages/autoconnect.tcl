@@ -1,5 +1,6 @@
 package provide autoconnect 1.0
 
+
 package require unames
 
 ###############################################################################
@@ -35,7 +36,7 @@ proc autocn_heartbeat { } {
 	incr ACB(LRM)
 }
 
-proc autocn_start { op cl hs hc cc { po "" } { dl "" } } {
+proc autocn_start { op cl hs hc cc { po "" } { dl "" } { lf "" } } {
 #
 # op - open function
 # cl - close function
@@ -44,6 +45,7 @@ proc autocn_start { op cl hs hc cc { po "" } { dl "" } } {
 # cc - connection condition (if false, connection has been broken)
 # po - poll function (to kick the node if no heartbeat)
 # dl - explicit device list
+# lf - log function
 # 
 	variable ACB
 
@@ -54,8 +56,14 @@ proc autocn_start { op cl hs hc cc { po "" } { dl "" } } {
 	set ACB(CNC) [gize $cc]
 	set ACB(POL) [gize $po]
 	set ACB(DLI) $dl
+	set ACB(LDF) $lf
 
-	# trc "ACN START: $ACB(OPE) $ACB(CLO) $ACB(HSH) $ACB(HSC) $ACB(CNC) $ACB(POL) $ACB(DLI)"
+	set ACB(DVL) -1
+
+	if { $ACB(LDF) != "" } {
+		$ACB(LDF) "ACN START: $ACB(OPE) $ACB(CLO) $ACB(HSH) $ACB(HSC)\
+			$ACB(CNC) $ACB(POL) $ACB(DLI)"
+	}
 
 	# last device scan time
 	set ACB(LDS) 0
@@ -104,7 +112,10 @@ proc ac_callback { } {
 #
 	variable ACB
 
-	# trc "AC S=$ACB(STA)"
+	if { $ACB(LDF) != "" } {
+		$ACB(LDF) "AC S=$ACB(STA)"
+	}
+
 	if { $ACB(STA) == "R" } {
 		# CONNECTED
 		if ![$ACB(CNC)] {
@@ -177,9 +188,14 @@ proc ac_callback { } {
 				unames_scan
 				set ACB(DVS) [lindex [unames_choice] 0]
 			}
-			set ACB(DVL) [llength $ACB(DVS)]
+			set dvl [llength $ACB(DVS)]
+			if { $dvl != $ACB(DVL) } {
+				set ACB(DVL) $dvl
+			}
 			set ACB(LDS) $tm
-			# trc "AC RESCAN: $ACB(DVS), $ACB(DVL)"
+			if { $ACB(LDF) != "" } {
+				$ACB(LDF) "AC RESCAN: $ACB(DVS), $ACB(DVL)"
+			}
 		}
 		# index into the device table
 		set ACB(CUR) 0
@@ -192,7 +208,9 @@ proc ac_callback { } {
 
 	if { $ACB(STA) == "N" } {
 		# TRYING NEXT DEVICE
-		# trc "AC N CUR=$ACB(CUR), DVL=$ACB(DVL)"
+		if { $ACB(LDF) != "" } {
+			$ACB(LDF) "AC N CUR=$ACB(CUR), DVL=$ACB(DVL)"
+		}
 		# try to open a new UART
 		if { $ACB(CUR) >= $ACB(DVL) } {
 			if { $ACB(DVL) == 0 } {
@@ -229,7 +247,9 @@ proc ac_callback { } {
 			return
 		}
 		# sorry, try another one
-		# trc "AC C -> CLOSING"
+		if { $ACB(LDF) != "" } {
+			$ACB(LDF) "AC C -> CLOSING"
+		}
 		$ACB(CLO)
 		set ACB(STA) "N"
 		ac_again 100

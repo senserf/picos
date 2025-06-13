@@ -908,3 +908,9 @@ PG250505A:
 
 	A few modifications to the sampled channel model. For example, sampled
 	attenuation is now determined from 4 closest samples rather than all.
+
+PG250613A:
+
+	For the sampled channel model, if Sigma is 0.0 for a cooked sample, we
+	now assume that we should fall back to the raw case, i.e., use the
+	location-interpolated Sigma, if available, and the global Sigma, if not.
